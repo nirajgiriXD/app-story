@@ -1,0 +1,103 @@
+# Getting started
+
+## Requirements
+
+- Node.js 22+ and pnpm 10
+- FFmpeg and ffprobe on `PATH`
+- An Anthropic or OpenAI API key, and a text-to-speech key (OpenAI or ElevenLabs)
+
+## Install
+
+```bash
+pnpm install
+pnpm browsers:install          # Playwright Chromium
+cp .env.example .env           # then fill in your keys
+```
+
+Run the CLI with `pnpm demoforge <command>`. To get a global `demoforge` command:
+`cd apps/cli && pnpm link --global`.
+
+## Try the example product
+
+The repo ships a tiny app with synthetic data (`examples/projects-app`) and a product
+configuration for it (`products/example`).
+
+```bash
+pnpm example-app                                   # terminal 1: http://localhost:4310
+pnpm demoforge validate --product example          # terminal 2
+pnpm demoforge run --product example --scenario create-project --dry-run
+pnpm demoforge generate --product example --objective "Demonstrate how to create a new project"
+pnpm demoforge generate --product example --objective "..." --ai-provider openai
+pnpm demoforge generate --product example --scenario create-project
+```
+
+Each job writes to `output/<product>/<demo>/<job-id>/`:
+
+| Path | What |
+| --- | --- |
+| `video/final.mp4`, `video/thumbnail.png` | the rendered demo |
+| `metadata.json` | status, providers, models, tokens and cost estimate, errors |
+| `quality.json` | workflow, recording, audio and video checks |
+| `plan.json`, `scenario.yaml` | the verified workflow (AI-planned runs: an unapproved scenario draft) |
+| `recording/raw.mp4`, `recording/screenshots/` | the raw take, failure screenshots |
+| `narration/` | script, per-line audio clips, `audio.mp3` |
+| `captions/subtitles.srt`, `.vtt` | subtitles |
+| `logs/` | `execution.json`, `browser.json`, `errors.json`, `rehearsal.json`, `run.log`, `trace.zip` |
+
+Open a trace with `npx playwright show-trace output/.../logs/trace.zip`.
+
+## Add your own product
+
+```bash
+pnpm demoforge init                                 # creates products/<id>/
+pnpm demoforge browser inspect --product <id> --save-auth   # if the app needs a login
+pnpm demoforge validate --product <id>
+pnpm demoforge discover --product <id>              # optional: read-only exploration, demo ideas
+```
+
+Then describe the product in `instructions.md` and `knowledge/*.md`. See
+`templates/product/product.yaml` and `templates/scenario/scenario.yaml` for every option.
+
+## From objective to repeatable scenario
+
+1. `generate --objective "..." --save-scenario` plans and records a demo, and saves the
+   verified plan to `products/<id>/scenarios/` with `approved: false`.
+2. Review the steps (and optionally add `narration:` lines), then set `approved: true`.
+3. `generate --scenario <id>` (or `--all`) replays it deterministically, without AI planning.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `init` | create a product folder |
+| `products list` / `products inspect <id>` | see configured products and scenarios |
+| `validate --product <id>` | config, scenarios, credentials, FFmpeg, Chromium |
+| `discover --product <id>` | read-only exploration and demo suggestions |
+| `generate --product <id> --objective/--scenario/--all` | make videos |
+| `run --product <id> --scenario/--objective --dry-run` | run in the browser, no video |
+| `browser inspect --product <id> [--save-auth]` | open the app in a visible browser |
+| `history` | recent jobs |
+
+Global flags: `--products-dir`, `--output-dir`, `--log-level`. Provider flags on
+`generate`, `run` and `discover`: `--ai-provider`, `--ai-model`, `--tts-provider`.
+
+## Environment variables
+
+| Variable | Used for |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Claude |
+| `OPENAI_API_KEY` | OpenAI models and OpenAI text-to-speech |
+| `ELEVENLABS_API_KEY` | ElevenLabs text-to-speech |
+| `DEMOFORGE_AI_PROVIDER`, `DEMOFORGE_AI_MODEL`, `DEMOFORGE_TTS_PROVIDER` | override product.yaml (CLI flags win) |
+| `DEMOFORGE_PRODUCTS_DIR`, `DEMOFORGE_OUTPUT_DIR` | folder locations |
+| `DEMOFORGE_LOG_LEVEL` | `debug`, `info`, `warn`, ... |
+| product-specific, e.g. `EXAMPLE_APP_USER` | login credentials named in product.yaml |
+
+## Tests
+
+```bash
+pnpm test                 # unit (fast, no browser)
+pnpm test:integration     # real Chromium, recorder and Remotion; fake AI and voice
+pnpm test:e2e             # real APIs (costs money); skipped when keys are missing
+pnpm typecheck
+```

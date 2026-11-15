@@ -1,0 +1,97 @@
+# Full product.yaml reference. Only `version`, `product` and `providers` are required;
+# every other value below is the default. Copy what you need into products/<id>/product.yaml.
+version: 1
+
+product:
+  id: my-app                      # lowercase-dashes, must match the folder name
+  name: My App
+  description: What the product does, in one line.
+  base_url: https://demo.my-app.com
+  start_path: /                   # page every run starts from
+
+browser:
+  viewport: { width: 1920, height: 1080 }
+  device_scale_factor: 1          # e.g. 1600x900 at 1.2 records a sharp 1920x1080 with larger UI
+  allowed_domains: []             # defaults to the base_url host; "*.my-app.com" allows subdomains
+  locale: en-US
+  timezone: UTC
+  color_scheme: light
+  headless: true
+  navigation_timeout_ms: 30000
+  action_timeout_ms: 10000
+
+authentication:
+  strategy: none                  # none | storage_state | form
+  # storage_state:
+  #   storage_state_path: .secrets/my-app-state.json   # create with `demoforge browser inspect --save-auth`
+  # form:
+  #   login_path: /login
+  #   username_env: MY_APP_USER     # values come from .env, never from this file
+  #   password_env: MY_APP_PASSWORD
+  #   username_label: Email
+  #   password_label: Password
+  #   submit_text: Sign in
+  #   success_url_contains: /dashboard
+
+demo:
+  default_language: en
+  default_duration: 90            # seconds; guides planning and narration length
+  default_resolution: 1080p       # 720p | 1080p | 1440p | 4k
+  fps: 30
+  template: modern-saas           # minimal | modern-saas | product-update | tutorial | feature-highlight
+  # audience: Existing customers
+
+branding:
+  # logo: assets/logo.png         # relative to this folder
+  primary_color: "#2563EB"
+  accent_color: "#0F172A"
+  font: Inter
+  # background_music: assets/music.mp3
+  music_volume: 0.08              # ducked automatically under narration
+
+providers:
+  ai:
+    provider: anthropic           # anthropic | openai
+    # model: claude-opus-5-5      # any valid model id; omit for the provider default
+    # effort: high                # low | medium | high | xhigh | max
+    # temperature: 0.2            # only sent to models that accept it
+    max_iterations: 30
+    max_duration_s: 900
+    max_retries: 4
+    # pricing: { input_per_mtok: 4, output_per_mtok: 20, cached_input_per_mtok: 0.2 }   # for cost estimates
+  # ai_fallback:                  # optional; used only when the primary provider fails, always recorded
+  #   provider: openai
+  #   model: gpt-5
+  tts:
+    provider: openai              # openai | elevenlabs
+    # voice: marin                # ElevenLabs: a voice id
+    # model: gpt-4o-mini-tts
+    speed: 1.0
+    # style: Calm, clear and friendly.
+
+safety:
+  environment: demo               # demo | staging | production (production = read-only browser)
+  allow:
+    delete: false
+    payments: false
+    emails: false
+    publishing: false
+    account_settings: false
+    invite_users: false
+    production_data: false
+  blocked_keywords: []            # extra words that must never be clicked
+
+recording:
+  engine: cdp                     # cdp (sharp, recommended) | playwright
+  jpeg_quality: 92
+  min_step_ms: 900                # minimum time each step stays on screen
+  typing_delay_ms: 45
+  cursor_move_ms: 650
+  trace: true                     # Playwright trace in logs/trace.zip
+
+captions:
+  enabled: true
+  burn_in: true                   # draw captions into the video (SRT/VTT are always written)
+  font_size: 38
+  position: bottom
+  max_chars_per_line: 52

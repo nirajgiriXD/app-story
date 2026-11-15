@@ -1,0 +1,71 @@
+# Hand-written, approved scenario (Mode B). Every step has narration, so no AI call is
+# needed for the script; only text-to-speech is used.
+workflow_version: 1
+id: create-project
+title: Creating a new project
+objective: Demonstrate how to create a new project
+summary: Set up a project in a few seconds and see it on your team's list.
+audience: New Projectly users
+approved: true
+created_by: human
+
+steps:
+  - id: s1
+    section: Your projects
+    description: Look at the projects list
+    action: assert
+    expected:
+      type: visible
+      target: { role: heading, name: Projects }
+    narration: This is the Projects page, where you can see everything your team is working on, grouped by status.
+
+  - id: s2
+    section: Create a project
+    description: Open the new project form
+    action: click
+    target: { role: link, name: + New project }
+    expected:
+      type: url_contains
+      text: /projects/new
+    narration: To start something new, open the new project form.
+
+  - id: s3
+    section: Create a project
+    description: Name the project
+    action: fill
+    target: { label: Project name }
+    value: Q3 Product Launch
+    narration: Give the project a clear name, like Q3 Product Launch.
+
+  - id: s4
+    section: Create a project
+    description: Describe the project
+    action: fill
+    target: { label: Description }
+    value: Coordinate the launch of our new analytics features.
+    narration: Add a short description so everyone knows what it's about.
+
+  - id: s5
+    section: Create a project
+    description: Choose an owner
+    action: select
+    target: { label: Owner }
+    value: Priya Patel
+    narration: Then pick who owns it.
+
+  - id: s6
+    section: Create a project
+    description: Create the project
+    action: click
+    target: { role: button, name: Create project }
+    narration: Create the project, and Projectly takes you straight back to your list.
+
+  - id: s7
+    section: Confirmation
+    description: Confirm the project was created
+    action: assert
+    expected:
+      type: text_present
+      text: Project “Q3 Product Launch” created
+      description: The confirmation message shows the new project
+    narration: The confirmation shows the project was created, and it's highlighted at the top of the list, ready for your team.

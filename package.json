@@ -1,0 +1,43 @@
+{
+  "name": "demoforge-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.12.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "demoforge": "tsx apps/cli/src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "vitest run --project e2e",
+    "test:all": "vitest run",
+    "example-app": "node examples/projects-app/server.mjs",
+    "browsers:install": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@demoforge/ai": "workspace:*",
+    "@demoforge/browser": "workspace:*",
+    "@demoforge/captions": "workspace:*",
+    "@demoforge/cli": "workspace:*",
+    "@demoforge/contracts": "workspace:*",
+    "@demoforge/core": "workspace:*",
+    "@demoforge/narration": "workspace:*",
+    "@demoforge/products": "workspace:*",
+    "@demoforge/shared": "workspace:*",
+    "@demoforge/video": "workspace:*",
+    "@demoforge/workflow": "workspace:*",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "dotenv": "^18.0.10",
+    "openai": "^7.57.0",
+    "playwright": "^1.65.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  }
+}

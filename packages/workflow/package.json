@@ -1,0 +1,15 @@
+{
+  "name": "@demoforge/workflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@demoforge/browser": "workspace:*",
+    "@demoforge/contracts": "workspace:*",
+    "@demoforge/shared": "workspace:*",
+    "zod": "^4.6.7"
+  }
+}

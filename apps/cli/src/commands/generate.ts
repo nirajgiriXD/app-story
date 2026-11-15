@@ -1,0 +1,84 @@
+import { Command, Option } from "commander";
+import { generateDemo } from "@demoforge/core";
+import { loadScenario } from "@demoforge/products";
+import { DemoForgeError, mapWithConcurrency } from "@demoforge/shared";
+import { globals, openProduct, type ProviderFlags } from "../context";
+import { dim, exitCodeFor, printJob, yellow } from "../output";
+
+interface GenerateOptions extends ProviderFlags {
+  product: string;
+  objective?: string;
+  scenario?: string;
+  all?: boolean;
+  template?: string;
+  duration?: string;
+  audience?: string;
+  saveScenario?: boolean;
+  allowUnapproved?: boolean;
+  headed?: boolean;
+  concurrency: string;
+}
+
+export function providerFlags(cmd: Command): Command {
+  return cmd
+    .addOption(new Option("--ai-provider <provider>", "override the AI provider for this run").choices(["anthropic", "openai"]))
+    .option("--ai-model <model>", "override the AI model for this run")
+    .addOption(new Option("--tts-provider <provider>", "override the text-to-speech provider").choices(["elevenlabs", "openai"]));
+}
+
+export function generateCommand(): Command {
+  const cmd = new Command("generate")
+    .description("Generate a demo video from an objective (AI-planned) or a saved scenario")
+    .requiredOption("--product <id>", "product id")
+    .option("--objective <text>", "what to demonstrate, in plain language (Mode A)")
+    .option("--scenario <id>", "saved scenario to replay (Mode B)")
+    .option("--all", "generate every approved scenario of the product")
+    .option("--template <name>", "video template (minimal, modern-saas, product-update, tutorial, feature-highlight)")
+    .option("--duration <seconds>", "target video length in seconds")
+    .option("--audience <text>", "who the video is for")
+    .option("--save-scenario", "save the AI-planned workflow as an unapproved scenario for review")
+    .option("--allow-unapproved", "allow a scenario that has not been approved (review runs only)")
+    .option("--headed", "show the browser window while working")
+    .option("--concurrency <n>", "parallel jobs with --all", "1");
+  providerFlags(cmd);
+
+  return cmd.action(async (opts: GenerateOptions, command: Command) => {
+    const chosen = [opts.objective, opts.scenario, opts.all].filter(Boolean).length;
+    if (chosen !== 1) {
+      throw new DemoForgeError("CONFIG_INVALID", "Use exactly one of --objective, --scenario or --all.");
+    }
+    const { outputDir, logLevel } = globals(command);
+    const product = await openProduct(command, opts.product, opts);
+    const common = {
+      product,
+      outputDir,
+      logLevel,
+      templateName: opts.template,
+      durationS: opts.duration ? Number(opts.duration) : undefined,
+      audience: opts.audience,
+      headless: opts.headed ? false : undefined,
+      allowUnapproved: opts.allowUnapproved,
+      onJobCreated: (job: { id: string; paths: { root: string } }) => console.log(dim(`Job ${job.id} → ${job.paths.root}`)),
+    };
+
+    if (opts.all) {
+      const approved: string[] = [];
+      for (const id of product.scenarios) {
+        const w = await loadScenario(product, id).catch(() => undefined);
+        if (w?.approved) approved.push(id);
+        else console.log(yellow(`! skipping ${id} (not approved or invalid)`));
+      }
+      if (approved.length === 0) throw new DemoForgeError("SCENARIO_NOT_FOUND", "No approved scenarios to generate.");
+      const results = await mapWithConcurrency(approved, Math.max(1, Number(opts.concurrency)), (scenarioId) =>
+        generateDemo({ ...common, scenarioId }),
+      );
+      results.forEach(printJob);
+      process.exitCode = results.every((m) => exitCodeFor(m) === 0) ? 0 : 1;
+      return;
+    }
+
+    const metadata = await generateDemo({ ...common, objective: opts.objective, scenarioId: opts.scenario, saveScenario: opts.saveScenario });
+    printJob(metadata);
+    process.exitCode = exitCodeFor(metadata);
+  });
+}

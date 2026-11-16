@@ -19,7 +19,7 @@ npm run browsers:install       # Playwright Chromium
 cp .env.example .env           # then add your AI key
 ```
 
-Run it with `npx showrun`. For a global `showrun` command: `cd engine/cli && npm link`.
+Run it with `npx app-story`. For a global `app-story` command: `cd engine/cli && npm link`.
 
 ## Where things are
 
@@ -29,14 +29,14 @@ Run it with `npx showrun`. For a global `showrun` command: `cd engine/cli && npm
 | `output/` | **Yours.** Finished videos, nothing else |
 | `.env` | **Yours.** Your AI key, and any password a product file reads with `env:NAME` |
 | `docs/` | These guides |
-| `engine/` | Showrun itself; no need to touch it |
+| `engine/` | AppStory itself; no need to touch it |
 
 ## Try the practice app
 
 ```bash
 npm run example-app            # terminal 1: a tiny app at http://localhost:4310
-npx showrun check example    # terminal 2
-npx showrun example
+npx app-story check example    # terminal 2
+npx app-story example
 ```
 
 `products/example.md` describes it: its address, its login and its release notes.
@@ -44,49 +44,49 @@ npx showrun example
 ## Your own product
 
 ```bash
-npx showrun new acme         # creates products/acme.md and asks for the app's address
+npx app-story new acme         # creates products/acme.md and asks for the app's address
 ```
 
 Open `products/acme.md`, add the login if the app has one, describe the app in a few
 sentences, and paste your release notes. Then:
 
 ```bash
-npx showrun check acme                    # settings, keys, login, the app, local tools
-npx showrun acme                          # one video of everything new in the release notes
-npx showrun acme --each                   # one video per new feature
-npx showrun acme "show how to export"     # a video of anything else, in plain words
+npx app-story check acme                    # settings, keys, login, the app, local tools
+npx app-story acme                          # one video of everything new in the release notes
+npx app-story acme --each                   # one video per new feature
+npx app-story acme "show how to export"     # a video of anything else, in plain words
 ```
 
 What happens:
 
 1. The AI reads the release notes and picks the new features a viewer can see. Bug fixes,
    internal changes and headings like "Added"/"Fixed" are skipped. Both lists are printed.
-2. Showrun logs in. For each feature, the AI works out the clicks in the real app and
+2. AppStory logs in. For each feature, the AI works out the clicks in the real app and
    proves the feature works.
 3. The narration is written and spoken, the app is recorded at presentation speed in
    time with it, and the video is rendered and checked.
 
 The working click-plan is saved in the database. The next video of the same feature
 replays it: no AI planning, same video. Editing the feature in the release notes, or the
-app changing so the plan no longer works, makes Showrun plan again by itself. Use
+app changing so the plan no longer works, makes AppStory plan again by itself. Use
 `--fresh` to force it.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npx showrun <product> [goal]` | make videos (options: `--each`, `--fresh`, `--headed`) |
-| `npx showrun new <name>` | create `products/<name>.md` |
-| `npx showrun check <product>` | check settings, keys, login, the app and local tools |
-| `npx showrun list` | list your products |
-| `npx showrun history [product]` | recent videos |
+| `npx app-story <product> [goal]` | make videos (options: `--each`, `--fresh`, `--headed`) |
+| `npx app-story new <name>` | create `products/<name>.md` |
+| `npx app-story check <product>` | check settings, keys, login, the app and local tools |
+| `npx app-story list` | list your products |
+| `npx app-story history [product]` | recent videos |
 
 `--headed` shows the browser while it works. `--log-level` sets how much is printed.
 
 ## What a video job keeps
 
 Only the video goes to `output/<product>/<job-id>-<name>.mp4`. Everything else is in the
-SQLite database `engine/data/showrun.db` (see "Output" in the README):
+SQLite database `engine/data/app-story.db` (see "Output" in the README):
 
 | Record | What |
 | --- | --- |
@@ -104,7 +104,7 @@ failure screenshots and `logs/trace.zip` (open it with `npx playwright show-trac
 Any SQLite tool can read the database, for example:
 
 ```bash
-sqlite3 engine/data/showrun.db "SELECT created_at, product_id, status, video_path FROM jobs ORDER BY created_at DESC"
+sqlite3 engine/data/app-story.db "SELECT created_at, product_id, status, video_path FROM jobs ORDER BY created_at DESC"
 ```
 
 ## Environment variables
@@ -114,10 +114,10 @@ sqlite3 engine/data/showrun.db "SELECT created_at, product_id, status, video_pat
 | `ANTHROPIC_API_KEY` | Claude |
 | `OPENAI_API_KEY` | OpenAI models, and the optional OpenAI voice |
 | `ELEVENLABS_API_KEY` | optional; ElevenLabs voice |
-| `SHOWRUN_VOICE`, `SHOWRUN_VOICE_ACCENT`, `SHOWRUN_VOICE_SPEED`, `SHOWRUN_VOICE_TONE` | which voice speaks (female, male or a name), accent, speed and tone |
-| `SHOWRUN_AI_PROVIDER`, `SHOWRUN_AI_MODEL`, `SHOWRUN_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
-| `SHOWRUN_AI_EFFORT` | `low` to `max`: how hard the AI thinks in every step (default: `high` for planning, `low` for the script) |
-| `SHOWRUN_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
+| `APP_STORY_VOICE`, `APP_STORY_VOICE_ACCENT`, `APP_STORY_VOICE_SPEED`, `APP_STORY_VOICE_TONE` | which voice speaks (female, male or a name), accent, speed and tone |
+| `APP_STORY_AI_PROVIDER`, `APP_STORY_AI_MODEL`, `APP_STORY_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
+| `APP_STORY_AI_EFFORT` | `low` to `max`: how hard the AI thinks in every step (default: `high` for planning, `low` for the script) |
+| `APP_STORY_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
 | anything a product file names, e.g. `ACME_PASSWORD` | `login: demo@acme.com / env:ACME_PASSWORD` |
 
 All of them go in the root `.env`, which git ignores.

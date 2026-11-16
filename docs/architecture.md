@@ -26,7 +26,7 @@ product context every AI step reads. Logins are filled by `autoLogin` (in the br
 package), which finds the password field itself; `env:NAME` values are read from `.env`
 at login time and registered as secrets.
 
-## Pipeline (`npx showrun <product>`)
+## Pipeline (`npx app-story <product>`)
 
 0. **Features.** Without a goal, one structured AI call reads the product file and picks
    the new user-visible features from its release notes (`planFeatures`). Each becomes an
@@ -62,7 +62,7 @@ at login time and registered as secrets.
 ## Storage
 
 `output/` receives only the finished MP4. Everything else is in one SQLite file,
-`engine/data/showrun.db`, through Node's built-in `node:sqlite` (`Store` in
+`engine/data/app-story.db`, through Node's built-in `node:sqlite` (`Store` in
 `engine/packages/core/src/store/`): a `jobs` table with each job's metadata, `job_records`
 with everything a job produces (settings used, plan, practice run, narration, captions,
 reports, quality checks, log, thumbnail), `plans` with the saved click-plans, and `cache`
@@ -96,7 +96,7 @@ These were chosen deliberately (and agreed before building):
 - Anthropic: Messages API via `@anthropic-ai/sdk`, default `claude-opus-5-5`, adaptive
   thinking with `effort`, streaming agent turns, prompt caching of the agent loop.
 - Effort is set per phase (`PHASE_EFFORT`: `high` for the practice run and feature
-  picking, `low` for the script); `SHOWRUN_AI_EFFORT` overrides all of them. The practice
+  picking, `low` for the script); `APP_STORY_AI_EFFORT` overrides all of them. The practice
   agent may call several actions in one turn (they run in order and stop at the first
   error); only the last one returns the page snapshot. Old snapshots are never trimmed
   from the history: editing past turns would invalidate Claude's preserved thinking.

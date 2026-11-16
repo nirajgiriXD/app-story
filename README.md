@@ -1,42 +1,42 @@
-# Showrun
+# AppStory
 
 > An AI-powered platform for automatically exploring web applications, demonstrating product features, and generating professional product demo videos.
 
-Showrun uses AI agents powered by **Anthropic Claude or OpenAI**, **Playwright for real browser interaction**, and a video-rendering pipeline to turn product workflows into polished demonstration videos.
+AppStory uses AI agents powered by **Anthropic Claude or OpenAI**, **Playwright for real browser interaction**, and a video-rendering pipeline to turn product workflows into polished demonstration videos.
 
-The goal is to make product demo creation repeatable and largely automated. Instead of manually recording every feature, users provide a web application, define what they want to demonstrate, and let Showrun plan, execute, record, narrate, and render the demo.
+The goal is to make product demo creation repeatable and largely automated. Instead of manually recording every feature, users provide a web application, define what they want to demonstrate, and let AppStory plan, execute, record, narrate, and render the demo.
 
 ## Where things are
 
 ```text
-showrun/
+app-story/
 ├── products/     👉 your products: one file each, e.g. products/acme.md (see "Product files")
 ├── output/       👉 finished videos, nothing else (see "Output")
 ├── .env          👉 your AI key, voice choices, and passwords read with env:NAME
 ├── docs/         guides: start with docs/getting-started.md
-└── engine/       Showrun itself — no need to touch it to make videos (see "Engine")
+└── engine/       AppStory itself — no need to touch it to make videos (see "Engine")
 ```
 
 Quick start: `npm install`, `npm run browsers:install`, add a key to `.env`, then
-`npx showrun new acme`, fill in `products/acme.md`, and `npx showrun acme`.
+`npx app-story new acme`, fill in `products/acme.md`, and `npx app-story acme`.
 See [docs/getting-started.md](docs/getting-started.md).
 
 ## Product files
 
-Each product is a single Markdown file: `products/<name>.md`. That is all Showrun
+Each product is a single Markdown file: `products/<name>.md`. That is all AppStory
 needs. It never needs your product's source code: it opens the running app in a browser.
 
 ```bash
-npx showrun new acme          # creates products/acme.md
-npx showrun check acme        # checks it
-npx showrun acme              # one video of what's new in its release notes
+npx app-story new acme          # creates products/acme.md
+npx app-story check acme        # checks it
+npx app-story acme              # one video of what's new in its release notes
 ```
 
 `products/example.md` is a working product for the practice app (`npm run example-app`).
 
 ### What goes in the file
 
-A small settings block at the top, read by Showrun and **never sent to the AI**. Then
+A small settings block at the top, read by AppStory and **never sent to the AI**. Then
 plain English for the AI: what the app is, tips, and your release notes, as they are.
 
 ```markdown
@@ -73,7 +73,7 @@ form are for, and types believable values that fit. Credentials that a feature n
 (a test card, an API key, a second account) are used **only** if your file gives them;
 the AI never makes them up. Write secret ones as `{{env:NAME}}`, e.g.
 "Test card: `{{env:ACME_TEST_CARD}}`", so the value comes from `.env` and is hidden in logs.
-The app's own login is the `login:` setting, which Showrun handles before the AI starts.
+The app's own login is the `login:` setting, which AppStory handles before the AI starts.
 
 ### Settings
 
@@ -98,10 +98,10 @@ allow: delete, emails                      # risky actions are blocked unless li
 ```
 
 - **login**: `env:ACME_PASSWORD` reads the password from `.env`, so it never sits in a
-  file you might share. Writing the password directly works too. Showrun finds the
+  file you might share. Writing the password directly works too. AppStory finds the
   login form on its own; if it cannot, add `login page:`. Logins with two steps (email
   first, password on the next page) and single sign-on are not supported yet.
-- **allow**: by default Showrun never deletes, pays, sends emails, publishes, changes
+- **allow**: by default AppStory never deletes, pays, sends emails, publishes, changes
   account settings or invites users. List any of `delete, payments, emails, publishing,
   account settings, invite users, production data` to allow them.
 - **ai**: with keys for both providers, the other one is used as a backup if the first fails.
@@ -109,9 +109,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 
   | Template | Look | Picked by itself for |
   | --- | --- | --- |
-  | `product-update` | app in a browser window, dark background, "New" badge on the title | `npx showrun acme` (what's new) |
-  | `feature-highlight` | browser window, strongest zoom, biggest title | `npx showrun acme --each` (one feature per video) |
-  | `tutorial` | full screen, light, big cursor, close zoom | `npx showrun acme "show how to …"` (a how-to) |
+  | `product-update` | app in a browser window, dark background, "New" badge on the title | `npx app-story acme` (what's new) |
+  | `feature-highlight` | browser window, strongest zoom, biggest title | `npx app-story acme --each` (one feature per video) |
+  | `tutorial` | full screen, light, big cursor, close zoom | `npx app-story acme "show how to …"` (a how-to) |
   | `modern-saas` | browser window, colorful background, medium zoom | — |
   | `minimal` | full screen, plain light, gentle zoom, no chapter labels | — |
 
@@ -119,7 +119,7 @@ allow: delete, emails                      # risky actions are blocked unless li
 
 Files whose name starts with `_` (for example `_draft.md`) are not treated as products.
 
-### What Showrun handles by itself
+### What AppStory handles by itself
 
 - Picks the features from the release notes.
 - Logs in, plans the clicks in the real app, proves each feature works, then records it.
@@ -137,19 +137,19 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
 The voice is set in `.env` and applies to every product. All of it is optional.
 
 ```bash
-SHOWRUN_VOICE=female            # female | male | a voice name (default: female)
-SHOWRUN_VOICE_ACCENT=american   # american | british (default: american)
-SHOWRUN_VOICE_SPEED=1.0         # 0.7 (slower) to 1.3 (faster)
-SHOWRUN_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
+APP_STORY_VOICE=female            # female | male | a voice name (default: female)
+APP_STORY_VOICE_ACCENT=american   # american | british (default: american)
+APP_STORY_VOICE_SPEED=1.0         # 0.7 (slower) to 1.3 (faster)
+APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
 ```
 
 - **Kokoro** (the free default) picks its best voice for the gender and accent:
   female American *Heart*, male American *Michael*, female British *Emma*, male British
-  *George*. You can also name any Kokoro voice, e.g. `SHOWRUN_VOICE=am_puck`; the 28
-  names are listed by `npx showrun check <product>` when a name is wrong. Kokoro has no
+  *George*. You can also name any Kokoro voice, e.g. `APP_STORY_VOICE=am_puck`; the 28
+  names are listed by `npx app-story check <product>` when a name is wrong. Kokoro has no
   tone, emotion or pitch control.
 - **OpenAI** (`voice: openai` in the product file) needs a voice name, e.g. `marin`,
-  `cedar`, `coral` or `onyx`, and is the one that follows `SHOWRUN_VOICE_TONE`.
+  `cedar`, `coral` or `onyx`, and is the one that follows `APP_STORY_VOICE_TONE`.
 - **ElevenLabs** (`voice: elevenlabs`) needs a voice id from your ElevenLabs account.
 
 ## Output
@@ -163,7 +163,7 @@ output/
     └── 20261116-141010-d4e5f6-bulk-export.mp4
 ```
 
-Everything else is kept in one SQLite database, `engine/data/showrun.db` (ignored by
+Everything else is kept in one SQLite database, `engine/data/app-story.db` (ignored by
 git):
 
 | Table | What it keeps |
@@ -177,18 +177,18 @@ While a video is being made, its raw recording and voice clips sit in
 `engine/data/work/<job>/`. That folder is deleted when the video succeeds, and kept when it
 fails so you can see what happened (the path is printed).
 
-`npx showrun history` lists recent videos from the database. Deleting a video file is
+`npx app-story history` lists recent videos from the database. Deleting a video file is
 safe; deleting `engine/data/` forgets the history and the saved plans (the next videos
 are planned again).
 
 ## Engine
 
-`engine/` is Showrun itself. You do not need to change anything there to make videos:
+`engine/` is AppStory itself. You do not need to change anything there to make videos:
 your work happens in `products/`, and the videos land in `output/`.
 
 ```text
 engine/
-├── cli/            the `showrun` command (npx showrun ...)
+├── cli/            the `app-story` command (npx app-story ...)
 ├── packages/       the building blocks
 │   ├── core/         runs every step of a job, in order; keeps the SQLite database
 │   ├── ai/           talks to Anthropic or OpenAI; plans the clicks
@@ -220,7 +220,7 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
 ## 1. Vision
 
-Showrun should be a generic, reusable product-demo generation engine.
+AppStory should be a generic, reusable product-demo generation engine.
 
 It must not contain business logic or assumptions specific to any particular application.
 
@@ -255,7 +255,7 @@ demo:
   duration: 90
 ```
 
-Showrun should:
+AppStory should:
 
 1. Understand the product and the requested demonstration.
 2. Use the configured AI provider to plan the demonstration.
@@ -349,10 +349,10 @@ The first version should be a CLI-based application. Do not build a dashboard or
 
 # 4. Architecture
 
-Build Showrun as a modular system with clearly separated responsibilities.
+Build AppStory as a modular system with clearly separated responsibilities.
 
 ```text
-                         Showrun
+                         AppStory
                              |
                              v
                      Configuration Loader
@@ -410,7 +410,7 @@ tips and release notes (read by the AI). The engine contains no product-specific
 
 ## 4.3 AI Agent
 
-Showrun must support multiple AI providers, with **Anthropic Claude and OpenAI as first-class providers**.
+AppStory must support multiple AI providers, with **Anthropic Claude and OpenAI as first-class providers**.
 
 The user must be able to choose which AI provider powers the agent through product configuration, environment variables, or CLI options.
 
@@ -520,11 +520,11 @@ Never store API keys in product YAML files or commit them to Git.
 
 ### Provider override
 
-The product file picks the provider (`ai: openai`); without it, Showrun uses the one
+The product file picks the provider (`ai: openai`); without it, AppStory uses the one
 that has a key. For a single run, override it from the environment:
 
 ```bash
-SHOWRUN_AI_PROVIDER=openai showrun easydash
+APP_STORY_AI_PROVIDER=openai app-story easydash
 ```
 
 ### Important implementation requirements
@@ -734,8 +734,8 @@ Secrets must never be committed: `env:NAME` reads a value from the git-ignored `
 ## From release notes (default)
 
 ```bash
-showrun easydash            # one video of everything new
-showrun easydash --each     # one video per new feature (two are made at a time)
+app-story easydash            # one video of everything new
+app-story easydash --each     # one video per new feature (two are made at a time)
 ```
 
 The AI picks the new user-visible features from the release notes, then plans, verifies,
@@ -744,7 +744,7 @@ records and narrates each one.
 ## From a plain-language goal
 
 ```bash
-showrun easydash "Demonstrate how to create and restore a website backup"
+app-story easydash "Demonstrate how to create and restore a website backup"
 ```
 
 ## Repeatable runs
@@ -759,11 +759,11 @@ on `--fresh`.
 # 7. CLI Interface
 
 ```bash
-showrun <product> [goal]      # make videos (--each, --fresh, --headed)
-showrun new <name>            # create products/<name>.md
-showrun check <product>       # settings, keys, login, the app, local tools
-showrun list                  # list products
-showrun history [product]     # recent videos
+app-story <product> [goal]      # make videos (--each, --fresh, --headed)
+app-story new <name>            # create products/<name>.md
+app-story check <product>       # settings, keys, login, the app, local tools
+app-story list                  # list products
+app-story history [product]     # recent videos
 ```
 
 ---
@@ -774,15 +774,15 @@ Use an npm workspaces monorepo. What users touch stays at the top level; everyth
 lives in `engine/`.
 
 ```text
-showrun/
+app-story/
 ├── products/                 user-owned: one file per product
 │   └── example.md            the practice app
 │
 ├── output/                   finished videos only (git-ignored)
 ├── docs/
 │
-├── engine/                   Showrun itself
-│   ├── cli/                  the showrun command
+├── engine/                   AppStory itself
+│   ├── cli/                  the app-story command
 │   ├── packages/
 │   │   ├── core/             orchestrator, pipeline, plans, job-manager, SQLite store
 │   │   ├── ai/               providers, agents, prompts, tools, factory
@@ -822,7 +822,7 @@ output/
     20261116-134205-a1b2c3-website-backup.mp4
 ```
 
-Everything else is in the SQLite database `engine/data/showrun.db`: the `jobs` table
+Everything else is in the SQLite database `engine/data/app-story.db`: the `jobs` table
 (product, objective, timestamps, AI provider and model, voice, workflow version, status,
 recording duration, video path, token usage and estimated AI cost, errors), `job_records`
 (settings used, plan, practice run, narration, captions, reports, quality checks, log,
@@ -833,7 +833,7 @@ thumbnail) and `plans` (saved click-plans). A job's scratch files live in
 
 # 10. Agent Execution and Reliability
 
-This is one of the most important parts of Showrun.
+This is one of the most important parts of AppStory.
 
 The agent must be capable of handling real-world application differences without turning every workflow into unreliable autonomous browsing.
 
@@ -899,7 +899,7 @@ However:
 
 # 11. Security
 
-Showrun will interact with real applications, so security must be part of the architecture.
+AppStory will interact with real applications, so security must be part of the architecture.
 
 Implement:
 
@@ -916,7 +916,7 @@ Implement:
 11. Secure handling of authentication state.
 12. Safe handling of untrusted page content.
 
-Treat website content as untrusted input. A webpage may contain prompt-injection instructions. Such content must never override Showrun system policies or tool permissions.
+Treat website content as untrusted input. A webpage may contain prompt-injection instructions. Such content must never override AppStory system policies or tool permissions.
 
 Support configurable restrictions for:
 
@@ -1176,7 +1176,7 @@ Use a simple test web application with synthetic data.
 The program should accept:
 
 ```bash
-showrun example "Demonstrate how to create a new project"
+app-story example "Demonstrate how to create a new project"
 ```
 
 It must then:
@@ -1238,7 +1238,7 @@ Every implementation phase must leave the project in a working state.
 
 The initial release is complete when a user can:
 
-1. Install Showrun.
+1. Install AppStory.
 2. Initialize a product.
 3. Configure its URL and authentication.
 4. Select Anthropic Claude or OpenAI.
@@ -1251,7 +1251,7 @@ The initial release is complete when a user can:
 11. Generate subtitles.
 12. Render a professional MP4.
 13. Review the generated video and execution report.
-14. Repeat the process for another product without modifying Showrun's core code.
+14. Repeat the process for another product without modifying AppStory's core code.
 15. Switch AI providers without changing product configurations or workflow implementations unnecessarily.
 
 **The ultimate objective: one reusable engine, multiple products, multiple AI providers, automated product demonstrations, and minimal manual video editing.**

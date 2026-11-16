@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCues, chunkText, toSrt, toVtt, wrapLines } from "@app-story/captions";
-import { cameraAt, cameraTransform, cursorAt, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@app-story/video";
+import { cameraAt, cameraTransform, cursorAt, followPointer, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@app-story/video";
 
 describe("captions", () => {
   it("splits into sentences and screen-sized chunks", () => {
@@ -68,6 +68,38 @@ describe("video timeline", () => {
     const t = cameraTransform(mid, viewport);
     expect(-t.tx).toBeLessThanOrEqual(viewport.width - viewport.width / mid.scale + 0.001);
     expect(-t.ty).toBeGreaterThanOrEqual(0);
+  });
+
+  it("follows the pointer while zoomed in, gliding instead of jumping", () => {
+    const viewport = { width: 1600, height: 900 };
+    const zoom = { scale: 1.5, rampMs: 500 };
+    // The pointer rests on one field, then moves across the page to another and stays there.
+    const pointer = [
+      { t: 0, x: 300, y: 200 },
+      { t: 2000, x: 300, y: 200 },
+      { t: 2600, x: 1300, y: 700 },
+    ];
+    const groups = mergeFocusWindows([
+      { startMs: 1000, endMs: 2000, box: { x: 250, y: 180, width: 100, height: 40 } },
+      { startMs: 2000, endMs: 4000, box: { x: 1250, y: 680, width: 100, height: 40 } },
+    ]);
+    const follow = followPointer(pointer, 5000);
+    const at = (t: number) => cameraAt(t, groups, viewport, zoom, follow);
+
+    expect(at(1800)).toMatchObject({ x: expect.closeTo(300, 0), y: expect.closeTo(200, 0) });
+    expect(at(3800)).toMatchObject({ x: expect.closeTo(1300, 0), y: expect.closeTo(700, 0) });
+    let last = at(1500);
+    for (let t = 1500; t <= 4000; t += 1000 / 30) {
+      const camera = at(t);
+      expect(camera.x).toBeGreaterThanOrEqual(last.x - 0.5); // always on its way, never back
+      expect(Math.hypot(camera.x - last.x, camera.y - last.y)).toBeLessThan(60); // no jumps between frames
+      const view = cameraTransform(camera, viewport);
+      const p = cursorAt(t, pointer) as { x: number; y: number };
+      expect(p.x).toBeGreaterThanOrEqual(-view.tx);
+      expect(p.x).toBeLessThanOrEqual(-view.tx + viewport.width / view.scale); // the pointer stays in view
+      expect(p.y).toBeLessThanOrEqual(-view.ty + viewport.height / view.scale);
+      last = camera;
+    }
   });
 
   it("merges nearby focus windows so the camera pans", () => {

@@ -6,7 +6,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** Prompt versions in use. Bump the file suffix (and this table) when a prompt changes meaningfully. */
 export const PROMPT_VERSIONS = {
-  rehearsal: "v1",
+  rehearsal: "v2",
   narration: "v1",
   "release-notes": "v2",
 } as const;

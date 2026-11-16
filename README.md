@@ -67,6 +67,14 @@ The headings are only a suggestion: the AI reads all of it. From the release not
 picks the new features a viewer can see and skips fixes and internal changes. You
 never write click-by-click steps. Text inside `<!-- -->` is ignored.
 
+**Form data.** When the demo fills a form, the AI uses any values your file gives for it
+(for example "use the customer Bob's Bakery"). Otherwise it reads what the product and the
+form are for, and types believable values that fit. Credentials that a feature needs
+(a test card, an API key, a second account) are used **only** if your file gives them;
+the AI never makes them up. Write secret ones as `{{env:NAME}}`, e.g.
+"Test card: `{{env:ACME_TEST_CARD}}`", so the value comes from `.env` and is hidden in logs.
+The app's own login is the `login:` setting, which DemoForge handles before the AI starts.
+
 ### Settings
 
 Only `url` is required. Everything else has a sensible default.

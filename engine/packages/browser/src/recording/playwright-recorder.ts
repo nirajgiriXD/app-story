@@ -1,6 +1,6 @@
 import type { Page } from "playwright";
 import { runFfmpeg } from "@showrun/shared";
-import type { Recorder, RecorderResult } from "./cdp-recorder";
+import { intermediateVideoArgs, type Recorder, type RecorderResult } from "./cdp-recorder";
 
 /**
  * Fallback recorder using Playwright's built-in `recordVideo`. The context must have been
@@ -28,12 +28,7 @@ export class PlaywrightVideoRecorder implements Recorder {
     await this.page.close();
     const webm = await video.path();
     const { width, height, fps } = this.options;
-    await runFfmpeg([
-      "-i", webm,
-      "-vf", `scale=${width}:${height}:flags=lanczos,fps=${fps},format=yuv420p`,
-      "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-movflags", "+faststart",
-      outputPath,
-    ]);
+    await runFfmpeg(["-i", webm, ...intermediateVideoArgs(width, height, fps), outputPath]);
     return { path: outputPath, durationMs: stoppedAt - this.startedAt, frames: 0, width, height };
   }
 }

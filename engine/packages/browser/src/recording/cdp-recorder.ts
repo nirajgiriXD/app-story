@@ -18,6 +18,21 @@ export interface Recorder {
   stop(outputPath: string): Promise<RecorderResult>;
 }
 
+/**
+ * FFmpeg output options for the intermediate recording. It is only read once more, by the
+ * renderer, so it is stored lossless (no second round of compression on small UI text) and
+ * with full colour detail (4:4:4), which `ultrafast` also encodes several times faster than
+ * a compressed `medium` encode. Colours are converted and tagged as BT.709, which is what
+ * the final video uses, so nothing shifts between the browser and the MP4.
+ */
+export function intermediateVideoArgs(width: number, height: number, fps: number): string[] {
+  return [
+    "-vf", `scale=${width}:${height}:flags=lanczos:out_color_matrix=bt709:out_range=tv,fps=${fps},format=yuv444p`,
+    "-c:v", "libx264", "-preset", "ultrafast", "-qp", "0",
+    "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
+  ];
+}
+
 interface Frame {
   file: string;
   t: number; // epoch ms
@@ -95,12 +110,7 @@ export class CdpScreencastRecorder implements Recorder {
     await writeFile(listFile, lines.join("\n"), "utf8");
 
     const { width, height, fps } = this.options;
-    await runFfmpeg([
-      "-f", "concat", "-safe", "0", "-i", listFile,
-      "-vf", `scale=${width}:${height}:flags=lanczos,fps=${fps},format=yuv420p`,
-      "-c:v", "libx264", "-preset", "medium", "-crf", "16", "-movflags", "+faststart",
-      outputPath,
-    ]);
+    await runFfmpeg(["-f", "concat", "-safe", "0", "-i", listFile, ...intermediateVideoArgs(width, height, fps), outputPath]);
     await rm(this.framesDir, { recursive: true, force: true });
     this.options.log.debug({ frames: frames.length }, "screen recording encoded");
     return { path: outputPath, durationMs: stoppedAt - this.startedAt, frames: frames.length, width, height };

@@ -46,7 +46,7 @@ describe("product file", () => {
   it("needs only a url; everything else has a sensible default", () => {
     const { config, brief } = parse(file("url: https://staging.acme.test/app?tab=1"));
     expect(config.product).toMatchObject({ id: "acme", name: "Acme", description: "Acme is a billing tool for small shops.", base_url: "https://staging.acme.test", start_path: "/app?tab=1" });
-    expect(config.browser).toMatchObject({ viewport: { width: 1600, height: 900 }, device_scale_factor: 1.2, allowed_domains: ["staging.acme.test"] });
+    expect(config.browser).toMatchObject({ viewport: { width: 1600, height: 900 }, device_scale_factor: 2, allowed_domains: ["staging.acme.test"] });
     expect(config.authentication).toEqual({ strategy: "none" });
     expect(config.providers.tts.provider).toBe("kokoro");
     expect(config.demo.default_duration).toBe(90);

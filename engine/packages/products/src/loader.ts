@@ -191,8 +191,9 @@ export function parseProductFile(text: string, file: string, id: string): { conf
   const config = ProductConfigSchema.safeParse({
     version: 1,
     product: { id, name, description, base_url: url.origin, start_path: s["start page"] ?? `${url.pathname}${url.search}` },
-    // A 16:9 viewport rendered at 1.2x: a sharp 1920x1080 recording with comfortably large UI.
-    browser: { viewport: { width: 1600, height: 900 }, device_scale_factor: 1.2, allowed_domains: [url.host] },
+    // A 16:9 viewport with comfortably large UI, recorded at 2x (3200x1800): the video zooms
+    // in up to ~1.9x on screen, and at 1080p that needs about two pixels per CSS pixel to stay sharp.
+    browser: { viewport: { width: 1600, height: 900 }, device_scale_factor: 2, allowed_domains: [url.host] },
     authentication: login ? { strategy: "auto", ...login, login_path: s["login page"] } : { strategy: "none" },
     demo: { default_language: s.language, default_duration: s.length, template: s.template },
     branding: { logo: s.logo, primary_color: s.color },

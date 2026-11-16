@@ -3,10 +3,22 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createJob, deliverVideo, finishJob, readHistory, saveRecord, storeFor } from "@app-story/core";
-import { parseWorkflow } from "@app-story/products";
+import { DatabaseSync } from "node:sqlite";
+import {
+  countPlans,
+  createJob,
+  deliverVideo,
+  finishJob,
+  forgetPlan,
+  loadSavedPlan,
+  planFile,
+  readHistory,
+  saveRecord,
+  savePlan,
+  storeFor,
+} from "@app-story/core";
+import { loadProduct, parseWorkflow } from "@app-story/products";
 import { readFile } from "node:fs/promises";
-import { forgetPlan, loadSavedPlan, savePlan } from "../../packages/core/src/pipeline/plans";
 
 const job = (outputDir: string, productId: string, name: string) =>
   createJob({ outputDir, productId, name, mode: "guided", objective: `show ${name}`, scenarioId: null, logLevel: "silent" });
@@ -78,18 +90,55 @@ describe("job history in SQLite", () => {
 });
 
 describe("saved plans", () => {
-  it("are reused only for the same objective", async () => {
-    const store = storeFor(await workspace());
-    const plan = parseWorkflow(await readFile("engine/tests/fixtures/create-project.plan.yaml", "utf8"));
+  /** A workspace with one product file, and the store next to it. */
+  const productWorkspace = async () => {
+    const root = await mkdtemp(join(tmpdir(), "df-plans-"));
+    await mkdir(join(root, "products"));
+    await writeFile(join(root, "products", "example.md"), "---\nurl: http://localhost:4310\n---\n# Example\n");
+    return { product: await loadProduct(join(root, "products"), "example"), store: storeFor(join(root, "output")), root };
+  };
+  const fixture = async () => parseWorkflow(await readFile("engine/tests/fixtures/create-project.plan.yaml", "utf8"));
 
-    expect(loadSavedPlan(store, "example", "Create a project!", plan.objective)).toBeUndefined(); // nothing saved yet
-    savePlan(store, "example", "Create a project!", plan);
-    expect(store.countPlans("example")).toBe(1);
-    expect(loadSavedPlan(store, "example", "create-a-project", plan.objective)?.steps).toHaveLength(plan.steps.length);
+  it("are YAML files next to the product file, reused only for the same objective", async () => {
+    const { product, store, root } = await productWorkspace();
+    const plan = await fixture();
+
+    expect(await loadSavedPlan(store, product, "Create a project!", plan.objective)).toBeUndefined(); // nothing saved yet
+    const file = await savePlan(product, "Create a project!", plan);
+    expect(file).toBe(join(root, "products", "example.plans", "create-a-project.yaml"));
+    expect(await readFile(file, "utf8")).toMatch(/^# A verified click-plan/);
+    expect(await countPlans(product)).toBe(1);
+    expect((await loadSavedPlan(store, product, "create-a-project", plan.objective))?.steps).toEqual(plan.steps);
     // Edited release notes give a different objective: plan again.
-    expect(loadSavedPlan(store, "example", "create-a-project", `${plan.objective} (now with tags)`)).toBeUndefined();
+    expect(await loadSavedPlan(store, product, "create-a-project", `${plan.objective} (now with tags)`)).toBeUndefined();
 
-    forgetPlan(store, "example", "create-a-project");
-    expect(store.countPlans("example")).toBe(0);
+    await forgetPlan(product, "create-a-project");
+    expect(await countPlans(product)).toBe(0);
+  });
+
+  it("says which file is broken instead of planning again silently", async () => {
+    const { product, store } = await productWorkspace();
+    const plan = await fixture();
+    const file = await savePlan(product, "create-a-project", plan);
+    await writeFile(file, "steps: [oops");
+    await expect(loadSavedPlan(store, product, "create-a-project", plan.objective)).rejects.toThrow(/create-a-project\.yaml/);
+  });
+
+  it("moves a plan saved in the database by an older version to its file", async () => {
+    const { product, store } = await productWorkspace();
+    const plan = await fixture();
+    const db = new DatabaseSync(store.file);
+    db.prepare("INSERT INTO plans (product_id, key, objective, workflow, saved_at) VALUES (?, ?, ?, ?, ?)").run(
+      "example",
+      "create-a-project",
+      plan.objective,
+      JSON.stringify(plan),
+      new Date().toISOString(),
+    );
+    db.close();
+
+    expect((await loadSavedPlan(store, product, "create-a-project", plan.objective))?.steps).toEqual(plan.steps);
+    expect(existsSync(planFile(product, "create-a-project"))).toBe(true);
+    expect(store.takeLegacyPlan("example", "create-a-project")).toBeUndefined();
   });
 });

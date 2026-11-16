@@ -26,9 +26,9 @@ export function checkCommand(): Command {
   return new Command("check")
     .description("Check a product file, keys, login, the app and local tools")
     .argument("<product>", "product name")
-    .action(async (id: string, _opts, cmd: Command) => {
+    .action(async (id: string) => {
       const product = await openProduct(id);
-      const items = await validateProduct(product, { outputDir: globals(cmd).outputDir });
+      const items = await validateProduct(product);
       for (const item of items) {
         const icon = item.level === "ok" ? green("✔") : item.level === "warning" ? yellow("!") : red("✖");
         console.log(`${icon} ${item.message}`);

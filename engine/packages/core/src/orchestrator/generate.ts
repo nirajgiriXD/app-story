@@ -24,7 +24,7 @@ export interface GenerateRequest {
   name?: string;
   /** Replay this plan instead of planning (used by tests). */
   plan?: Workflow;
-  /** Reuse and save verified plans in the database (default: true). */
+  /** Reuse and save verified plans next to the product file (default: true). */
   reusePlans?: boolean;
   /** Ignore a saved plan and plan again. */
   fresh?: boolean;
@@ -114,7 +114,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     let workflow = request.plan;
     let fromSavedPlan = false;
     if (!workflow && reuse && !request.fresh) {
-      workflow = loadSavedPlan(job.store, product.id, name, request.objective);
+      workflow = await loadSavedPlan(job.store, product, name, request.objective);
       if (workflow) {
         fromSavedPlan = true;
         job.metadata.mode = "scenario";
@@ -133,7 +133,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       if (!fromSavedPlan || !(isAppStoryError(error) && STALE_PLAN_CODES.has(error.code))) throw error;
       job.log.warn({ error: (error as Error).message }, "the saved plan no longer works (did the app change?); planning again");
       job.metadata.warnings.push("The saved plan no longer matched the app, so the demo was planned again.");
-      forgetPlan(job.store, product.id, name);
+      await forgetPlan(product, name);
       fromSavedPlan = false;
       job.metadata.mode = "guided";
       phase = "plan";
@@ -177,7 +177,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       status = job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
       // The video is the only file in output/; keep the verified plan for the next video.
       await deliverVideo(job);
-      if (reuse && !fromSavedPlan) savePlan(job.store, product.id, name, workflow);
+      if (reuse && !fromSavedPlan) await savePlan(product, name, workflow);
     }
     return await finishJob(job, status);
   } catch (error) {

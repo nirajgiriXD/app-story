@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@app-story/contracts";
-import { generateDemo, storeFor } from "@app-story/core";
+import { generateDemo, planFile, savePlan, storeFor } from "@app-story/core";
 import { loadProduct, parseWorkflow } from "@app-story/products";
 import { probeMedia } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
@@ -30,6 +30,14 @@ beforeAll(async () => {
 });
 
 afterAll(() => app?.stop());
+
+/** The practice product in a folder of its own, so saved plans of one test never meet another's. */
+async function productIn(folder: string) {
+  const dir = join(root, folder, "products");
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, "example.md"), await readFile(join(productsDir, "example.md"), "utf8"));
+  return { product: await loadProduct(dir, "example"), out: join(root, folder, "output") };
+}
 
 const T = (o: Record<string, unknown>) => ({ role: null, name: null, label: null, text: null, placeholder: null, test_id: null, css: null, nth: null, ...o });
 
@@ -129,16 +137,15 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
   });
 
   it("plans with AI, saves the plan, then replays it next time without AI planning", async () => {
-    const product = await loadProduct(productsDir, "example");
+    const { product, out } = await productIn("replay");
     const ai = plannerAI();
     const providers = { createAI: (_config: unknown, deps: { usage: unknown }) => Object.assign(ai, { usage: deps.usage }), createTTS: () => new ToneTTS() };
-    const out = join(root, "replay", "output");
 
     const first = await generateDemo({ product, outputDir: out, objective: OBJECTIVE, name: "create-project", logLevel: "warn", providers });
     expect(first.errors).toEqual([]);
     expect(first.mode).toBe("guided");
-    const saved = storeFor(out).getPlan("example", "create-project");
-    expect(saved?.workflow.steps.map((s) => s.action)).toEqual(["click", "fill", "click", "assert"]);
+    const saved = parseWorkflow(await readFile(planFile(product, "create-project"), "utf8"));
+    expect(saved.steps.map((s) => s.action)).toEqual(["click", "fill", "click", "assert"]);
     const agentTurns = ai.received.length;
 
     const second = await generateDemo({ product, outputDir: out, objective: OBJECTIVE, name: "create-project", logLevel: "warn", providers });
@@ -149,8 +156,7 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
   });
 
   it("plans again by itself when a saved plan no longer matches the app", async () => {
-    const product = await loadProduct(productsDir, "example");
-    const out = join(root, "stale", "output");
+    const { product, out } = await productIn("stale");
     // A saved plan for the same objective whose button no longer exists.
     const stale: Workflow = {
       ...plan,
@@ -159,7 +165,7 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
         { id: "s2", description: "Check the list", action: "assert", expected: { type: "text_present", text: "Projects" } },
       ],
     };
-    storeFor(out).savePlan("example", "create-project", { ...stale, objective: OBJECTIVE });
+    await savePlan(product, "create-project", { ...stale, objective: OBJECTIVE });
 
     const ai = plannerAI();
     const metadata = await generateDemo({
@@ -173,7 +179,7 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(metadata.errors).toEqual([]);
     expect(metadata.status).toBe("success_with_warnings");
     expect(metadata.warnings.join()).toMatch(/planned again/);
-    const replaced = storeFor(out).getPlan("example", "create-project")?.workflow;
-    expect(replaced?.steps.some((s) => s.value === "Website Launch")).toBe(true);
+    const replaced = parseWorkflow(await readFile(planFile(product, "create-project"), "utf8"));
+    expect(replaced.steps.some((s) => s.value === "Website Launch")).toBe(true);
   });
 });

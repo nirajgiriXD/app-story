@@ -1,8 +1,8 @@
 import { chromium } from "playwright";
 import { pickTemplate, resolveKokoroVoice } from "@app-story/contracts";
 import { resolveProductPath, type LoadedProduct } from "@app-story/products";
-import { credentialEnvName, dataDirFor, fileExists, hasBinary } from "@app-story/shared";
-import { Store } from "../store/store";
+import { credentialEnvName, fileExists, hasBinary } from "@app-story/shared";
+import { countPlans, plansDir } from "../pipeline/plans";
 
 export interface ValidationItem {
   level: "ok" | "warning" | "error";
@@ -16,7 +16,7 @@ const API_KEYS: Record<string, string> = {
 };
 
 /** Check a product file, keys, login, the app and local tools. Opens no browser. */
-export async function validateProduct(product: LoadedProduct, options: { outputDir?: string } = {}): Promise<ValidationItem[]> {
+export async function validateProduct(product: LoadedProduct): Promise<ValidationItem[]> {
   const items: ValidationItem[] = [];
   const ok = (message: string) => items.push({ level: "ok", message });
   const warn = (message: string) => items.push({ level: "warning", message });
@@ -91,10 +91,8 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
     if (path && !(await fileExists(resolveProductPath(product, path)))) warn(`file not found: ${path}`);
   }
 
-  if (options.outputDir) {
-    const plans = Store.open(dataDirFor(options.outputDir)).countPlans(product.id);
-    if (plans) ok(`${plans} saved plan(s) will be replayed without AI planning`);
-  }
+  const plans = await countPlans(product);
+  if (plans) ok(`${plans} saved plan(s) in ${plansDir(product)} will be replayed without AI planning`);
 
   if (await hasBinary("ffmpeg")) ok("ffmpeg found");
   else error("ffmpeg not found on PATH");

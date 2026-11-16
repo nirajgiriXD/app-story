@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS job_records (
   PRIMARY KEY (job_id, kind)
 );
 
+-- Older versions saved plans here; they are files next to the product file now.
 CREATE TABLE IF NOT EXISTS plans (
   product_id TEXT NOT NULL,
   key        TEXT NOT NULL,
@@ -88,8 +89,8 @@ export function storeFor(outputDir: string): Store {
 
 /**
  * Everything AppStory tracks, in one SQLite file (`.app-story/app-story.db` in the user's
- * project): jobs and their metadata, every record a job produces, the saved plans and the cache.
- * Finished videos live in `output/`. Uses Node's
+ * project): jobs and their metadata, every record a job produces, and the cache. Finished
+ * videos live in `output/` and the saved plans next to the product files. Uses Node's
  * built-in `node:sqlite`.
  */
 export class Store {
@@ -229,29 +230,15 @@ export class Store {
 
   // ----------------------------------------------------------------- plans
 
-  getPlan(productId: string, key: string): { objective: string; workflow: Workflow } | undefined {
-    const row = this.db.prepare("SELECT objective, workflow FROM plans WHERE product_id = ? AND key = ?").get(productId, key) as
-      | { objective: string; workflow: string }
-      | undefined;
-    return row ? { objective: row.objective, workflow: JSON.parse(row.workflow) as Workflow } : undefined;
-  }
-
-  savePlan(productId: string, key: string, workflow: Workflow): void {
-    this.db
-      .prepare(
-        `INSERT INTO plans (product_id, key, objective, workflow, saved_at) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (product_id, key) DO UPDATE SET objective = excluded.objective, workflow = excluded.workflow, saved_at = excluded.saved_at`,
-      )
-      .run(productId, key, workflow.objective, JSON.stringify(workflow), new Date().toISOString());
-  }
-
-  deletePlan(productId: string, key: string): void {
+  /**
+   * A plan saved by an older version, which kept plans here (they are files now, see
+   * pipeline/plans.ts). Returned once and removed, so it can be moved to its file.
+   */
+  takeLegacyPlan(productId: string, key: string): Workflow | undefined {
+    const row = this.db.prepare("SELECT workflow FROM plans WHERE product_id = ? AND key = ?").get(productId, key) as { workflow: string } | undefined;
+    if (!row) return undefined;
     this.db.prepare("DELETE FROM plans WHERE product_id = ? AND key = ?").run(productId, key);
-  }
-
-  countPlans(productId: string): number {
-    const row = this.db.prepare("SELECT COUNT(*) AS n FROM plans WHERE product_id = ?").get(productId) as { n: number };
-    return Number(row.n);
+    return JSON.parse(row.workflow) as Workflow;
   }
 }
 

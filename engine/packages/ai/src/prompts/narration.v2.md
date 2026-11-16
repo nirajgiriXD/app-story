@@ -16,8 +16,12 @@ You write the voice-over for a professional SaaS product demo video. The video s
 - Never mention anything that is not in the step list. Never describe an outcome before the step that verifies it.
 - Do not read out secret values or passwords.
 
-# Length
+# Length and timing
 
-Speech runs at about 150 words per minute. Aim for the total word count given in the request. Short steps (a click) can share a segment; a step that shows an important result can have its own.
+Speech runs at about 150 words per minute (2.5 words per second). Each step says roughly how long it is on screen. The recording waits for each line to finish before the next segment's steps start, so a line that is longer than its steps freezes the screen. Size every segment to about as long as its steps take: a 3-second click gets a short phrase, a form that takes 8 seconds to fill gets a full sentence. Group quick steps into one segment rather than writing a line for each. Keep the total near the word count given in the request. A step that shows the final result can run a little longer.
+
+# Be concrete
+
+Use the details you are given: say what is typed when it helps the story (the project name, the amount), and name the result the step shows. Speak to the kind of video and the audience in the request.
 
 Write in the requested language.

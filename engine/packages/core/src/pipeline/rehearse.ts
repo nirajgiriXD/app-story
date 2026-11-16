@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { Workflow } from "@showrun/contracts";
+import type { VideoKind, Workflow } from "@showrun/contracts";
 import { runRehearsal, type ProductContext, type RehearsalOutcome } from "@showrun/ai";
 import type { LoadedProduct } from "@showrun/products";
 import { ShowrunError, type ErrorCode } from "@showrun/shared";
@@ -20,6 +20,7 @@ export function productContext(product: LoadedProduct): ProductContext {
 export interface RehearseOptions {
   objective: string;
   audience?: string;
+  kind?: VideoKind;
   durationS: number;
   headless?: boolean;
 }
@@ -54,6 +55,7 @@ export async function rehearseWorkflow(
           product: productContext(product),
           objective: options.objective,
           audience: options.audience,
+          kind: options.kind,
           targetDurationS: options.durationS,
           maxIterations: config.providers.ai.max_iterations,
           maxDurationS: config.providers.ai.max_duration_s,

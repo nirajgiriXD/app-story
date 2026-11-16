@@ -6,11 +6,37 @@ export interface ScriptRequest {
   workflow: Workflow;
   product: ProductContext;
   language: string;
+  /** The longest the video should be. */
   targetDurationS: number;
   audience?: string;
+  kind?: VideoKind;
+  /** About how long each step is on screen (ms), by step id. */
+  stepTimesMs?: Record<string, number>;
 }
 
 const WORDS_PER_SECOND = 2.5;
+
+const KIND_GUIDANCE: Record<VideoKind, string> = {
+  "whats-new": "An announcement of what is new in this release: present each feature as something the viewer can now do.",
+  feature: "A spotlight on one feature: what it is for and the value it brings, shown end to end.",
+  "how-to": "A tutorial: a clear sequence the viewer can repeat on their own (first, then, finally).",
+};
+
+/** The step as the script writer sees it: what happens, what is typed, what it proves, how long it lasts. */
+function describeForScript(step: Step, ms: number | undefined): string {
+  const parts = [`- ${step.id} [${step.action}${step.section ? `, section "${step.section}"` : ""}]`, step.description];
+  const hidden = step.secret || /\{\{\s*env:/.test(step.value ?? "");
+  if (step.value !== undefined && (step.action === "fill" || step.action === "select")) {
+    parts.push(hidden ? "(secret value, never say it)" : `- value: "${step.value}"`);
+  }
+  if (step.expected) {
+    const proof = [step.expected.description, step.expected.text && `"${step.expected.text}"`].filter(Boolean).join(" ");
+    if (proof) parts.push(`- shows: ${proof}`);
+  }
+  if (step.narration) parts.push(`- author note: ${step.narration}`);
+  if (ms) parts.push(`(~${(ms / 1000).toFixed(1)}s on screen)`);
+  return parts.join(" ");
+}
 
 /**
  * Narration comes from the verified workflow only. When the scenario author wrote
@@ -32,17 +58,19 @@ export async function writeNarrationScript(request: ScriptRequest): Promise<{ sc
     throw new Error("Narration needs an AI provider unless every scenario step has `narration` text.");
   }
 
-  const steps = workflow.steps
-    .map((s) => `- ${s.id} [${s.action}${s.section ? `, section "${s.section}"` : ""}] ${s.secret ? "(secret value) " : ""}${s.description}${s.narration ? ` — author note: ${s.narration}` : ""}`)
-    .join("\n");
-  const words = Math.round(request.targetDurationS * WORDS_PER_SECOND * 0.75);
+  const times = request.stepTimesMs ?? {};
+  const steps = workflow.steps.map((s) => describeForScript(s, times[s.id])).join("\n");
+  const words = segmentWordBudget(workflow.steps, times, request.targetDurationS);
   const prompt = [
     formatProductContext(request.product),
     `# Video\nTitle: ${workflow.title}\nObjective: ${workflow.objective}${workflow.summary ? `\nSummary: ${workflow.summary}` : ""}`,
+    request.kind ? `# Kind of video\n${KIND_GUIDANCE[request.kind]}` : "",
     `# Audience\n${request.audience ?? workflow.audience ?? "Users of the product"}`,
     `# Verified steps, in order\n${steps}`,
-    `# Requirements\nLanguage: ${request.language}\nTotal words: about ${words}.`,
-  ].join("\n\n");
+    `# Requirements\nLanguage: ${request.language}\nSegments: about ${words} words in total, sized to the steps they cover (see Length).\nIntro: at most 25 words. Outro: at most 15 words.`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   const script = await request.provider.generateStructuredOutput({
     system: loadPrompt("narration"),
@@ -52,6 +80,19 @@ export async function writeNarrationScript(request: ScriptRequest): Promise<{ sc
     effort: PHASE_EFFORT.narration,
   });
   return { script: normalizeScript(script, workflow.steps.map((s) => s.id)), source: "ai" };
+}
+
+/**
+ * Words for all segments together: about as long to say as the steps take on screen, so the
+ * recording never stands still waiting for the voice. Never more than the video's length allows.
+ */
+export function segmentWordBudget(steps: readonly Step[], stepTimesMs: Record<string, number>, maxDurationS: number): number {
+  const ceiling = Math.round(maxDurationS * WORDS_PER_SECOND * 0.75);
+  const onScreenS = steps.reduce((sum, s) => sum + (stepTimesMs[s.id] ?? 0), 0) / 1000;
+  if (onScreenS === 0) return ceiling;
+  // A little over the action time is fine: the camera holds on each result for a moment.
+  const fitted = Math.max(onScreenS * WORDS_PER_SECOND * 1.15, steps.length * 6);
+  return Math.round(Math.min(ceiling, fitted));
 }
 
 /**

@@ -97,8 +97,9 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
     add("video", "resolution correct", final.width === w && final.height === h, "error", `${final.width}x${final.height}`);
     const drift = Math.abs(final.durationSec * 1000 - input.plan.totalMs);
     add("video", "duration matches timeline (audio in sync)", drift < 1000, "error", `drift ${Math.round(drift)}ms`);
+    // The length is a maximum: a short, tight video is fine; title cards add a few seconds.
     const target = input.config.demo.default_duration;
-    add("video", "close to requested duration", final.durationSec <= target * 2 && final.durationSec >= target * 0.25, "warning", `${final.durationSec.toFixed(1)}s vs ~${target}s requested`);
+    add("video", "within the requested length", final.durationSec <= target * 1.25 + 8, "warning", `${final.durationSec.toFixed(1)}s, at most ~${target}s requested`);
   }
   const maxLine = Math.max(0, ...input.cues.flatMap((c) => c.text.split("\n").map((l) => l.length)));
   const tooFast = input.cues.filter((c) => c.end_ms - c.start_ms < 700);

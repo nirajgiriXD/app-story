@@ -63,7 +63,13 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   const reuse = request.reusePlans !== false && !request.plan;
   let phase = "plan";
 
-  const planWithAI = () => rehearseWorkflow(job, product, { objective: request.objective, durationS, headless: request.headless }, overrides);
+  const planWithAI = () =>
+    rehearseWorkflow(
+      job,
+      product,
+      { objective: request.objective, audience: config.demo.audience, kind: request.kind, durationS, headless: request.headless },
+      overrides,
+    );
 
   const check = async (workflow: Workflow) => {
     job.metadata.workflow_version = WORKFLOW_VERSION;
@@ -79,7 +85,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   // Narration first (script + speech), so the recording can be paced to it.
   const narrateAndRecord = async (workflow: Workflow) => {
     phase = "narration";
-    const narration = await prepareNarration(job, product, workflow, { durationS }, overrides);
+    const narration = await prepareNarration(job, product, workflow, { durationS, kind: request.kind }, overrides);
     await saveMetadata(job);
     phase = "recording";
     const recorded = await recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless });

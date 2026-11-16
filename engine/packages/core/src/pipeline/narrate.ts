@@ -1,4 +1,5 @@
-import type { AudioClip, NarrationScript, Workflow } from "@showrun/contracts";
+import type { AudioClip, NarrationScript, VideoKind, Workflow } from "@showrun/contracts";
+import { estimateStepMs } from "@showrun/workflow";
 import { synthesizeNarration, writeNarrationScript } from "@showrun/narration";
 import type { LoadedProduct } from "@showrun/products";
 import { saveRecord, type Job } from "../job-manager/job";
@@ -16,16 +17,23 @@ export async function prepareNarration(
   job: Job,
   product: LoadedProduct,
   workflow: Workflow,
-  options: { durationS: number; audience?: string },
+  options: { durationS: number; audience?: string; kind?: VideoKind },
   overrides: ProviderOverrides,
 ): Promise<NarrationResult> {
   const config = product.config;
+  const pacing = {
+    minStepMs: config.recording.min_step_ms,
+    typingDelayMs: config.recording.typing_delay_ms,
+    cursorMoveMs: config.recording.cursor_move_ms,
+  };
   const request = {
     workflow,
     product: productContext(product),
     language: config.demo.default_language,
     targetDurationS: options.durationS,
     audience: options.audience ?? config.demo.audience,
+    kind: options.kind,
+    stepTimesMs: Object.fromEntries(workflow.steps.map((s) => [s.id, estimateStepMs(s, pacing)])),
   };
   const { script, source } = workflow.steps.every((s) => s.narration)
     ? await writeNarrationScript({ ...request, provider: undefined })

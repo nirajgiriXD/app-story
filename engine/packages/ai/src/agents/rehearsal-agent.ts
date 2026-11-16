@@ -1,4 +1,4 @@
-import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepResult, type Workflow } from "@showrun/contracts";
+import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepResult, type VideoKind, type Workflow } from "@showrun/contracts";
 import type { BrowserController } from "@showrun/browser";
 import { assembleWorkflow, executeStep } from "@showrun/workflow";
 import type { Logger } from "@showrun/shared";
@@ -14,6 +14,8 @@ export interface RehearsalInput {
   product: ProductContext;
   objective: string;
   audience?: string;
+  kind?: VideoKind;
+  /** The longest the video should be. */
   targetDurationS: number;
   maxIterations: number;
   maxDurationS: number;
@@ -32,6 +34,12 @@ export type RehearsalOutcome =
       iterations: number;
     }
   | { status: "incomplete"; reason: string; report: ExecutionReport; iterations: number };
+
+const KIND_LABEL: Record<VideoKind, string> = {
+  "whats-new": "What's new: a tour of each new feature in this release.",
+  feature: "Feature spotlight: one feature, shown end to end.",
+  "how-to": "How-to: a task the viewer should be able to repeat on their own.",
+};
 
 interface Executed {
   step: Step;
@@ -137,7 +145,8 @@ export async function runRehearsal(input: RehearsalInput): Promise<RehearsalOutc
     formatProductContext(input.product),
     `# Demonstration objective\n${input.objective}`,
     input.audience ? `# Audience\n${input.audience}` : "",
-    `# Target video length\nAbout ${input.targetDurationS} seconds, so keep the demo focused (typically 4–12 steps).`,
+    input.kind ? `# Kind of video\n${KIND_LABEL[input.kind]}` : "",
+    `# Video length\nAt most ${input.targetDurationS} seconds, so keep the demo focused (typically 4–12 steps).`,
     `# Current page\n${await describePage(controller)}`,
   ]
     .filter(Boolean)

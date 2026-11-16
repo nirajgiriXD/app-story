@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -19,7 +20,13 @@ export type RecordKind =
   | "log"
   | "thumbnail";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
+
+/** Cached AI and speech results that nobody has used for this long are deleted. */
+const CACHE_DAYS = 30;
+
+/** What the cache holds: the feature list of a product file, a narration script, a spoken clip. */
+export type CacheKind = "features" | "narration_script" | "speech";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS jobs (
@@ -57,7 +64,20 @@ CREATE TABLE IF NOT EXISTS plans (
   saved_at   TEXT NOT NULL,
   PRIMARY KEY (product_id, key)
 );
+
+CREATE TABLE IF NOT EXISTS cache (
+  key     TEXT PRIMARY KEY,
+  kind    TEXT NOT NULL,
+  content TEXT,
+  data    BLOB,
+  used_at TEXT NOT NULL
+);
 `;
+
+/** A stable cache key for any JSON-able inputs. */
+export function cacheKey(kind: CacheKind, inputs: unknown): string {
+  return `${kind}:${createHash("sha256").update(JSON.stringify(inputs)).digest("hex")}`;
+}
 
 const open = new Map<string, Store>();
 
@@ -92,6 +112,42 @@ export class Store {
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;");
     this.db.exec(SCHEMA);
     this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+    const cutoff = new Date(Date.now() - CACHE_DAYS * 86_400_000).toISOString();
+    this.db.prepare("DELETE FROM cache WHERE used_at < ?").run(cutoff);
+  }
+
+  // ----------------------------------------------------------------- cache
+
+  /**
+   * Results that are expensive to make and identical for identical inputs (an AI answer
+   * for the same text, speech for the same line), so a re-run does not pay for them again.
+   */
+  getCachedText(key: string): string | undefined {
+    const row = this.db.prepare("SELECT content FROM cache WHERE key = ?").get(key) as { content: string | null } | undefined;
+    if (!row?.content) return undefined;
+    this.touch(key);
+    return row.content;
+  }
+
+  getCachedBlob(key: string): Buffer | undefined {
+    const row = this.db.prepare("SELECT data FROM cache WHERE key = ?").get(key) as { data: Uint8Array | null } | undefined;
+    if (!row?.data) return undefined;
+    this.touch(key);
+    return Buffer.from(row.data);
+  }
+
+  setCached(key: string, kind: CacheKind, value: string | Buffer): void {
+    const isBlob = Buffer.isBuffer(value);
+    this.db
+      .prepare(
+        `INSERT INTO cache (key, kind, content, data, used_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (key) DO UPDATE SET content = excluded.content, data = excluded.data, used_at = excluded.used_at`,
+      )
+      .run(key, kind, isBlob ? null : redactSecrets(value as string), isBlob ? (value as Buffer) : null, new Date().toISOString());
+  }
+
+  private touch(key: string): void {
+    this.db.prepare("UPDATE cache SET used_at = ? WHERE key = ?").run(new Date().toISOString(), key);
   }
 
   // ------------------------------------------------------------------ jobs

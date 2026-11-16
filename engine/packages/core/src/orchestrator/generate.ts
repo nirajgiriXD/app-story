@@ -88,7 +88,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   // Narration first (script + speech), so the recording can be paced to it.
   const narrateAndRecord = async (workflow: Workflow) => {
     phase = "narration";
-    const narration = await prepareNarration(job, product, workflow, { durationS, kind: request.kind }, overrides);
+    const narration = await prepareNarration(job, product, workflow, { durationS, kind: request.kind, fresh: request.fresh }, overrides);
     await saveMetadata(job);
     phase = "recording";
     const recorded = await recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless });

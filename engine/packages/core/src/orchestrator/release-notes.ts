@@ -1,13 +1,18 @@
-import { createAIProvider, pickFeatures, UsageTracker } from "@showrun/ai";
-import type { AiProviderConfig, FeaturePlan } from "@showrun/contracts";
+import { PROMPT_VERSIONS, createAIProvider, pickFeatures, UsageTracker } from "@showrun/ai";
+import { FeaturePlanSchema, type AiProviderConfig, type FeaturePlan } from "@showrun/contracts";
 import type { LoadedProduct } from "@showrun/products";
 import { ShowrunError, createLogger, isShowrunError } from "@showrun/shared";
 import type { ProviderOverrides } from "../pipeline/providers";
+import { cacheKey, storeFor } from "../store/store";
 
 export interface PickFeaturesRequest {
   product: LoadedProduct;
   logLevel?: string;
   providers?: ProviderOverrides;
+  /** Output folder; its database caches the answer for an unchanged product file. */
+  outputDir?: string;
+  /** Ask the AI again even if this product file was read before. */
+  fresh?: boolean;
 }
 
 export interface PickFeaturesResult {
@@ -15,6 +20,8 @@ export interface PickFeaturesResult {
   provider: string;
   model: string;
   costUsd: number | null;
+  /** True when the answer came from an earlier run with the same product file. */
+  cached: boolean;
 }
 
 /**
@@ -32,6 +39,18 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
   const log = createLogger({ level: request.logLevel });
   const { config } = product;
   const context = { name: config.product.name, description: config.product.description, baseUrl: config.product.base_url };
+
+  // The same product file gives the same features: reuse the earlier answer.
+  const store = request.outputDir ? storeFor(request.outputDir) : undefined;
+  const key = cacheKey("features", { context, brief: product.brief, prompt: PROMPT_VERSIONS["release-notes"] });
+  const saved = request.fresh ? undefined : store?.getCachedText(key);
+  if (saved) {
+    const plan = FeaturePlanSchema.safeParse(JSON.parse(saved));
+    if (plan.success && plan.data.features.length > 0) {
+      log.info("features from the earlier run (product file unchanged)");
+      return { plan: plan.data, provider: config.providers.ai.provider, model: config.providers.ai.model ?? "(cached)", costUsd: null, cached: true };
+    }
+  }
 
   const read = async (ai: AiProviderConfig) => {
     const deps = { usage, log };
@@ -56,5 +75,6 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
       hint: `Add release notes with user-visible features, or say what to show: npx showrun ${product.id} "..."`,
     });
   }
-  return { plan, provider: provider.name, model: provider.model, costUsd: usage.summary().estimated_cost_usd };
+  store?.setCached(key, "features", JSON.stringify(plan));
+  return { plan, provider: provider.name, model: provider.model, costUsd: usage.summary().estimated_cost_usd, cached: false };
 }

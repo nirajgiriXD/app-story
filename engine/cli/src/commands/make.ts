@@ -27,7 +27,9 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
   }
   const { outputDir, logLevel } = globals(cmd);
   const product = await openProduct(productId);
-  const jobs = goal ? [{ objective: goal, name: slugify(goal), kind: "how-to" as const }] : await featureJobs(product, Boolean(opts.each), logLevel);
+  const jobs = goal
+    ? [{ objective: goal, name: slugify(goal), kind: "how-to" as const }]
+    : await featureJobs(product, Boolean(opts.each), { logLevel, outputDir, fresh: opts.fresh });
 
   const results = [];
   for (const job of jobs) {
@@ -51,10 +53,10 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
 async function featureJobs(
   product: LoadedProduct,
   each: boolean,
-  logLevel: string | undefined,
+  options: { logLevel: string | undefined; outputDir: string; fresh?: boolean },
 ): Promise<{ objective: string; name: string; kind: VideoKind }[]> {
-  const { plan, costUsd } = await planFeatures({ product, logLevel });
-  const cost = costUsd ? ` · $${costUsd.toFixed(3)}` : "";
+  const { plan, costUsd, cached } = await planFeatures({ product, ...options });
+  const cost = cached ? " · from last run" : costUsd ? ` · $${costUsd.toFixed(3)}` : "";
   console.log(`${bold(`New in ${plan.title ?? product.config.product.name}`)} ${dim(`(from ${product.file}${cost})`)}`);
   for (const f of plan.features) console.log(`  ${green("•")} ${f.title}`);
   for (const s of plan.skipped) console.log(dim(`  - skipped: ${s.item} (${s.reason})`));

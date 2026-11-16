@@ -1,8 +1,14 @@
 import { join } from "node:path";
-import { rename, rm } from "node:fs/promises";
+import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import type { AudioClip, NarrationScript } from "@showrun/contracts";
 import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, runProcess, type Logger } from "@showrun/shared";
 import type { TTSProvider } from "../providers/tts";
+
+/** Finished clips for lines that were spoken before, keyed by the line's text. */
+export interface SpeechCache {
+  get(text: string): Buffer | undefined;
+  set(text: string, audio: Buffer): void;
+}
 
 /** Spoken-word loudness target (EBU R128 style), the same for every clip. */
 const LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11";
@@ -17,6 +23,7 @@ export async function synthesizeNarration(
   tts: TTSProvider,
   dir: string,
   log: Logger,
+  cache?: SpeechCache,
 ): Promise<AudioClip[]> {
   await ensureDir(dir);
   type Item = Omit<AudioClip, "path" | "duration_ms">;
@@ -29,20 +36,26 @@ export async function synthesizeNarration(
 
   return mapWithConcurrency(items, 3, async (item) => {
     const path = join(dir, `${item.id}.wav`);
-    // Raw speech in whatever format the provider returns; FFmpeg reads it by content.
-    const raw = join(dir, `${item.id}.raw.wav`);
-    await tts.synthesize(item.text, raw);
-    if (tts.silent) {
-      await rename(raw, path); // already WAV, and nothing to normalise in silence
+    const cached = cache?.get(item.text);
+    if (cached) {
+      await writeFile(path, cached);
     } else {
-      await normalize(raw, path).catch(async (error: Error) => {
-        log.warn({ clip: item.id, error: error.message }, "loudness normalisation failed; using raw audio");
-        await runFfmpeg(["-i", raw, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", path]);
-      });
-      await rm(raw, { force: true });
+      // Raw speech in whatever format the provider returns; FFmpeg reads it by content.
+      const raw = join(dir, `${item.id}.raw.wav`);
+      await tts.synthesize(item.text, raw);
+      if (tts.silent) {
+        await rename(raw, path); // already WAV, and nothing to normalise in silence
+      } else {
+        await normalize(raw, path).catch(async (error: Error) => {
+          log.warn({ clip: item.id, error: error.message }, "loudness normalisation failed; using raw audio");
+          await runFfmpeg(["-i", raw, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", path]);
+        });
+        await rm(raw, { force: true });
+      }
+      cache?.set(item.text, await readFile(path));
     }
     const probe = await probeMedia(path);
-    log.info({ clip: item.id, seconds: probe.durationSec.toFixed(1) }, "narration clip ready");
+    log.info({ clip: item.id, seconds: probe.durationSec.toFixed(1), cached: Boolean(cached) }, "narration clip ready");
     return { ...item, path, duration_ms: Math.round(probe.durationSec * 1000) };
   });
 }

@@ -1,4 +1,4 @@
-import type { AudioClip, PlacedClip, Step } from "@showrun/contracts";
+import type { AudioClip, PlacedClip, Step } from "@app-story/contracts";
 
 export interface PacerClock {
   now(): number;

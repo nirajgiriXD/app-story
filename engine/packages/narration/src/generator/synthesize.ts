@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
-import type { AudioClip, NarrationScript } from "@showrun/contracts";
-import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, runProcess, type Logger } from "@showrun/shared";
+import type { AudioClip, NarrationScript } from "@app-story/contracts";
+import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, runProcess, type Logger } from "@app-story/shared";
 import type { TTSProvider } from "../providers/tts";
 
 /** Finished clips for lines that were spoken before, keyed by the line's text. */

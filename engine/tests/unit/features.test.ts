@@ -2,12 +2,12 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { AIProvider } from "@showrun/ai";
-import { ProductConfigSchema, resolveKokoroVoice, type FeaturePlan } from "@showrun/contracts";
-import { planFeatures } from "@showrun/core";
-import { createTTSProvider } from "@showrun/narration";
-import { applyVoiceSettings, loadProduct, objectiveForAllFeatures, objectiveForFeature } from "@showrun/products";
-import { ShowrunError } from "@showrun/shared";
+import type { AIProvider } from "@app-story/ai";
+import { ProductConfigSchema, resolveKokoroVoice, type FeaturePlan } from "@app-story/contracts";
+import { planFeatures } from "@app-story/core";
+import { createTTSProvider } from "@app-story/narration";
+import { applyVoiceSettings, loadProduct, objectiveForAllFeatures, objectiveForFeature } from "@app-story/products";
+import { AppStoryError } from "@app-story/shared";
 import { ScriptedProvider } from "../support/fakes";
 
 /** A typical changelog: section headings, bullets, and a fix with nothing to show. */
@@ -56,9 +56,9 @@ describe("picking features from the product file", () => {
     const product = await productWith("# Shop\n\n## Release notes\n### Fixed\n- Crash when saving an empty report.\n");
     const ai = new ScriptedProvider([], { feature_plan: { title: null, features: [], skipped: PLAN.skipped } });
     const error = await planFeatures({ product, logLevel: "silent", providers: { createAI: () => ai } }).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(ShowrunError);
-    expect((error as ShowrunError).code).toBe("UNSUPPORTED_WORKFLOW");
-    expect((error as ShowrunError).message).toContain("Crash when saving an empty report (bug fix with nothing to show)");
+    expect(error).toBeInstanceOf(AppStoryError);
+    expect((error as AppStoryError).code).toBe("UNSUPPORTED_WORKFLOW");
+    expect((error as AppStoryError).message).toContain("Crash when saving an empty report (bug fix with nothing to show)");
   });
 
   it("reports an empty product file before calling the AI", async () => {
@@ -82,7 +82,7 @@ describe("picking features from the product file", () => {
         name: "anthropic",
         model: "down",
         generateStructuredOutput: async () => {
-          throw new ShowrunError("PROVIDER_ERROR", "outage");
+          throw new AppStoryError("PROVIDER_ERROR", "outage");
         },
       } as unknown as AIProvider;
       const backup = new ScriptedProvider([], { feature_plan: PLAN });
@@ -143,42 +143,42 @@ describe("voice settings from .env", () => {
 
   it("picks the best Kokoro voice for a gender and accent", () => {
     expect(voiceOf({})).toBe("af_heart");
-    expect(voiceOf({ SHOWRUN_VOICE: "male" })).toBe("am_michael");
-    expect(voiceOf({ SHOWRUN_VOICE: "Female", SHOWRUN_VOICE_ACCENT: "British" })).toBe("bf_emma");
-    expect(voiceOf({ SHOWRUN_VOICE: "male", SHOWRUN_VOICE_ACCENT: "british" })).toBe("bm_george");
+    expect(voiceOf({ APP_STORY_VOICE: "male" })).toBe("am_michael");
+    expect(voiceOf({ APP_STORY_VOICE: "Female", APP_STORY_VOICE_ACCENT: "British" })).toBe("bf_emma");
+    expect(voiceOf({ APP_STORY_VOICE: "male", APP_STORY_VOICE_ACCENT: "british" })).toBe("bm_george");
     expect(resolveKokoroVoice("male", "british")).toMatchObject({ name: "George", gender: "male", accent: "british" });
   });
 
   it("accepts a Kokoro voice by id or name", () => {
-    expect(voiceOf({ SHOWRUN_VOICE: "am_puck" })).toBe("am_puck");
-    expect(voiceOf({ SHOWRUN_VOICE: "Emma" })).toBe("bf_emma");
+    expect(voiceOf({ APP_STORY_VOICE: "am_puck" })).toBe("am_puck");
+    expect(voiceOf({ APP_STORY_VOICE: "Emma" })).toBe("bf_emma");
   });
 
   it("reads speed and tone", () => {
-    const tts = applyVoiceSettings({ provider: "openai", speed: 1 }, { SHOWRUN_VOICE: "cedar", SHOWRUN_VOICE_SPEED: "1.15", SHOWRUN_VOICE_TONE: "warm and upbeat" });
+    const tts = applyVoiceSettings({ provider: "openai", speed: 1 }, { APP_STORY_VOICE: "cedar", APP_STORY_VOICE_SPEED: "1.15", APP_STORY_VOICE_TONE: "warm and upbeat" });
     expect(tts).toMatchObject({ voice: "cedar", speed: 1.15, style: "warm and upbeat" });
   });
 
   it("rejects mistakes before any AI work, with the fix in the message", () => {
-    expect(() => applyVoiceSettings(kokoro, { SHOWRUN_VOICE: "robot" })).toThrow(/Unknown voice 'robot'/);
+    expect(() => applyVoiceSettings(kokoro, { APP_STORY_VOICE: "robot" })).toThrow(/Unknown voice 'robot'/);
     try {
-      applyVoiceSettings(kokoro, { SHOWRUN_VOICE: "robot" });
+      applyVoiceSettings(kokoro, { APP_STORY_VOICE: "robot" });
     } catch (error) {
-      expect((error as ShowrunError).hint).toContain("am_michael");
+      expect((error as AppStoryError).hint).toContain("am_michael");
     }
-    expect(() => applyVoiceSettings(kokoro, { SHOWRUN_VOICE_ACCENT: "australian" })).toThrow(/american or british/);
-    expect(() => applyVoiceSettings(kokoro, { SHOWRUN_VOICE_SPEED: "2" })).toThrow(/0.7 .* to 1.3/);
-    expect(() => applyVoiceSettings({ provider: "openai", speed: 1 }, { SHOWRUN_VOICE: "male" })).toThrow(/only the free Kokoro voice/);
+    expect(() => applyVoiceSettings(kokoro, { APP_STORY_VOICE_ACCENT: "australian" })).toThrow(/american or british/);
+    expect(() => applyVoiceSettings(kokoro, { APP_STORY_VOICE_SPEED: "2" })).toThrow(/0.7 .* to 1.3/);
+    expect(() => applyVoiceSettings({ provider: "openai", speed: 1 }, { APP_STORY_VOICE: "male" })).toThrow(/only the free Kokoro voice/);
   });
 
   it("applies to every product through the loader", async () => {
-    process.env.SHOWRUN_VOICE = "male";
+    process.env.APP_STORY_VOICE = "male";
     try {
       const product = await productWith("# Shop\n");
       expect(product.config.providers.tts).toMatchObject({ provider: "kokoro", voice: "male" });
       expect(createTTSProvider(product.config.providers.tts).voice).toBe("am_michael");
     } finally {
-      delete process.env.SHOWRUN_VOICE;
+      delete process.env.APP_STORY_VOICE;
     }
   });
 });

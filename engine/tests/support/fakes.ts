@@ -1,6 +1,6 @@
-import type { TtsConfig } from "@showrun/contracts";
-import type { TTSProvider } from "@showrun/narration";
-import { runFfmpeg } from "@showrun/shared";
+import type { TtsConfig } from "@app-story/contracts";
+import type { TTSProvider } from "@app-story/narration";
+import { runFfmpeg } from "@app-story/shared";
 import type {
   AIProvider,
   AgentInput,
@@ -9,7 +9,7 @@ import type {
   StructuredGenerationRequest,
   ToolCall,
   UsageTracker,
-} from "@showrun/ai";
+} from "@app-story/ai";
 
 /** Test-only TTS: a soft tone whose length matches natural speech for the text. */
 export class ToneTTS implements TTSProvider {

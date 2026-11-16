@@ -1,4 +1,4 @@
-import type { SafetyConfig, StepAction } from "@showrun/contracts";
+import type { SafetyConfig, StepAction } from "@app-story/contracts";
 
 export type SensitiveCategory = "delete" | "payments" | "emails" | "publishing" | "account_settings" | "invite_users";
 

@@ -1,8 +1,8 @@
 import { join } from "node:path";
-import type { Step, StepResult } from "@showrun/contracts";
-import type { ActionOutcome, BrowserController } from "@showrun/browser";
-import { describeTarget } from "@showrun/browser";
-import { isShowrunError, resolveEnvTemplate, sleep, toShowrunError, type Logger } from "@showrun/shared";
+import type { Step, StepResult } from "@app-story/contracts";
+import type { ActionOutcome, BrowserController } from "@app-story/browser";
+import { describeTarget } from "@app-story/browser";
+import { isAppStoryError, resolveEnvTemplate, sleep, toAppStoryError, type Logger } from "@app-story/shared";
 
 export interface StepExecutionOptions {
   /** Extra attempts after the first failure (policy violations are never retried). */
@@ -100,14 +100,14 @@ export async function executeStep(
       };
     } catch (error) {
       lastError = error;
-      const policy = isShowrunError(error) && (error.code === "POLICY_VIOLATION" || error.code === "APP_UNAVAILABLE");
+      const policy = isAppStoryError(error) && (error.code === "POLICY_VIOLATION" || error.code === "APP_UNAVAILABLE");
       options.log.warn({ step: step.id, attempt: attempt + 1, error: (error as Error).message }, `step failed: ${describeStep(step)}`);
       if (policy || attempt === options.retries) break;
       await sleep(600 * (attempt + 1));
     }
   }
 
-  const err = toShowrunError(lastError, "WORKFLOW_FAILED");
+  const err = toAppStoryError(lastError, "WORKFLOW_FAILED");
   const code = (lastError as { code?: string } | undefined)?.code === "VERIFICATION_FAILED" ? "VERIFICATION_FAILED" : err.code;
   let screenshot: string | undefined;
   if (options.screenshotDir) {

@@ -1,5 +1,5 @@
 {
-  "name": "@showrun/captions",
+  "name": "@app-story/captions",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@showrun/contracts": "*"
+    "@app-story/contracts": "*"
   }
 }

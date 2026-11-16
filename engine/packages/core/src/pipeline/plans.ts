@@ -1,5 +1,5 @@
-import type { Workflow } from "@showrun/contracts";
-import { slugify } from "@showrun/shared";
+import type { Workflow } from "@app-story/contracts";
+import { slugify } from "@app-story/shared";
 import type { Store } from "../store/store";
 
 /**

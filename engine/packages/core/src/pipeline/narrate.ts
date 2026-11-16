@@ -1,8 +1,8 @@
-import { NarrationScriptSchema, type AudioClip, type NarrationScript, type VideoKind, type Workflow } from "@showrun/contracts";
-import { PROMPT_VERSIONS } from "@showrun/ai";
-import { estimateStepMs } from "@showrun/workflow";
-import { synthesizeNarration, writeNarrationScript, type SpeechCache, type TTSProvider } from "@showrun/narration";
-import type { LoadedProduct } from "@showrun/products";
+import { NarrationScriptSchema, type AudioClip, type NarrationScript, type VideoKind, type Workflow } from "@app-story/contracts";
+import { PROMPT_VERSIONS } from "@app-story/ai";
+import { estimateStepMs } from "@app-story/workflow";
+import { synthesizeNarration, writeNarrationScript, type SpeechCache, type TTSProvider } from "@app-story/narration";
+import type { LoadedProduct } from "@app-story/products";
 import { saveRecord, type Job } from "../job-manager/job";
 import { cacheKey } from "../store/store";
 import { exclusive } from "./exclusive";

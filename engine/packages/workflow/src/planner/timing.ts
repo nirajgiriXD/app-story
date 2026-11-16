@@ -1,5 +1,5 @@
-import type { Step } from "@showrun/contracts";
-import { MAX_TYPING_MS } from "@showrun/browser";
+import type { Step } from "@app-story/contracts";
+import { MAX_TYPING_MS } from "@app-story/browser";
 
 export interface StepPacing {
   minStepMs: number;

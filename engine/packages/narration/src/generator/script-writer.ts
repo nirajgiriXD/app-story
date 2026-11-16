@@ -1,5 +1,5 @@
-import { NarrationScriptSchema, type NarrationScript, type Step, type VideoKind, type Workflow } from "@showrun/contracts";
-import { PHASE_EFFORT, formatProductContext, loadPrompt, type AIProvider, type ProductContext } from "@showrun/ai";
+import { NarrationScriptSchema, type NarrationScript, type Step, type VideoKind, type Workflow } from "@app-story/contracts";
+import { PHASE_EFFORT, formatProductContext, loadPrompt, type AIProvider, type ProductContext } from "@app-story/ai";
 
 export interface ScriptRequest {
   provider: AIProvider | undefined;

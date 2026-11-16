@@ -1,6 +1,6 @@
-import { launchBrowserSession, type BrowserSession, type LoginState } from "@showrun/browser";
-import type { LoadedProduct } from "@showrun/products";
-import type { Logger } from "@showrun/shared";
+import { launchBrowserSession, type BrowserSession, type LoginState } from "@app-story/browser";
+import type { LoadedProduct } from "@app-story/products";
+import type { Logger } from "@app-story/shared";
 
 export interface WithBrowserOptions {
   workDir: string;

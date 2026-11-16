@@ -1,9 +1,9 @@
 import { copyFile, mkdir, rename, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { JobError, JobMetadata, JobStatus } from "@showrun/contracts";
-import { UsageTracker } from "@showrun/ai";
-import type { LoginState } from "@showrun/browser";
-import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugify, toShowrunError, type Logger } from "@showrun/shared";
+import type { JobError, JobMetadata, JobStatus } from "@app-story/contracts";
+import { UsageTracker } from "@app-story/ai";
+import type { LoginState } from "@app-story/browser";
+import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugify, toAppStoryError, type Logger } from "@app-story/shared";
 import { Store, type RecordKind } from "../store/store";
 
 /**
@@ -117,7 +117,7 @@ export function saveRecord(job: Job, kind: RecordKind, value: unknown): void {
 }
 
 export function recordError(job: Job, error: unknown, phase?: string, stepId?: string): JobError {
-  const e = toShowrunError(error);
+  const e = toAppStoryError(error);
   const entry: JobError = { code: e.code, message: e.message, hint: e.hint, phase, step_id: stepId };
   job.metadata.errors.push(redactSecrets(entry));
   return entry;

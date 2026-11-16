@@ -1,7 +1,7 @@
 import { writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { CDPSession, Page } from "playwright";
-import { ensureDir, runFfmpeg, type Logger } from "@showrun/shared";
+import { ensureDir, runFfmpeg, type Logger } from "@app-story/shared";
 
 export interface RecorderResult {
   path: string;

@@ -10,7 +10,7 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", 
 export const PRODUCTS_DIR = join(REPO_ROOT, "products");
 export const OUTPUT_DIR = join(REPO_ROOT, "output");
 export const ROOT_ENV_FILE = join(REPO_ROOT, ".env");
-/** Showrun's own data: the SQLite database and scratch folders of running jobs. Git-ignored. */
+/** AppStory's own data: the SQLite database and scratch folders of running jobs. Git-ignored. */
 export const DATA_DIR = join(REPO_ROOT, "engine", "data");
 
 /**

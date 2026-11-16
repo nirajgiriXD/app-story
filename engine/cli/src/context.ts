@@ -1,6 +1,6 @@
 import type { Command } from "commander";
-import { loadProduct, type LoadedProduct } from "@showrun/products";
-import { OUTPUT_DIR, PRODUCTS_DIR } from "@showrun/shared";
+import { loadProduct, type LoadedProduct } from "@app-story/products";
+import { OUTPUT_DIR, PRODUCTS_DIR } from "@app-story/shared";
 
 export interface GlobalOptions {
   logLevel?: string;

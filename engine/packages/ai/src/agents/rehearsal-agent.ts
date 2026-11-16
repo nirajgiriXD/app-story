@@ -1,7 +1,7 @@
-import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepResult, type VideoKind, type Workflow } from "@showrun/contracts";
-import type { BrowserController } from "@showrun/browser";
-import { assembleWorkflow, executeStep } from "@showrun/workflow";
-import type { Logger } from "@showrun/shared";
+import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepResult, type VideoKind, type Workflow } from "@app-story/contracts";
+import type { BrowserController } from "@app-story/browser";
+import { assembleWorkflow, executeStep } from "@app-story/workflow";
+import type { Logger } from "@app-story/shared";
 import { PHASE_EFFORT, type AIProvider } from "../contracts/types";
 import { loadPrompt, untrusted } from "../prompts";
 import { RehearsalToolInputs, rehearsalToolSpecs, toolCallToStep, type RehearsalToolName } from "../tools/browser-tools";

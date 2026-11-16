@@ -1,6 +1,6 @@
 import { stringify as stringifyYaml, parse as parseYaml } from "yaml";
-import { WorkflowSchema, formatZodError, type Workflow } from "@showrun/contracts";
-import { ShowrunError } from "@showrun/shared";
+import { WorkflowSchema, formatZodError, type Workflow } from "@app-story/contracts";
+import { AppStoryError } from "@app-story/shared";
 
 /** Parse a workflow (a verified click-plan) from YAML. */
 export function parseWorkflow(text: string, source = "workflow"): Workflow {
@@ -8,11 +8,11 @@ export function parseWorkflow(text: string, source = "workflow"): Workflow {
   try {
     raw = parseYaml(text);
   } catch (error) {
-    throw new ShowrunError("CONFIG_INVALID", `Could not parse ${source}: ${(error as Error).message}`);
+    throw new AppStoryError("CONFIG_INVALID", `Could not parse ${source}: ${(error as Error).message}`);
   }
   const parsed = WorkflowSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new ShowrunError("CONFIG_INVALID", `Invalid workflow in ${source}:\n${formatZodError(parsed.error)}`);
+    throw new AppStoryError("CONFIG_INVALID", `Invalid workflow in ${source}:\n${formatZodError(parsed.error)}`);
   }
   return parsed.data;
 }

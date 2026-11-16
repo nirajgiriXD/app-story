@@ -1,10 +1,10 @@
 import { join } from "node:path";
-import type { AudioClip, ExecutionReport, PlacedClip, Workflow } from "@showrun/contracts";
-import type { RecorderResult } from "@showrun/browser";
-import { NarrationPacer } from "@showrun/narration";
-import type { LoadedProduct } from "@showrun/products";
-import { runSteps } from "@showrun/workflow";
-import { ShowrunError } from "@showrun/shared";
+import type { AudioClip, ExecutionReport, PlacedClip, Workflow } from "@app-story/contracts";
+import type { RecorderResult } from "@app-story/browser";
+import { NarrationPacer } from "@app-story/narration";
+import type { LoadedProduct } from "@app-story/products";
+import { runSteps } from "@app-story/workflow";
+import { AppStoryError } from "@app-story/shared";
 import { saveRecord, type Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
 
@@ -48,7 +48,7 @@ export async function recordWorkflow(
         const setup = await runSteps(controller, workflow.setup, { phase: "recording", log: job.log, retries: 1 });
         if (!setup.ok) {
           const failed = setup.steps.find((s) => s.status === "failed");
-          throw new ShowrunError("WORKFLOW_FAILED", `Setup step ${failed?.step_id} failed: ${failed?.error}`);
+          throw new AppStoryError("WORKFLOW_FAILED", `Setup step ${failed?.step_id} failed: ${failed?.error}`);
         }
       }
 

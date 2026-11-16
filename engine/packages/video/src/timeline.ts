@@ -1,4 +1,4 @@
-import type { Box, CursorPoint } from "@showrun/contracts";
+import type { Box, CursorPoint } from "@app-story/contracts";
 import type { VideoTemplate } from "./templates";
 
 /*

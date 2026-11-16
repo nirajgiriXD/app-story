@@ -1,4 +1,4 @@
-import type { AiProviderConfig, UsageSummary } from "@showrun/contracts";
+import type { AiProviderConfig, UsageSummary } from "@app-story/contracts";
 import type { TokenUsage } from "./contracts/types";
 
 interface Price {

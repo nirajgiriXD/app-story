@@ -1,12 +1,12 @@
 import type { z } from "zod";
-import type { AiProviderConfig, AiProviderName } from "@showrun/contracts";
+import type { AiProviderConfig, AiProviderName } from "@app-story/contracts";
 
 /** Reasoning depth for one request. An `effort` set in the provider config always wins. */
 export type Effort = NonNullable<AiProviderConfig["effort"]>;
 
 /**
  * Default effort per phase. Driving a browser and picking features get full reasoning;
- * writing a short script needs little. `SHOWRUN_AI_EFFORT` overrides every phase.
+ * writing a short script needs little. `APP_STORY_AI_EFFORT` overrides every phase.
  */
 export const PHASE_EFFORT = {
   rehearsal: "high",

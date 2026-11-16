@@ -1,6 +1,6 @@
-import type { BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@showrun/contracts";
-import type { ActionOutcome, BrowserController, PageObservation, VerificationResult } from "@showrun/browser";
-import { ShowrunError } from "@showrun/shared";
+import type { BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@app-story/contracts";
+import type { ActionOutcome, BrowserController, PageObservation, VerificationResult } from "@app-story/browser";
+import { AppStoryError } from "@app-story/shared";
 
 /**
  * In-memory browser for unit tests. Elements are identified by their accessible name
@@ -34,9 +34,9 @@ export class FakeController implements BrowserController {
     const failures = this.flaky.get(key) ?? 0;
     if (failures > 0) {
       this.flaky.set(key, failures - 1);
-      throw new ShowrunError("WORKFLOW_FAILED", `flaky ${key}`);
+      throw new AppStoryError("WORKFLOW_FAILED", `flaky ${key}`);
     }
-    if (!this.elements.has(key)) throw new ShowrunError("WORKFLOW_FAILED", `Could not find ${key}`);
+    if (!this.elements.has(key)) throw new AppStoryError("WORKFLOW_FAILED", `Could not find ${key}`);
     return key;
   }
 

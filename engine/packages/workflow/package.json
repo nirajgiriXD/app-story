@@ -1,5 +1,5 @@
 {
-  "name": "@showrun/workflow",
+  "name": "@app-story/workflow",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,9 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@showrun/browser": "*",
-    "@showrun/contracts": "*",
-    "@showrun/shared": "*",
+    "@app-story/browser": "*",
+    "@app-story/contracts": "*",
+    "@app-story/shared": "*",
     "zod": "^4.6.7"
   }
 }

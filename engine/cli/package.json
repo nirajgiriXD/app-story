@@ -1,16 +1,16 @@
 {
-  "name": "@showrun/cli",
+  "name": "@app-story/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "showrun": "./bin/showrun.mjs"
+    "app-story": "./bin/app-story.mjs"
   },
   "dependencies": {
-    "@showrun/contracts": "*",
-    "@showrun/core": "*",
-    "@showrun/products": "*",
-    "@showrun/shared": "*",
+    "@app-story/contracts": "*",
+    "@app-story/core": "*",
+    "@app-story/products": "*",
+    "@app-story/shared": "*",
     "commander": "^15.1.0",
     "dotenv": "^18.0.10",
     "tsx": "^4.23.15"

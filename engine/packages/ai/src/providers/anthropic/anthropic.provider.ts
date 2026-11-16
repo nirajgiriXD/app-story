@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { AiProviderConfig } from "@showrun/contracts";
-import { ShowrunError, type Logger } from "@showrun/shared";
+import type { AiProviderConfig } from "@app-story/contracts";
+import { AppStoryError, type Logger } from "@app-story/shared";
 import type {
   AIProvider,
   AgentInput,
@@ -70,11 +70,11 @@ export class AnthropicProvider implements AIProvider {
     this.track(message.usage);
     assertNotRefused(message);
     if (message.stop_reason === "max_tokens") {
-      throw new ShowrunError("PROVIDER_INVALID_OUTPUT", `${request.schemaName} was cut off at max_tokens.`);
+      throw new AppStoryError("PROVIDER_INVALID_OUTPUT", `${request.schemaName} was cut off at max_tokens.`);
     }
     const parsed = request.schema.safeParse(message.parsed_output);
     if (!parsed.success) {
-      throw new ShowrunError("PROVIDER_INVALID_OUTPUT", `Claude returned an invalid ${request.schemaName}: ${parsed.error.message}`);
+      throw new AppStoryError("PROVIDER_INVALID_OUTPUT", `Claude returned an invalid ${request.schemaName}: ${parsed.error.message}`);
     }
     return parsed.data;
   }
@@ -126,7 +126,7 @@ export class AnthropicProvider implements AIProvider {
           );
         } catch (error) {
           // With eager input streaming, an unparseable tool input surfaces as a non-API error.
-          if (error instanceof ShowrunError || jsonRetries >= 2) throw error;
+          if (error instanceof AppStoryError || jsonRetries >= 2) throw error;
           this.deps.log.warn("tool input was not valid JSON; re-issuing the turn");
         }
       }
@@ -189,35 +189,34 @@ function textOf(content: Anthropic.ContentBlock[]): string {
 function assertNotRefused(message: Anthropic.Message): void {
   if (message.stop_reason === "refusal") {
     const category = message.stop_details?.category ?? "unspecified";
-    throw new ShowrunError("PROVIDER_REFUSAL", `Claude declined the request (category: ${category}).`);
+    throw new AppStoryError("PROVIDER_REFUSAL", `Claude declined the request (category: ${category}).`);
   }
 }
 
 export function mapAnthropicError(error: unknown, model: string): unknown {
-  if (error instanceof ShowrunError) return error;
-  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-    return new ShowrunError("PROVIDER_AUTH", "Anthropic rejected the API key.", {
+  if (error instanceof AppStoryError) return error;  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
+    return new AppStoryError("PROVIDER_AUTH", "Anthropic rejected the API key.", {
       cause: error,
       hint: "Check ANTHROPIC_API_KEY in your .env file.",
     });
   }
   if (error instanceof Anthropic.NotFoundError) {
-    return new ShowrunError("PROVIDER_ERROR", `Claude model '${model}' was not found.`, {
+    return new AppStoryError("PROVIDER_ERROR", `Claude model '${model}' was not found.`, {
       cause: error,
       hint: "Set a valid model id in providers.ai.model, e.g. claude-opus-5-5.",
     });
   }
   if (error instanceof Anthropic.RateLimitError) {
-    return new ShowrunError("PROVIDER_RATE_LIMIT", "Anthropic rate limit reached (after retries).", { cause: error, retryable: true });
+    return new AppStoryError("PROVIDER_RATE_LIMIT", "Anthropic rate limit reached (after retries).", { cause: error, retryable: true });
   }
   if (error instanceof Anthropic.BadRequestError) {
-    return new ShowrunError("PROVIDER_ERROR", `Anthropic rejected the request: ${error.message}`, { cause: error });
+    return new AppStoryError("PROVIDER_ERROR", `Anthropic rejected the request: ${error.message}`, { cause: error });
   }
   if (error instanceof Anthropic.APIConnectionError) {
-    return new ShowrunError("PROVIDER_ERROR", "Could not reach the Anthropic API.", { cause: error, retryable: true });
+    return new AppStoryError("PROVIDER_ERROR", "Could not reach the Anthropic API.", { cause: error, retryable: true });
   }
   if (error instanceof Anthropic.APIError) {
-    return new ShowrunError("PROVIDER_ERROR", `Anthropic API error ${error.status ?? ""}: ${error.message}`, {
+    return new AppStoryError("PROVIDER_ERROR", `Anthropic API error ${error.status ?? ""}: ${error.message}`, {
       cause: error,
       retryable: (error.status ?? 0) >= 500,
     });

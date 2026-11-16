@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { ensureBrowser, openBrowser, renderMedia, selectComposition } from "@remotion/renderer";
-import { ShowrunError, ensureDir, extractFrame, type Logger } from "@showrun/shared";
+import { AppStoryError, ensureDir, extractFrame, type Logger } from "@app-story/shared";
 import type { RenderProps } from "./props";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -33,7 +33,7 @@ let prepared: Promise<string> | undefined;
 export function prepareRenderer(): Promise<string> {
   prepared ??= (async () => {
     await ensureBrowser({ logLevel: "error" });
-    const emptyPublic = await mkdtemp(join(tmpdir(), "showrun-public-"));
+    const emptyPublic = await mkdtemp(join(tmpdir(), "app-story-public-"));
     return bundle({ entryPoint: ENTRY, publicDir: emptyPublic, enableCaching: true });
   })().catch((error: unknown) => {
     prepared = undefined;
@@ -103,8 +103,8 @@ async function render(options: RenderVideoOptions): Promise<void> {
       await extractFrame(options.outputFile, atSec, options.thumbnailFile);
     }
   } catch (error) {
-    if (error instanceof ShowrunError) throw error;
-    throw new ShowrunError("RENDER_FAILED", `Video rendering failed: ${(error as Error).message}`, { cause: error });
+    if (error instanceof AppStoryError) throw error;
+    throw new AppStoryError("RENDER_FAILED", `Video rendering failed: ${(error as Error).message}`, { cause: error });
   } finally {
     await browser?.close({ silent: true }).catch(() => undefined);
     if (stageDir) await rm(stageDir, { recursive: true, force: true }).catch(() => undefined);

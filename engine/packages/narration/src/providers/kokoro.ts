@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
-import { resolveKokoroVoice, type TtsConfig } from "@showrun/contracts";
-import { ShowrunError } from "@showrun/shared";
+import { resolveKokoroVoice, type TtsConfig } from "@app-story/contracts";
+import { AppStoryError } from "@app-story/shared";
 import type { KokoroTTS as KokoroModel } from "kokoro-js";
 import type { TTSProvider } from "./tts";
 
@@ -28,7 +28,7 @@ function loadModel(model: string): Promise<{ tts: KokoroModel; lib: KokoroModule
     .then(async (lib) => ({ lib, tts: await lib.KokoroTTS.from_pretrained(model, { dtype: KOKORO_DEFAULTS.dtype, device: "cpu" }) }))
     .catch((error: unknown) => {
       loading = undefined;
-      throw new ShowrunError("TTS_ERROR", `Could not load the Kokoro voice model: ${(error as Error).message}`, {
+      throw new AppStoryError("TTS_ERROR", `Could not load the Kokoro voice model: ${(error as Error).message}`, {
         hint: "The first run downloads the model (~90 MB) from huggingface.co, so it needs internet once.",
         cause: error,
       });
@@ -61,7 +61,7 @@ export class KokoroTTS implements TTSProvider {
   private async speak(text: string, outPath: string): Promise<void> {
     const { tts, lib } = await loadModel(this.model);
     if (!(this.voice in tts.voices)) {
-      throw new ShowrunError("CONFIG_INVALID", `Unknown Kokoro voice '${this.voice}'.`, {
+      throw new AppStoryError("CONFIG_INVALID", `Unknown Kokoro voice '${this.voice}'.`, {
         hint: `Use one of: ${Object.keys(tts.voices).join(", ")}`,
       });
     }
@@ -79,7 +79,7 @@ export class KokoroTTS implements TTSProvider {
       chunks.push(audio.audio as Float32Array);
       sampleRate = audio.sampling_rate;
     }
-    if (chunks.length === 0) throw new ShowrunError("TTS_ERROR", `Kokoro produced no audio for: "${text.slice(0, 80)}"`);
+    if (chunks.length === 0) throw new AppStoryError("TTS_ERROR", `Kokoro produced no audio for: "${text.slice(0, 80)}"`);
 
     // Uncompressed: the clip is normalised next and encoded only once, in the final video.
     await writeFile(outPath, encodeWav(chunks, sampleRate));

@@ -1,7 +1,7 @@
-import type { AudioClip, CaptionCue, ProductConfig, QualityCheck, QualityReport, Workflow } from "@showrun/contracts";
-import { RESOLUTIONS } from "@showrun/contracts";
-import { fileExists, frameContrast, meanVolumeDb, probeMedia, type MediaProbe } from "@showrun/shared";
-import type { TimelinePlan } from "@showrun/video";
+import type { AudioClip, CaptionCue, ProductConfig, QualityCheck, QualityReport, Workflow } from "@app-story/contracts";
+import { RESOLUTIONS } from "@app-story/contracts";
+import { fileExists, frameContrast, meanVolumeDb, probeMedia, type MediaProbe } from "@app-story/shared";
+import type { TimelinePlan } from "@app-story/video";
 import type { JobPaths } from "../job-manager/job";
 import type { RecordingOutcome } from "../pipeline/record";
 

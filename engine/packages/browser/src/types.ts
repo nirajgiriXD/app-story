@@ -1,4 +1,4 @@
-import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@showrun/contracts";
+import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@app-story/contracts";
 
 export interface PageObservation {
   url: string;

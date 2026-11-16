@@ -1,4 +1,4 @@
-import { FeaturePlanSchema, type FeaturePlan } from "@showrun/contracts";
+import { FeaturePlanSchema, type FeaturePlan } from "@app-story/contracts";
 import { PHASE_EFFORT, type AIProvider } from "../contracts/types";
 import { loadPrompt } from "../prompts";
 import { formatProductContext, type ProductContext } from "./context";

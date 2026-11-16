@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config as loadEnv } from "dotenv";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { generateDemo, planFeatures } from "@showrun/core";
-import { loadProduct } from "@showrun/products";
-import { ROOT_ENV_FILE, probeMedia } from "@showrun/shared";
+import { generateDemo, planFeatures } from "@app-story/core";
+import { loadProduct } from "@app-story/products";
+import { ROOT_ENV_FILE, probeMedia } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
 
 /*
@@ -22,7 +22,7 @@ let outputDir: string;
 
 beforeAll(async () => {
   app = await startExampleApp(PORT);
-  const root = await mkdtemp(join(tmpdir(), "showrun-e2e-"));
+  const root = await mkdtemp(join(tmpdir(), "app-story-e2e-"));
   productsDir = join(root, "products");
   outputDir = join(root, "output");
   await mkdir(productsDir);

@@ -1,7 +1,7 @@
 import { chromium } from "playwright";
-import { pickTemplate, resolveKokoroVoice } from "@showrun/contracts";
-import { resolveProductPath, type LoadedProduct } from "@showrun/products";
-import { credentialEnvName, dataDirFor, fileExists, hasBinary } from "@showrun/shared";
+import { pickTemplate, resolveKokoroVoice } from "@app-story/contracts";
+import { resolveProductPath, type LoadedProduct } from "@app-story/products";
+import { credentialEnvName, dataDirFor, fileExists, hasBinary } from "@app-story/shared";
 import { Store } from "../store/store";
 
 export interface ValidationItem {
@@ -51,13 +51,13 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
     if (!config.demo.default_language.toLowerCase().startsWith("en")) {
       warn(`Kokoro voices speak English only, but language is '${config.demo.default_language}'`);
     }
-    if (voice.style) warn("SHOWRUN_VOICE_TONE is ignored: Kokoro has no tone control (only the OpenAI voice does)");
+    if (voice.style) warn("APP_STORY_VOICE_TONE is ignored: Kokoro has no tone control (only the OpenAI voice does)");
   } else {
     const ttsKey = API_KEYS[tts] as string;
     if (process.env[ttsKey]) ok(`voice: ${tts}${voice.voice ? ` ${voice.voice}` : ""}${speed}${voice.style && tts === "openai" ? `, tone "${voice.style}"` : ""} (${ttsKey} found)`);
     else error(`${ttsKey} is not set (needed for the ${tts} voice)`);
-    if (voice.accent) warn("SHOWRUN_VOICE_ACCENT is ignored: it only picks among the free Kokoro voices");
-    if (voice.style && tts !== "openai") warn(`SHOWRUN_VOICE_TONE is ignored: only the OpenAI voice follows a tone`);
+    if (voice.accent) warn("APP_STORY_VOICE_ACCENT is ignored: it only picks among the free Kokoro voices");
+    if (voice.style && tts !== "openai") warn(`APP_STORY_VOICE_TONE is ignored: only the OpenAI voice follows a tone`);
   }
 
   const auth = config.authentication;

@@ -1,5 +1,5 @@
 /**
- * Error codes map onto the job outcomes the README requires Showrun to distinguish
+ * Error codes map onto the job outcomes the README requires AppStory to distinguish
  * (application unavailable, authentication failure, unsupported workflow, ...).
  */
 export type ErrorCode =
@@ -24,22 +24,22 @@ export type ErrorCode =
   | "DEPENDENCY_MISSING"
   | "INTERNAL";
 
-export interface ShowrunErrorOptions {
+export interface AppStoryErrorOptions {
   hint?: string;
   cause?: unknown;
   retryable?: boolean;
   details?: Record<string, unknown>;
 }
 
-export class ShowrunError extends Error {
+export class AppStoryError extends Error {
   readonly code: ErrorCode;
   readonly hint: string | undefined;
   readonly retryable: boolean;
   readonly details: Record<string, unknown> | undefined;
 
-  constructor(code: ErrorCode, message: string, options: ShowrunErrorOptions = {}) {
+  constructor(code: ErrorCode, message: string, options: AppStoryErrorOptions = {}) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause });
-    this.name = "ShowrunError";
+    this.name = "AppStoryError";
     this.code = code;
     this.hint = options.hint;
     this.retryable = options.retryable ?? false;
@@ -57,12 +57,12 @@ export class ShowrunError extends Error {
   }
 }
 
-export function isShowrunError(error: unknown): error is ShowrunError {
-  return error instanceof ShowrunError;
+export function isAppStoryError(error: unknown): error is AppStoryError {
+  return error instanceof AppStoryError;
 }
 
-export function toShowrunError(error: unknown, fallback: ErrorCode = "INTERNAL"): ShowrunError {
-  if (error instanceof ShowrunError) return error;
+export function toAppStoryError(error: unknown, fallback: ErrorCode = "INTERNAL"): AppStoryError {
+  if (error instanceof AppStoryError) return error;
   const message = error instanceof Error ? error.message : String(error);
-  return new ShowrunError(fallback, message, { cause: error });
+  return new AppStoryError(fallback, message, { cause: error });
 }

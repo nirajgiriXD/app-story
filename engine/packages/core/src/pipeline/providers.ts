@@ -1,7 +1,7 @@
-import type { AiProviderConfig, ProductConfig } from "@showrun/contracts";
-import { createAIProvider, type AIProvider, type AIProviderFactory } from "@showrun/ai";
-import { createTTSProvider, type TTSProvider } from "@showrun/narration";
-import { isShowrunError } from "@showrun/shared";
+import type { AiProviderConfig, ProductConfig } from "@app-story/contracts";
+import { createAIProvider, type AIProvider, type AIProviderFactory } from "@app-story/ai";
+import { createTTSProvider, type TTSProvider } from "@app-story/narration";
+import { isAppStoryError } from "@app-story/shared";
 import { saveMetadata, type Job } from "../job-manager/job";
 
 /** Dependency-injection points at the provider boundaries (used by tests and extensions). */
@@ -20,7 +20,7 @@ export function makeTTS(config: ProductConfig["providers"]["tts"], overrides: Pr
 }
 
 function isProviderFailure(error: unknown): boolean {
-  return isShowrunError(error) && error.code.startsWith("PROVIDER_");
+  return isAppStoryError(error) && error.code.startsWith("PROVIDER_");
 }
 
 /**

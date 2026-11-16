@@ -1,5 +1,5 @@
 {
-  "name": "@showrun/narration",
+  "name": "@app-story/narration",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,9 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@showrun/ai": "*",
-    "@showrun/contracts": "*",
-    "@showrun/shared": "*",
+    "@app-story/ai": "*",
+    "@app-story/contracts": "*",
+    "@app-story/shared": "*",
     "kokoro-js": "1.2.1",
     "openai": "^7.57.0",
     "zod": "^4.6.7"

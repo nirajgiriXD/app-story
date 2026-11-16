@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ActionGuard, classifySensitive, isAllowedUrl, resolveUrl } from "@showrun/browser";
-import { SafetyConfigSchema } from "@showrun/contracts";
+import { ActionGuard, classifySensitive, isAllowedUrl, resolveUrl } from "@app-story/browser";
+import { SafetyConfigSchema } from "@app-story/contracts";
 
 const safety = SafetyConfigSchema.parse({});
 

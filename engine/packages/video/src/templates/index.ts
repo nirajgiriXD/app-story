@@ -1,4 +1,4 @@
-import type { TemplateName } from "@showrun/contracts";
+import type { TemplateName } from "@app-story/contracts";
 
 /**
  * Video templates. A template only controls presentation (framing, motion, typography,

@@ -1,5 +1,5 @@
 {
-  "name": "@showrun/browser",
+  "name": "@app-story/browser",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@showrun/contracts": "*",
-    "@showrun/shared": "*",
+    "@app-story/contracts": "*",
+    "@app-story/shared": "*",
     "playwright": "^1.65.1"
   }
 }

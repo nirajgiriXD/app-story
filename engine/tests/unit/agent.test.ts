@@ -2,11 +2,11 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { runRehearsal, UsageTracker, type AIProvider } from "@showrun/ai";
-import { ProductConfigSchema, type AudioClip } from "@showrun/contracts";
-import { NarrationPacer, normalizeScript, writeNarrationScript } from "@showrun/narration";
-import { createJob } from "@showrun/core";
-import { ShowrunError, createSilentLogger } from "@showrun/shared";
+import { runRehearsal, UsageTracker, type AIProvider } from "@app-story/ai";
+import { ProductConfigSchema, type AudioClip } from "@app-story/contracts";
+import { NarrationPacer, normalizeScript, writeNarrationScript } from "@app-story/narration";
+import { createJob } from "@app-story/core";
+import { AppStoryError, createSilentLogger } from "@app-story/shared";
 import { FakeController } from "../support/fake-controller";
 import { ScriptedProvider } from "../support/fakes";
 
@@ -147,7 +147,7 @@ describe("provider fallback", () => {
     const failing = { name: "anthropic", model: "m1" } as AIProvider;
     const working = { name: "openai", model: "m2" } as AIProvider;
     const result = await withProviderFallback(job, "rehearsal", config, { createAI: (c) => (c.provider === "anthropic" ? failing : working) }, async (p) => {
-      if (p === failing) throw new ShowrunError("PROVIDER_ERROR", "outage");
+      if (p === failing) throw new AppStoryError("PROVIDER_ERROR", "outage");
       return "ok";
     });
     expect(result).toBe("ok");
@@ -165,7 +165,7 @@ describe("provider fallback", () => {
     const p = { name: "anthropic", model: "m1" } as AIProvider;
     await expect(
       withProviderFallback(job, "rehearsal", config, { createAI: () => p }, async () => {
-        throw new ShowrunError("WORKFLOW_FAILED", "button missing");
+        throw new AppStoryError("WORKFLOW_FAILED", "button missing");
       }),
     ).rejects.toThrow("button missing");
     expect(job.metadata.ai.fallback_used).toBe(false);

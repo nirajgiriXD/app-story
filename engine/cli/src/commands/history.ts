@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { readHistory } from "@showrun/core";
+import { readHistory } from "@app-story/core";
 import { globals } from "../context";
 import { dim, green, red, yellow } from "../output";
 

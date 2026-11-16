@@ -3,8 +3,8 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createJob, deliverVideo, finishJob, readHistory, saveRecord, storeFor } from "@showrun/core";
-import { parseWorkflow } from "@showrun/products";
+import { createJob, deliverVideo, finishJob, readHistory, saveRecord, storeFor } from "@app-story/core";
+import { parseWorkflow } from "@app-story/products";
 import { readFile } from "node:fs/promises";
 import { forgetPlan, loadSavedPlan, savePlan } from "../../packages/core/src/pipeline/plans";
 
@@ -31,7 +31,7 @@ describe("job history in SQLite", () => {
     ]);
     expect((await readHistory(out, { productId: "shop" })).map((e) => e.job_id)).toEqual([first.id]);
     expect(await readHistory(out, { limit: 1 })).toHaveLength(1);
-    expect(existsSync(join(dirname(out), "engine", "data", "showrun.db"))).toBe(true);
+    expect(existsSync(join(dirname(out), "engine", "data", "app-story.db"))).toBe(true);
   });
 
   it("keeps a job's records, log and thumbnail in the database, with secrets scrubbed", async () => {

@@ -1,4 +1,4 @@
-import type { AiProviderConfig } from "@showrun/contracts";
+import type { AiProviderConfig } from "@app-story/contracts";
 
 /** Default when the product file sets no `model:`. Any valid OpenAI model id can be configured. */
 export const OPENAI_DEFAULT_MODEL = "gpt-5";

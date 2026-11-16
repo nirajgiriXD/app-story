@@ -19,8 +19,8 @@ import {
   type TtsConfig,
   type TtsProviderName,
   type VoiceAccent,
-} from "@showrun/contracts";
-import { ShowrunError, fileExists, isShowrunError } from "@showrun/shared";
+} from "@app-story/contracts";
+import { AppStoryError, fileExists, isAppStoryError } from "@app-story/shared";
 
 /**
  * A product is one Markdown file, `products/<id>.md`:
@@ -98,7 +98,7 @@ export function splitProductFile(text: string, file: string): { settings: unknow
   const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
   const match = /^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(normalized);
   if (!match) {
-    throw new ShowrunError("CONFIG_INVALID", `${file} has no settings block at the top.`, {
+    throw new AppStoryError("CONFIG_INVALID", `${file} has no settings block at the top.`, {
       hint: "Start the file with:\n---\nurl: https://your-app.example.com\n---",
     });
   }
@@ -106,7 +106,7 @@ export function splitProductFile(text: string, file: string): { settings: unknow
   try {
     settings = parseYaml(match[1] as string) ?? {};
   } catch (error) {
-    throw new ShowrunError("CONFIG_INVALID", `The settings block in ${file} could not be read: ${(error as Error).message}`);
+    throw new AppStoryError("CONFIG_INVALID", `The settings block in ${file} could not be read: ${(error as Error).message}`);
   }
   const brief = normalized
     .slice(match[0].length)
@@ -120,7 +120,7 @@ function parseLogin(login: string, file: string): { username: string; password: 
   const username = login.slice(0, at).trim();
   const password = login.slice(at + 3).trim();
   if (at < 0 || !username || !password) {
-    throw new ShowrunError("CONFIG_INVALID", `login in ${file} must look like "user / password".`, {
+    throw new AppStoryError("CONFIG_INVALID", `login in ${file} must look like "user / password".`, {
       hint: "For example: login: demo@acme.com / env:ACME_PASSWORD  (the password then comes from .env)",
     });
   }
@@ -135,7 +135,7 @@ function parseAllow(allow: Settings["allow"], file: string): Partial<SafetyConfi
   for (const item of items) {
     const key = ALLOW_NAMES[item as keyof typeof ALLOW_NAMES];
     if (!key) {
-      throw new ShowrunError("CONFIG_INVALID", `Unknown entry '${item}' in allow: in ${file}.`, {
+      throw new AppStoryError("CONFIG_INVALID", `Unknown entry '${item}' in allow: in ${file}.`, {
         hint: `Use any of: ${Object.keys(ALLOW_NAMES).join(", ")}.`,
       });
     }
@@ -175,7 +175,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
   const { settings: raw, brief } = splitProductFile(text, file);
   const parsed = SettingsSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new ShowrunError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(parsed.error)}`, {
+    throw new AppStoryError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(parsed.error)}`, {
       hint: `Allowed settings: ${PRODUCT_SETTINGS.join(", ")}. See "Product files" in README.md.`,
     });
   }
@@ -205,35 +205,35 @@ export function parseProductFile(text: string, file: string, id: string): { conf
     safety: { allow: parseAllow(s.allow, file) },
   });
   if (!config.success) {
-    throw new ShowrunError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(config.error)}`);
+    throw new AppStoryError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(config.error)}`);
   }
   return { config: config.data, brief };
 }
 
 /**
- * Environment overrides (SHOWRUN_AI_PROVIDER, SHOWRUN_AI_MODEL, SHOWRUN_AI_EFFORT,
- * SHOWRUN_TTS_PROVIDER) and explicit ones from code win over the product file.
+ * Environment overrides (APP_STORY_AI_PROVIDER, APP_STORY_AI_MODEL, APP_STORY_AI_EFFORT,
+ * APP_STORY_TTS_PROVIDER) and explicit ones from code win over the product file.
  */
 export function applyOverrides(config: ProductConfig, overrides: ProviderOverrides = {}): ProductConfig {
   const env = process.env;
-  const aiProvider = overrides.aiProvider ?? (env.SHOWRUN_AI_PROVIDER as AiProviderName | undefined);
-  const aiModel = overrides.aiModel ?? env.SHOWRUN_AI_MODEL;
-  const ttsProvider = overrides.ttsProvider ?? (env.SHOWRUN_TTS_PROVIDER as TtsProviderName | undefined);
+  const aiProvider = overrides.aiProvider ?? (env.APP_STORY_AI_PROVIDER as AiProviderName | undefined);
+  const aiModel = overrides.aiModel ?? env.APP_STORY_AI_MODEL;
+  const ttsProvider = overrides.ttsProvider ?? (env.APP_STORY_TTS_PROVIDER as TtsProviderName | undefined);
   const next = structuredClone(config);
   if (aiProvider && aiProvider !== next.providers.ai.provider) {
     if (!(AI_PROVIDERS as readonly string[]).includes(aiProvider)) {
-      throw new ShowrunError("CONFIG_INVALID", `Unknown AI provider '${aiProvider}'. Use anthropic or openai.`);
+      throw new AppStoryError("CONFIG_INVALID", `Unknown AI provider '${aiProvider}'. Use anthropic or openai.`);
     }
     // The configured model belongs to the old provider, so drop it unless one was given.
     next.providers.ai = { ...next.providers.ai, provider: aiProvider, model: undefined, pricing: undefined };
     if (next.providers.ai_fallback?.provider === aiProvider) next.providers.ai_fallback = undefined;
   }
   if (aiModel) next.providers.ai.model = aiModel;
-  const effort = env.SHOWRUN_AI_EFFORT?.trim().toLowerCase();
+  const effort = env.APP_STORY_AI_EFFORT?.trim().toLowerCase();
   if (effort) {
     const parsed = EffortSchema.safeParse(effort);
     if (!parsed.success) {
-      throw new ShowrunError("CONFIG_INVALID", `SHOWRUN_AI_EFFORT must be one of ${EffortSchema.options.join(", ")}, not '${effort}'.`);
+      throw new AppStoryError("CONFIG_INVALID", `APP_STORY_AI_EFFORT must be one of ${EffortSchema.options.join(", ")}, not '${effort}'.`);
     }
     // Applies to every AI phase, on the fallback provider too.
     next.providers.ai.effort = parsed.data;
@@ -241,7 +241,7 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
   }
   if (ttsProvider && ttsProvider !== next.providers.tts.provider) {
     if (!(TTS_PROVIDERS as readonly string[]).includes(ttsProvider)) {
-      throw new ShowrunError("CONFIG_INVALID", `Unknown voice '${ttsProvider}'. Use ${TTS_PROVIDERS.join(", ")}.`);
+      throw new AppStoryError("CONFIG_INVALID", `Unknown voice '${ttsProvider}'. Use ${TTS_PROVIDERS.join(", ")}.`);
     }
     next.providers.tts = { ...next.providers.tts, provider: ttsProvider, voice: undefined, model: undefined };
   }
@@ -250,29 +250,29 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
 }
 
 /**
- * Voice choices from .env, for every product: SHOWRUN_VOICE (female, male or a voice
- * name), SHOWRUN_VOICE_ACCENT, SHOWRUN_VOICE_SPEED and SHOWRUN_VOICE_TONE.
+ * Voice choices from .env, for every product: APP_STORY_VOICE (female, male or a voice
+ * name), APP_STORY_VOICE_ACCENT, APP_STORY_VOICE_SPEED and APP_STORY_VOICE_TONE.
  * Checked here, so a typo fails before any AI work instead of at the narration step.
  */
 export function applyVoiceSettings(tts: TtsConfig, env: NodeJS.ProcessEnv = process.env): TtsConfig {
   const read = (name: string) => env[name]?.trim() || undefined;
   const next = { ...tts };
-  const voice = read("SHOWRUN_VOICE");
-  const accent = read("SHOWRUN_VOICE_ACCENT")?.toLowerCase();
-  const speed = read("SHOWRUN_VOICE_SPEED");
-  const tone = read("SHOWRUN_VOICE_TONE");
+  const voice = read("APP_STORY_VOICE");
+  const accent = read("APP_STORY_VOICE_ACCENT")?.toLowerCase();
+  const speed = read("APP_STORY_VOICE_SPEED");
+  const tone = read("APP_STORY_VOICE_TONE");
 
   if (voice) next.voice = voice;
   if (accent) {
     if (!(VOICE_ACCENTS as readonly string[]).includes(accent)) {
-      throw new ShowrunError("CONFIG_INVALID", `SHOWRUN_VOICE_ACCENT must be ${VOICE_ACCENTS.join(" or ")}, not '${accent}'.`);
+      throw new AppStoryError("CONFIG_INVALID", `APP_STORY_VOICE_ACCENT must be ${VOICE_ACCENTS.join(" or ")}, not '${accent}'.`);
     }
     next.accent = accent as VoiceAccent;
   }
   if (speed) {
     const value = Number(speed);
     if (!(value >= 0.7 && value <= 1.3)) {
-      throw new ShowrunError("CONFIG_INVALID", `SHOWRUN_VOICE_SPEED must be a number from 0.7 (slower) to 1.3 (faster), not '${speed}'.`);
+      throw new AppStoryError("CONFIG_INVALID", `APP_STORY_VOICE_SPEED must be a number from 0.7 (slower) to 1.3 (faster), not '${speed}'.`);
     }
     next.speed = value;
   }
@@ -280,13 +280,13 @@ export function applyVoiceSettings(tts: TtsConfig, env: NodeJS.ProcessEnv = proc
 
   if (next.provider === "kokoro" && !resolveKokoroVoice(next.voice, next.accent)) {
     const names = (gender: string) => KOKORO_VOICES.filter((v) => v.gender === gender).map((v) => v.id).join(", ");
-    throw new ShowrunError("CONFIG_INVALID", `Unknown voice '${next.voice}' in SHOWRUN_VOICE.`, {
+    throw new AppStoryError("CONFIG_INVALID", `Unknown voice '${next.voice}' in APP_STORY_VOICE.`, {
       hint: `Use female, male, or one of the Kokoro voices.\n  female: ${names("female")}\n  male:   ${names("male")}`,
     });
   }
   const byGender = next.voice && (VOICE_GENDERS as readonly string[]).includes(next.voice.toLowerCase());
   if (byGender && (next.provider === "openai" || next.provider === "elevenlabs")) {
-    throw new ShowrunError("CONFIG_INVALID", `SHOWRUN_VOICE=${next.voice} picks a voice by gender, which only the free Kokoro voice can do.`, {
+    throw new AppStoryError("CONFIG_INVALID", `APP_STORY_VOICE=${next.voice} picks a voice by gender, which only the free Kokoro voice can do.`, {
       hint: next.provider === "openai" ? "Name an OpenAI voice instead, e.g. marin, cedar, coral or onyx." : "Use a voice id from your ElevenLabs account.",
     });
   }
@@ -296,8 +296,8 @@ export function applyVoiceSettings(tts: TtsConfig, env: NodeJS.ProcessEnv = proc
 export async function loadProduct(productsDir: string, id: string, overrides?: ProviderOverrides): Promise<LoadedProduct> {
   const file = productFilePath(productsDir, id);
   if (!ID.test(id) || !(await fileExists(file))) {
-    throw new ShowrunError("PRODUCT_NOT_FOUND", `Product '${id}' was not found (looked for ${file}).`, {
-      hint: "Run `npx showrun list` to see your products, or `npx showrun new <name>` to create one.",
+    throw new AppStoryError("PRODUCT_NOT_FOUND", `Product '${id}' was not found (looked for ${file}).`, {
+      hint: "Run `npx app-story list` to see your products, or `npx app-story new <name>` to create one.",
     });
   }
   const { config, brief } = parseProductFile(await readFile(file, "utf8"), file, id);
@@ -328,7 +328,7 @@ export async function listProducts(productsDir: string): Promise<ProductListing[
       const { config } = await loadProduct(productsDir, id);
       listings.push({ id, name: config.product.name, base_url: `${config.product.base_url}${config.product.start_path}`, valid: true });
     } catch (error) {
-      listings.push({ id, valid: false, error: isShowrunError(error) ? error.message : String(error) });
+      listings.push({ id, valid: false, error: isAppStoryError(error) ? error.message : String(error) });
     }
   }
   return listings.sort((a, b) => a.id.localeCompare(b.id));
@@ -337,12 +337,12 @@ export async function listProducts(productsDir: string): Promise<ProductListing[
 /** Create `products/<id>.md` from a short template. Never overwrites a file. */
 export async function newProductFile(productsDir: string, options: { id: string; url: string; name?: string }): Promise<string> {
   if (!ID.test(options.id)) {
-    throw new ShowrunError("CONFIG_INVALID", `'${options.id}' is not a valid product name.`, {
+    throw new AppStoryError("CONFIG_INVALID", `'${options.id}' is not a valid product name.`, {
       hint: "Use lowercase letters, numbers and dashes, e.g. my-app.",
     });
   }
   const file = productFilePath(productsDir, options.id);
-  if (await fileExists(file)) throw new ShowrunError("CONFIG_INVALID", `${file} already exists.`);
+  if (await fileExists(file)) throw new AppStoryError("CONFIG_INVALID", `${file} already exists.`);
   const name = options.name ?? options.id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const text = [
     "---",

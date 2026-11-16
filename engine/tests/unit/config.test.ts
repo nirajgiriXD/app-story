@@ -2,22 +2,22 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } from "@showrun/contracts";
-import { getTemplate } from "@showrun/video";
-import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@showrun/products";
-import { ShowrunError, redactSecrets, resolveCredential } from "@showrun/shared";
+import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } from "@app-story/contracts";
+import { getTemplate } from "@app-story/video";
+import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@app-story/products";
+import { AppStoryError, redactSecrets, resolveCredential } from "@app-story/shared";
 
 const KEYS = [
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_AUTH_TOKEN",
   "OPENAI_API_KEY",
-  "SHOWRUN_AI_PROVIDER",
-  "SHOWRUN_AI_MODEL",
-  "SHOWRUN_TTS_PROVIDER",
-  "SHOWRUN_VOICE",
-  "SHOWRUN_VOICE_ACCENT",
-  "SHOWRUN_VOICE_SPEED",
-  "SHOWRUN_VOICE_TONE",
+  "APP_STORY_AI_PROVIDER",
+  "APP_STORY_AI_MODEL",
+  "APP_STORY_TTS_PROVIDER",
+  "APP_STORY_VOICE",
+  "APP_STORY_VOICE_ACCENT",
+  "APP_STORY_VOICE_SPEED",
+  "APP_STORY_VOICE_TONE",
 ];
 let savedEnv: Record<string, string | undefined> = {};
 beforeEach(() => {
@@ -33,11 +33,11 @@ afterEach(() => {
 
 const file = (settings: string, body = "# Acme\n\nAcme is a billing tool for small shops.\n") => `---\n${settings}\n---\n\n${body}`;
 const parse = (text: string) => parseProductFile(text, "acme.md", "acme");
-const errorOf = (fn: () => unknown): ShowrunError => {
+const errorOf = (fn: () => unknown): AppStoryError => {
   try {
     fn();
   } catch (error) {
-    return error as ShowrunError;
+    return error as AppStoryError;
   }
   throw new Error("expected an error");
 };

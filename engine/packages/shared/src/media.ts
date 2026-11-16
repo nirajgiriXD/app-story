@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { ShowrunError } from "./errors";
+import { AppStoryError } from "./errors";
 
 export interface ProcessResult {
   code: number;
@@ -17,7 +17,7 @@ export function runProcess(command: string, args: string[], options: { input?: s
     child.on("error", (error: NodeJS.ErrnoException) => {
       if (error.code === "ENOENT") {
         reject(
-          new ShowrunError("DEPENDENCY_MISSING", `'${command}' was not found on PATH.`, {
+          new AppStoryError("DEPENDENCY_MISSING", `'${command}' was not found on PATH.`, {
             hint: command.startsWith("ff") ? "Install FFmpeg (https://ffmpeg.org) and make sure ffmpeg and ffprobe are on PATH." : undefined,
           }),
         );
@@ -31,7 +31,7 @@ export function runProcess(command: string, args: string[], options: { input?: s
 export async function runFfmpeg(args: string[]): Promise<void> {
   const result = await runProcess("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", ...args]);
   if (result.code !== 0) {
-    throw new ShowrunError("RENDER_FAILED", `ffmpeg failed: ${result.stderr.trim().slice(-800)}`);
+    throw new AppStoryError("RENDER_FAILED", `ffmpeg failed: ${result.stderr.trim().slice(-800)}`);
   }
 }
 
@@ -66,7 +66,7 @@ export async function probeMedia(path: string): Promise<MediaProbe> {
     path,
   ]);
   if (result.code !== 0) {
-    throw new ShowrunError("RENDER_FAILED", `ffprobe could not read ${path}: ${result.stderr.trim()}`);
+    throw new AppStoryError("RENDER_FAILED", `ffprobe could not read ${path}: ${result.stderr.trim()}`);
   }
   const json = JSON.parse(result.stdout) as FfprobeJson;
   const video = json.streams?.find((s) => s.codec_type === "video");

@@ -1,5 +1,5 @@
-import type { AiProviderConfig, AiProviderName } from "@showrun/contracts";
-import { ShowrunError, registerSecret, type Logger } from "@showrun/shared";
+import type { AiProviderConfig, AiProviderName } from "@app-story/contracts";
+import { AppStoryError, registerSecret, type Logger } from "@app-story/shared";
 import type { AIProvider } from "../contracts/types";
 import type { UsageTracker } from "../usage";
 import { AnthropicProvider } from "../providers/anthropic/anthropic.provider";
@@ -30,13 +30,13 @@ export function registerAIProvider(name: string, factory: AIProviderFactory): vo
 export function createAIProvider(config: AiProviderConfig, deps: ProviderDeps): AIProvider {
   const factory = factories.get(config.provider);
   if (!factory) {
-    throw new ShowrunError("CONFIG_INVALID", `Unknown AI provider '${config.provider}'.`);
+    throw new AppStoryError("CONFIG_INVALID", `Unknown AI provider '${config.provider}'.`);
   }
   const envName = API_KEY_ENV[config.provider];
   if (envName) {
     const key = process.env[envName];
     if (!key && !(config.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN)) {
-      throw new ShowrunError("PROVIDER_AUTH", `${envName} is not set, so the ${config.provider} provider cannot start.`, {
+      throw new AppStoryError("PROVIDER_AUTH", `${envName} is not set, so the ${config.provider} provider cannot start.`, {
         hint: `Add ${envName}=... to .env, or pick another provider with --ai-provider.`,
       });
     }

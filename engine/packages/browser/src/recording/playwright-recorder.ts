@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import { runFfmpeg } from "@showrun/shared";
+import { runFfmpeg } from "@app-story/shared";
 import { intermediateVideoArgs, type Recorder, type RecorderResult } from "./cdp-recorder";
 
 /**

@@ -1,5 +1,5 @@
-import type { JobStatus } from "@showrun/contracts";
-import { toShowrunError, type ErrorCode } from "@showrun/shared";
+import type { JobStatus } from "@app-story/contracts";
+import { toAppStoryError, type ErrorCode } from "@app-story/shared";
 
 const STATUS_BY_CODE: Partial<Record<ErrorCode, JobStatus>> = {
   APP_UNAVAILABLE: "application_unavailable",
@@ -13,9 +13,9 @@ const STATUS_BY_CODE: Partial<Record<ErrorCode, JobStatus>> = {
   PROVIDER_RATE_LIMIT: "recoverable_failure",
 };
 
-/** Map an error to the job outcome the README asks Showrun to distinguish. */
+/** Map an error to the job outcome the README asks AppStory to distinguish. */
 export function statusForError(error: unknown): JobStatus {
-  const e = toShowrunError(error);
+  const e = toAppStoryError(error);
   const mapped = STATUS_BY_CODE[e.code];
   if (mapped) return mapped;
   if (e.retryable) return "recoverable_failure";

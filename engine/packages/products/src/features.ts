@@ -1,4 +1,4 @@
-import type { Feature, FeaturePlan } from "@showrun/contracts";
+import type { Feature, FeaturePlan } from "@app-story/contracts";
 
 /** Objective for one video that walks through every feature, in order. */
 export function objectiveForAllFeatures(plan: Pick<FeaturePlan, "title" | "features">): string {

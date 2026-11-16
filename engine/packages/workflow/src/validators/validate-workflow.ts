@@ -1,6 +1,6 @@
-import type { ProductConfig, Step, Workflow } from "@showrun/contracts";
-import { ActionGuard, isAllowedUrl, resolveUrl } from "@showrun/browser";
-import { hasEnvTemplate } from "@showrun/shared";
+import type { ProductConfig, Step, Workflow } from "@app-story/contracts";
+import { ActionGuard, isAllowedUrl, resolveUrl } from "@app-story/browser";
+import { hasEnvTemplate } from "@app-story/shared";
 
 export interface WorkflowValidation {
   errors: string[];

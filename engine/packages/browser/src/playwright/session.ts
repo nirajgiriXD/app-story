@@ -1,7 +1,7 @@
 import { join, resolve } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
-import type { BrowserIssue, ProductConfig } from "@showrun/contracts";
-import { ShowrunError, ensureDir, resolveCredential, type Logger } from "@showrun/shared";
+import type { BrowserIssue, ProductConfig } from "@app-story/contracts";
+import { AppStoryError, ensureDir, resolveCredential, type Logger } from "@app-story/shared";
 import { PlaywrightController } from "../controller/playwright-controller";
 import { ActionGuard } from "../security/action-guard";
 import { isAllowedUrl } from "../security/url-guard";
@@ -243,7 +243,7 @@ async function autoLogin(controller: PlaywrightController, page: Page, config: P
     }
   }
   if (!found) {
-    throw new ShowrunError("AUTH_FAILED", `Could not find a login form for ${config.product.name}.`, {
+    throw new AppStoryError("AUTH_FAILED", `Could not find a login form for ${config.product.name}.`, {
       hint: `Add the page that shows it, e.g. "login page: /login", to products/${config.product.id}.md.`,
     });
   }
@@ -255,7 +255,7 @@ async function autoLogin(controller: PlaywrightController, page: Page, config: P
     await passwordField.press("Enter");
     await passwordField.waitFor({ state: "hidden", timeout: config.browser.navigation_timeout_ms });
   } catch (error) {
-    throw new ShowrunError("AUTH_FAILED", `Logging in to ${config.product.name} did not work.`, {
+    throw new AppStoryError("AUTH_FAILED", `Logging in to ${config.product.name} did not work.`, {
       cause: error,
       hint: `Check ${where}. Two-step logins (email first, password on a second page) are not supported yet.`,
     });

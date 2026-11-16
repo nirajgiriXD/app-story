@@ -1,6 +1,6 @@
 import type { Locator, Page } from "playwright";
-import type { Target } from "@showrun/contracts";
-import { ShowrunError } from "@showrun/shared";
+import type { Target } from "@app-story/contracts";
+import { AppStoryError } from "@app-story/shared";
 
 type AriaRole = Parameters<Page["getByRole"]>[0];
 
@@ -60,7 +60,7 @@ async function firstVisible(loc: Locator, limit = 12): Promise<Locator | undefin
 export async function resolveLocator(page: Page, target: Target, timeoutMs: number): Promise<Locator> {
   const candidates = buildLocators(page, target);
   if (candidates.length === 0) {
-    throw new ShowrunError("WORKFLOW_FAILED", `Target has no usable selector: ${JSON.stringify(target)}`);
+    throw new AppStoryError("WORKFLOW_FAILED", `Target has no usable selector: ${JSON.stringify(target)}`);
   }
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -70,7 +70,7 @@ export async function resolveLocator(page: Page, target: Target, timeoutMs: numb
     }
     await page.waitForTimeout(150);
   }
-  throw new ShowrunError("WORKFLOW_FAILED", `Could not find ${describeTarget(target)} on the page.`, {
+  throw new AppStoryError("WORKFLOW_FAILED", `Could not find ${describeTarget(target)} on the page.`, {
     details: { target, url: page.url() },
   });
 }

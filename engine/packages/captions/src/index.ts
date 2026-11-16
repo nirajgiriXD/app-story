@@ -1,4 +1,4 @@
-import type { CaptionCue } from "@showrun/contracts";
+import type { CaptionCue } from "@app-story/contracts";
 
 export interface TimedText {
   text: string;

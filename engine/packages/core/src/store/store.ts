@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { JobMetadataSchema, type JobMetadata, type Workflow } from "@showrun/contracts";
-import { dataDirFor, redactSecrets } from "@showrun/shared";
+import { JobMetadataSchema, type JobMetadata, type Workflow } from "@app-story/contracts";
+import { dataDirFor, redactSecrets } from "@app-story/shared";
 
 /** What a job keeps besides its video. Text kinds hold JSON or plain text; `thumbnail` is a PNG. */
 export type RecordKind =
@@ -81,13 +81,13 @@ export function cacheKey(kind: CacheKind, inputs: unknown): string {
 
 const open = new Map<string, Store>();
 
-/** The database that belongs to an output folder (`<parent>/engine/data/showrun.db`). */
+/** The database that belongs to an output folder (`<parent>/engine/data/app-story.db`). */
 export function storeFor(outputDir: string): Store {
   return Store.open(dataDirFor(outputDir));
 }
 
 /**
- * Everything Showrun tracks, in one SQLite file (`engine/data/showrun.db`): jobs and
+ * Everything AppStory tracks, in one SQLite file (`engine/data/app-story.db`): jobs and
  * their metadata, every record a job produces, and the saved plans. Only finished videos
  * live outside it, in `output/`. Uses Node's built-in `node:sqlite`.
  */
@@ -107,7 +107,7 @@ export class Store {
 
   private constructor(dataDir: string) {
     mkdirSync(dataDir, { recursive: true });
-    this.file = join(dataDir, "showrun.db");
+    this.file = join(dataDir, "app-story.db");
     this.db = new DatabaseSync(this.file);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;");
     this.db.exec(SCHEMA);

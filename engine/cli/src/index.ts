@@ -1,5 +1,5 @@
 import { config as loadEnv } from "dotenv";
-import { ROOT_ENV_FILE } from "@showrun/shared";
+import { ROOT_ENV_FILE } from "@app-story/shared";
 import { buildProgram } from "./program";
 import { printError } from "./output";
 

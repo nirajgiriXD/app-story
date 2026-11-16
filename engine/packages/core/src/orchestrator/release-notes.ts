@@ -1,7 +1,7 @@
-import { PROMPT_VERSIONS, createAIProvider, pickFeatures, UsageTracker } from "@showrun/ai";
-import { FeaturePlanSchema, type AiProviderConfig, type FeaturePlan } from "@showrun/contracts";
-import type { LoadedProduct } from "@showrun/products";
-import { ShowrunError, createLogger, isShowrunError } from "@showrun/shared";
+import { PROMPT_VERSIONS, createAIProvider, pickFeatures, UsageTracker } from "@app-story/ai";
+import { FeaturePlanSchema, type AiProviderConfig, type FeaturePlan } from "@app-story/contracts";
+import type { LoadedProduct } from "@app-story/products";
+import { AppStoryError, createLogger, isAppStoryError } from "@app-story/shared";
 import type { ProviderOverrides } from "../pipeline/providers";
 import { cacheKey, storeFor } from "../store/store";
 
@@ -31,8 +31,8 @@ export interface PickFeaturesResult {
 export async function planFeatures(request: PickFeaturesRequest): Promise<PickFeaturesResult> {
   const { product } = request;
   if (!product.brief.trim()) {
-    throw new ShowrunError("CONFIG_INVALID", `${product.file} has nothing below its settings block.`, {
-      hint: `Describe the app and paste your release notes into it, or say what to show: npx showrun ${product.id} "..."`,
+    throw new AppStoryError("CONFIG_INVALID", `${product.file} has nothing below its settings block.`, {
+      hint: `Describe the app and paste your release notes into it, or say what to show: npx app-story ${product.id} "..."`,
     });
   }
   const usage = new UsageTracker();
@@ -63,7 +63,7 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
     result = await read(config.providers.ai);
   } catch (error) {
     const fallback = config.providers.ai_fallback;
-    if (!fallback || !(isShowrunError(error) && error.code.startsWith("PROVIDER_"))) throw error;
+    if (!fallback || !(isAppStoryError(error) && error.code.startsWith("PROVIDER_"))) throw error;
     log.warn({ to: fallback.provider, reason: (error as Error).message }, "picking features failed; trying the fallback provider");
     result = await read(fallback);
   }
@@ -71,8 +71,8 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
   const { plan, provider } = result;
   if (plan.features.length === 0) {
     const skipped = plan.skipped.map((s) => `\n- ${s.item} (${s.reason})`).join("");
-    throw new ShowrunError("UNSUPPORTED_WORKFLOW", `Nothing new to demo in ${product.file}.${skipped}`, {
-      hint: `Add release notes with user-visible features, or say what to show: npx showrun ${product.id} "..."`,
+    throw new AppStoryError("UNSUPPORTED_WORKFLOW", `Nothing new to demo in ${product.file}.${skipped}`, {
+      hint: `Add release notes with user-visible features, or say what to show: npx app-story ${product.id} "..."`,
     });
   }
   store?.setCached(key, "features", JSON.stringify(plan));

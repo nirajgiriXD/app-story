@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import type { AiProviderConfig } from "@showrun/contracts";
-import { ShowrunError, type Logger } from "@showrun/shared";
+import type { AiProviderConfig } from "@app-story/contracts";
+import { AppStoryError, type Logger } from "@app-story/shared";
 import type {
   AIProvider,
   AgentInput,
@@ -79,7 +79,7 @@ export class OpenAIProvider implements AIProvider {
     assertComplete(response);
     const parsed = request.schema.safeParse(response.output_parsed);
     if (!parsed.success) {
-      throw new ShowrunError("PROVIDER_INVALID_OUTPUT", `OpenAI returned an invalid ${request.schemaName}: ${parsed.error.message}`);
+      throw new AppStoryError("PROVIDER_INVALID_OUTPUT", `OpenAI returned an invalid ${request.schemaName}: ${parsed.error.message}`);
     }
     return parsed.data;
   }
@@ -171,10 +171,10 @@ function assertComplete(response: OpenAI.Responses.Response): void {
     .flatMap((item) => (item.type === "message" ? item.content : []))
     .find((c) => c.type === "refusal");
   if (refusal && refusal.type === "refusal") {
-    throw new ShowrunError("PROVIDER_REFUSAL", `OpenAI declined the request: ${refusal.refusal}`);
+    throw new AppStoryError("PROVIDER_REFUSAL", `OpenAI declined the request: ${refusal.refusal}`);
   }
   if (response.status === "incomplete") {
-    throw new ShowrunError(
+    throw new AppStoryError(
       "PROVIDER_INVALID_OUTPUT",
       `OpenAI response was incomplete (${response.incomplete_details?.reason ?? "unknown reason"}).`,
     );
@@ -182,30 +182,30 @@ function assertComplete(response: OpenAI.Responses.Response): void {
 }
 
 export function mapOpenAIError(error: unknown, model: string): unknown {
-  if (error instanceof ShowrunError) return error;
+  if (error instanceof AppStoryError) return error;
   if (error instanceof OpenAI.AuthenticationError || error instanceof OpenAI.PermissionDeniedError) {
-    return new ShowrunError("PROVIDER_AUTH", "OpenAI rejected the API key.", {
+    return new AppStoryError("PROVIDER_AUTH", "OpenAI rejected the API key.", {
       cause: error,
       hint: "Check OPENAI_API_KEY in your .env file.",
     });
   }
   if (error instanceof OpenAI.NotFoundError) {
-    return new ShowrunError("PROVIDER_ERROR", `OpenAI model '${model}' was not found.`, {
+    return new AppStoryError("PROVIDER_ERROR", `OpenAI model '${model}' was not found.`, {
       cause: error,
       hint: "Set a valid model id in providers.ai.model.",
     });
   }
   if (error instanceof OpenAI.RateLimitError) {
-    return new ShowrunError("PROVIDER_RATE_LIMIT", "OpenAI rate limit reached (after retries).", { cause: error, retryable: true });
+    return new AppStoryError("PROVIDER_RATE_LIMIT", "OpenAI rate limit reached (after retries).", { cause: error, retryable: true });
   }
   if (error instanceof OpenAI.BadRequestError) {
-    return new ShowrunError("PROVIDER_ERROR", `OpenAI rejected the request: ${error.message}`, { cause: error });
+    return new AppStoryError("PROVIDER_ERROR", `OpenAI rejected the request: ${error.message}`, { cause: error });
   }
   if (error instanceof OpenAI.APIConnectionError) {
-    return new ShowrunError("PROVIDER_ERROR", "Could not reach the OpenAI API.", { cause: error, retryable: true });
+    return new AppStoryError("PROVIDER_ERROR", "Could not reach the OpenAI API.", { cause: error, retryable: true });
   }
   if (error instanceof OpenAI.APIError) {
-    return new ShowrunError("PROVIDER_ERROR", `OpenAI API error ${error.status ?? ""}: ${error.message}`, {
+    return new AppStoryError("PROVIDER_ERROR", `OpenAI API error ${error.status ?? ""}: ${error.message}`, {
       cause: error,
       retryable: (error.status ?? 0) >= 500,
     });

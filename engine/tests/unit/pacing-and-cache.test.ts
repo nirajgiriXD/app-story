@@ -2,13 +2,13 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { runRehearsal, type AIProvider, type AgentInput, type AgentTurnResult, type ToolCall } from "@showrun/ai";
-import type { Step } from "@showrun/contracts";
-import { cacheKey, storeFor } from "@showrun/core";
-import { segmentWordBudget } from "@showrun/narration";
-import { applyOverrides, parseProductFile } from "@showrun/products";
-import { createSilentLogger } from "@showrun/shared";
-import { estimateStepMs } from "@showrun/workflow";
+import { runRehearsal, type AIProvider, type AgentInput, type AgentTurnResult, type ToolCall } from "@app-story/ai";
+import type { Step } from "@app-story/contracts";
+import { cacheKey, storeFor } from "@app-story/core";
+import { segmentWordBudget } from "@app-story/narration";
+import { applyOverrides, parseProductFile } from "@app-story/products";
+import { createSilentLogger } from "@app-story/shared";
+import { estimateStepMs } from "@app-story/workflow";
 import { FakeController } from "../support/fake-controller";
 
 const pacing = { minStepMs: 900, typingDelayMs: 45, cursorMoveMs: 650 };
@@ -97,17 +97,17 @@ describe("result cache", () => {
   });
 });
 
-describe("SHOWRUN_AI_EFFORT", () => {
+describe("APP_STORY_AI_EFFORT", () => {
   afterEach(() => {
-    delete process.env.SHOWRUN_AI_EFFORT;
+    delete process.env.APP_STORY_AI_EFFORT;
   });
 
   it("sets the effort for every AI step, and rejects unknown levels", () => {
     const { config } = parseProductFile("---\nurl: https://acme.test\n---\n\n# Acme\n", "acme.md", "acme");
     expect(applyOverrides(config).providers.ai.effort).toBeUndefined();
-    process.env.SHOWRUN_AI_EFFORT = "High";
+    process.env.APP_STORY_AI_EFFORT = "High";
     expect(applyOverrides(config).providers.ai.effort).toBe("high");
-    process.env.SHOWRUN_AI_EFFORT = "turbo";
-    expect(() => applyOverrides(config)).toThrow(/SHOWRUN_AI_EFFORT/);
+    process.env.APP_STORY_AI_EFFORT = "turbo";
+    expect(() => applyOverrides(config)).toThrow(/APP_STORY_AI_EFFORT/);
   });
 });

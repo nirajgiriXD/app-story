@@ -1,10 +1,10 @@
 import { copyFile, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Workflow } from "@showrun/contracts";
-import { buildCues, toSrt, toVtt } from "@showrun/captions";
-import { resolveProductPath, type LoadedProduct } from "@showrun/products";
-import { ensureDir, fileExists, toPosixRelative } from "@showrun/shared";
-import { buildRenderProps, getTemplate, placeNarration, renderVideo, type TimelinePlan } from "@showrun/video";
+import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Workflow } from "@app-story/contracts";
+import { buildCues, toSrt, toVtt } from "@app-story/captions";
+import { resolveProductPath, type LoadedProduct } from "@app-story/products";
+import { ensureDir, fileExists, toPosixRelative } from "@app-story/shared";
+import { buildRenderProps, getTemplate, placeNarration, renderVideo, type TimelinePlan } from "@app-story/video";
 import { saveRecord, type Job } from "../job-manager/job";
 import type { RecordingOutcome } from "./record";
 

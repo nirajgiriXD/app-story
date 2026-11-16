@@ -81,7 +81,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
     // 2. Narration (script + speech), before recording so the take can be paced to it
     phase = "narration";
-    const { clips } = await prepareNarration(job, product, workflow, { durationS, audience: request.audience }, overrides);
+    const { clips, silent } = await prepareNarration(job, product, workflow, { durationS, audience: request.audience }, overrides);
     await saveMetadata(job);
 
     // 3. Recording
@@ -121,6 +121,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       clips,
       cues: composed.cues,
       plan: composed.plan,
+      silentNarration: silent,
     });
     await writeJson(job.paths.quality, quality);
     const errors = quality.checks.filter((c) => !c.passed && c.severity === "error");

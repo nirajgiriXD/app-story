@@ -14,6 +14,8 @@ export interface QualityInput {
   clips: AudioClip[];
   cues: CaptionCue[];
   plan: TimelinePlan;
+  /** The narration track is silent on purpose (`tts.provider: none`), so captions carry the words. */
+  silentNarration?: boolean;
 }
 
 /**
@@ -71,12 +73,16 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
   add("audio", "narration present", segments.length > 0, "error", `${input.clips.length} clip(s)`);
   const short = input.clips.filter((c) => c.duration_ms < 300);
   add("audio", "clip durations valid", short.length === 0, "error", short.map((c) => c.id).join(", ") || undefined);
-  const silent: string[] = [];
-  for (const clip of input.clips) {
-    const db = await meanVolumeDb(clip.path).catch(() => undefined);
-    if (db !== undefined && db < -50) silent.push(clip.id);
+  if (input.silentNarration) {
+    add("audio", "voice-over", true, "warning", "off (no text-to-speech); captions only");
+  } else {
+    const silent: string[] = [];
+    for (const clip of input.clips) {
+      const db = await meanVolumeDb(clip.path).catch(() => undefined);
+      if (db !== undefined && db < -50) silent.push(clip.id);
+    }
+    add("audio", "no silent narration segments", silent.length === 0, "error", silent.join(", ") || undefined);
   }
-  add("audio", "no silent narration segments", silent.length === 0, "error", silent.join(", ") || undefined);
   const placedAll = segments.every((c) => input.recorded.placed.some((p) => p.id === c.id));
   add("audio", "every segment placed on the recording", placedAll, "error");
   if (input.config.captions.enabled) {

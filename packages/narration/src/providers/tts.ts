@@ -1,12 +1,15 @@
 import { writeFile } from "node:fs/promises";
 import OpenAI from "openai";
 import type { TtsConfig } from "@demoforge/contracts";
-import { DemoForgeError, registerSecret, retry } from "@demoforge/shared";
+import { DemoForgeError, registerSecret, retry, runFfmpeg } from "@demoforge/shared";
+import { KokoroTTS } from "./kokoro";
 
 export interface TTSProvider {
   readonly name: string;
   readonly voice: string;
   readonly model: string;
+  /** True when the provider writes silence instead of speech (captions-only videos). */
+  readonly silent?: boolean;
   /** Write speech audio (MP3) for `text` to `outPath`. */
   synthesize(text: string, outPath: string): Promise<void>;
 }
@@ -96,7 +99,36 @@ export class OpenAITTS implements TTSProvider {
   }
 }
 
+/** Natural speaking rate, used to size silent clips so captions stay on screen long enough to read. */
+const SILENT_WORDS_PER_SECOND = 2.5;
+
+/**
+ * No speech: writes a silent clip as long as the text would take to say. The rest of the
+ * pipeline (pacing, captions, render) works unchanged, so the video carries captions only.
+ */
+export class SilentTTS implements TTSProvider {
+  readonly name = "none";
+  readonly voice = "none";
+  readonly model = "silence";
+  readonly silent = true;
+
+  async synthesize(text: string, outPath: string): Promise<void> {
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
+    const seconds = Math.max(1.5, words / SILENT_WORDS_PER_SECOND + 0.4);
+    await runFfmpeg(["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", seconds.toFixed(2), "-c:a", "libmp3lame", "-b:a", "128k", outPath]);
+  }
+}
+
 export type TTSFactory = (config: TtsConfig) => TTSProvider;
+
+function openaiTTS(config: TtsConfig): TTSProvider {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new DemoForgeError("PROVIDER_AUTH", "OPENAI_API_KEY is not set (needed for OpenAI text-to-speech).", {
+      hint: "Add it to .env, or use the free local voice: `providers.tts.provider: kokoro` (or --tts-provider kokoro).",
+    });
+  }
+  return new OpenAITTS(config);
+}
 
 const factories = new Map<string, TTSFactory>([
   [
@@ -105,24 +137,16 @@ const factories = new Map<string, TTSFactory>([
       const key = process.env.ELEVENLABS_API_KEY;
       if (!key) {
         throw new DemoForgeError("PROVIDER_AUTH", "ELEVENLABS_API_KEY is not set.", {
-          hint: "Add it to .env, or use `providers.tts.provider: openai` (or --tts-provider openai).",
+          hint: "Add it to .env, or use the free local voice: `providers.tts.provider: kokoro` (or --tts-provider kokoro).",
         });
       }
       registerSecret(key);
       return new ElevenLabsTTS(config, key);
     },
   ],
-  [
-    "openai",
-    (config) => {
-      if (!process.env.OPENAI_API_KEY) {
-        throw new DemoForgeError("PROVIDER_AUTH", "OPENAI_API_KEY is not set (needed for OpenAI text-to-speech).", {
-          hint: "Add it to .env, or use `providers.tts.provider: elevenlabs`.",
-        });
-      }
-      return new OpenAITTS(config);
-    },
-  ],
+  ["openai", openaiTTS],
+  ["kokoro", (config) => new KokoroTTS(config)],
+  ["none", () => new SilentTTS()],
 ]);
 
 export function registerTTSProvider(name: string, factory: TTSFactory): void {

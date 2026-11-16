@@ -27,11 +27,16 @@ export async function synthesizeNarration(
     const raw = join(dir, `${item.id}.raw.mp3`);
     const path = join(dir, `${item.id}.mp3`);
     await tts.synthesize(item.text, raw);
-    try {
-      await runFfmpeg(["-i", raw, "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "44100", "-ac", "2", "-b:a", "192k", path]);
-    } catch (error) {
-      log.warn({ clip: item.id, error: (error as Error).message }, "loudness normalisation failed; using raw audio");
+    if (tts.silent) {
+      // Nothing to normalise in silence.
       await rename(raw, path);
+    } else {
+      try {
+        await runFfmpeg(["-i", raw, "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-ar", "44100", "-ac", "2", "-b:a", "192k", path]);
+      } catch (error) {
+        log.warn({ clip: item.id, error: (error as Error).message }, "loudness normalisation failed; using raw audio");
+        await rename(raw, path);
+      }
     }
     const probe = await probeMedia(path);
     log.info({ clip: item.id, seconds: probe.durationSec.toFixed(1) }, "narration clip ready");

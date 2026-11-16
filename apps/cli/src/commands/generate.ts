@@ -1,4 +1,5 @@
 import { Command, Option } from "commander";
+import { TTS_PROVIDERS } from "@demoforge/contracts";
 import { generateDemo } from "@demoforge/core";
 import {
   defaultFeaturesPath,
@@ -32,7 +33,7 @@ export function providerFlags(cmd: Command): Command {
   return cmd
     .addOption(new Option("--ai-provider <provider>", "override the AI provider for this run").choices(["anthropic", "openai"]))
     .option("--ai-model <model>", "override the AI model for this run")
-    .addOption(new Option("--tts-provider <provider>", "override the text-to-speech provider").choices(["elevenlabs", "openai"]));
+    .addOption(new Option("--tts-provider <provider>", "override the text-to-speech provider").choices([...TTS_PROVIDERS]));
 }
 
 export function generateCommand(): Command {

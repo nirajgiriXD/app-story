@@ -32,13 +32,11 @@ beforeAll(async () => {
 
 afterAll(() => app?.stop());
 
-const tts = process.env.OPENAI_API_KEY ? "openai" : process.env.ELEVENLABS_API_KEY ? "elevenlabs" : undefined;
-
 for (const provider of ["anthropic", "openai"] as const) {
   const key = provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY;
-  describe.skipIf(!key || !tts)(`first milestone with ${provider}`, () => {
+  describe.skipIf(!key)(`first milestone with ${provider}`, () => {
     it("plans, executes, verifies, records, narrates and renders a real demo", async () => {
-      const product = await loadProduct(productsDir, "example", { aiProvider: provider, ttsProvider: tts });
+      const product = await loadProduct(productsDir, "example", { aiProvider: provider });
       const metadata = await generateDemo({
         product,
         outputDir,

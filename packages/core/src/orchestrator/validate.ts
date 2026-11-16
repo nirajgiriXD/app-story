@@ -41,9 +41,19 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
     if (process.env[env]) ok(`${ai!.provider} credentials found (${env})`);
     else error(`${env} is not set (needed for the ${ai!.provider} AI provider)`);
   }
-  const ttsEnv = API_KEYS[config.providers.tts.provider] as string;
-  if (process.env[ttsEnv]) ok(`${config.providers.tts.provider} text-to-speech credentials found (${ttsEnv})`);
-  else error(`${ttsEnv} is not set (needed for ${config.providers.tts.provider} text-to-speech)`);
+  const tts = config.providers.tts.provider;
+  if (tts === "none") {
+    ok("voice-over off (tts: none); videos get captions only");
+  } else if (tts === "kokoro") {
+    ok("voice-over: free local Kokoro voice, no key needed (first run downloads ~90 MB)");
+    if (!config.demo.default_language.toLowerCase().startsWith("en")) {
+      warn(`Kokoro voices speak English only, but demo.default_language is '${config.demo.default_language}'`);
+    }
+  } else {
+    const ttsEnv = API_KEYS[tts] as string;
+    if (process.env[ttsEnv]) ok(`${tts} text-to-speech credentials found (${ttsEnv})`);
+    else error(`${ttsEnv} is not set (needed for ${tts} text-to-speech)`);
+  }
 
   const auth = config.authentication;
   if (auth.strategy === "storage_state") {

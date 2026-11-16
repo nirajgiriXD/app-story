@@ -1,5 +1,6 @@
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
+import type { TtsProviderName } from "@demoforge/contracts";
 import { scaffoldProduct } from "@demoforge/products";
 import { slugify } from "@demoforge/shared";
 import { globals } from "../context";
@@ -11,7 +12,7 @@ interface InitOptions {
   url?: string;
   description?: string;
   aiProvider: "anthropic" | "openai";
-  ttsProvider: "elevenlabs" | "openai";
+  ttsProvider: TtsProviderName;
 }
 
 export function initCommand(): Command {
@@ -22,7 +23,7 @@ export function initCommand(): Command {
     .option("--url <url>", "base URL of the application")
     .option("--description <text>", "one-line product description")
     .option("--ai-provider <provider>", "anthropic or openai", "anthropic")
-    .option("--tts-provider <provider>", "elevenlabs or openai", "openai")
+    .option("--tts-provider <provider>", "kokoro (free, local), openai, elevenlabs or none", "kokoro")
     .action(async (opts: InitOptions, cmd: Command) => {
       const { productsDir } = globals(cmd);
       const ask = await prompter();

@@ -51,7 +51,7 @@ providers:
   #   provider: openai
   #   model: gpt-5
   tts:
-    provider: openai
+    provider: kokoro            # free voice that runs on this computer, no API key
     # voice: marin
 
 safety:

@@ -62,6 +62,31 @@ describe("end-to-end pipeline (fake voice, real browser + recorder + Remotion)",
     expect(tts.calls.length).toBe(9);
   });
 
+  it("narrates with the free local Kokoro voice (no API key)", async () => {
+    const product = await loadProduct(productsDir, "example", { ttsProvider: "kokoro" });
+    const metadata = await generateDemo({ product, outputDir, scenarioId: "create-project", logLevel: "warn" });
+
+    expect(metadata.errors).toEqual([]);
+    expect(metadata.status).toBe("success");
+    expect(metadata.tts.provider).toBe("kokoro");
+    const quality = JSON.parse(await readFile(join(metadata.output_dir, "quality.json"), "utf8"));
+    const silentCheck = quality.checks.find((c: { name: string }) => c.name === "no silent narration segments");
+    expect(silentCheck?.passed).toBe(true);
+  }, 300_000);
+
+  it("makes a captions-only video when there is no voice (tts: none)", async () => {
+    const product = await loadProduct(productsDir, "example", { ttsProvider: "none" });
+    const metadata = await generateDemo({ product, outputDir, scenarioId: "create-project", logLevel: "warn" });
+
+    expect(metadata.errors).toEqual([]);
+    expect(metadata.status).toBe("success");
+    expect(metadata.tts.provider).toBe("none");
+    const video = await probeMedia(metadata.video!.path);
+    expect([video.width, video.height, video.audioCodec]).toEqual([1920, 1080, "aac"]);
+    const srt = await readFile(join(metadata.output_dir, "captions", "subtitles.srt"), "utf8");
+    expect(srt).toContain("Q3 Product Launch");
+  });
+
   it("refuses to make a video from an unapproved scenario", async () => {
     const product = await loadProduct(productsDir, "example");
     const { saveScenario, loadScenario } = await import("@demoforge/products");

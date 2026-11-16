@@ -63,8 +63,9 @@ providers:
   #   provider: openai
   #   model: gpt-5
   tts:
-    provider: openai              # openai | elevenlabs
-    # voice: marin                # ElevenLabs: a voice id
+    provider: kokoro              # kokoro (free, local, no key) | openai | elevenlabs | none (captions only)
+    # voice: af_heart             # Kokoro: af_heart, af_bella, am_michael, bf_emma, bm_george, ...
+    #                             # OpenAI: marin, ... | ElevenLabs: a voice id
     # model: gpt-4o-mini-tts
     speed: 1.0
     # style: Calm, clear and friendly.

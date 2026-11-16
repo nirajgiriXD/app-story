@@ -122,7 +122,7 @@ Use the following stack unless a strong technical reason requires an alternative
 | Video composition | Remotion |
 | Video processing | FFmpeg |
 | Text-to-speech | Configurable TTS provider |
-| Initial TTS options | ElevenLabs, OpenAI |
+| Initial TTS options | Kokoro (free, local, default), OpenAI, ElevenLabs |
 | Captions | SRT / WebVTT generation |
 | Configuration | YAML |
 | CLI | Commander.js |

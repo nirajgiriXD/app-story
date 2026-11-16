@@ -4,7 +4,11 @@
 
 - Node.js 22+ and pnpm 10
 - FFmpeg and ffprobe on `PATH`
-- An Anthropic or OpenAI API key, and a text-to-speech key (OpenAI or ElevenLabs)
+- An Anthropic or OpenAI API key. That is all.
+  - The voice-over is free and runs on your computer ([Kokoro](https://huggingface.co/hexgrad/Kokoro-82M),
+    via `kokoro-js`). The first run downloads the voice model (~90 MB) once. English only.
+  - Paid voices are optional: `providers.tts.provider: openai` or `elevenlabs`.
+  - `providers.tts.provider: none` makes captions-only videos.
 
 ## Install
 
@@ -111,8 +115,8 @@ Global flags: `--products-dir`, `--output-dir`, `--log-level`. Provider flags on
 | Variable | Used for |
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude |
-| `OPENAI_API_KEY` | OpenAI models and OpenAI text-to-speech |
-| `ELEVENLABS_API_KEY` | ElevenLabs text-to-speech |
+| `OPENAI_API_KEY` | OpenAI models, and the optional OpenAI voice |
+| `ELEVENLABS_API_KEY` | optional; ElevenLabs text-to-speech |
 | `DEMOFORGE_AI_PROVIDER`, `DEMOFORGE_AI_MODEL`, `DEMOFORGE_TTS_PROVIDER` | override product.yaml (CLI flags win) |
 | `DEMOFORGE_PRODUCTS_DIR`, `DEMOFORGE_OUTPUT_DIR` | folder locations |
 | `DEMOFORGE_LOG_LEVEL` | `debug`, `info`, `warn`, ... |

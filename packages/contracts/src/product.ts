@@ -4,7 +4,12 @@ export const AI_PROVIDERS = ["anthropic", "openai"] as const;
 export const AiProviderNameSchema = z.enum(AI_PROVIDERS);
 export type AiProviderName = z.infer<typeof AiProviderNameSchema>;
 
-export const TTS_PROVIDERS = ["elevenlabs", "openai"] as const;
+/**
+ * `kokoro` is free and runs locally (no API key), so it works with either AI provider.
+ * `openai` and `elevenlabs` are optional paid voices. `none` makes a silent narration
+ * track: the video still gets captions, paced to the text.
+ */
+export const TTS_PROVIDERS = ["kokoro", "openai", "elevenlabs", "none"] as const;
 export const TtsProviderNameSchema = z.enum(TTS_PROVIDERS);
 export type TtsProviderName = z.infer<typeof TtsProviderNameSchema>;
 
@@ -38,7 +43,7 @@ export const AiProviderConfigSchema = z.object({
 export type AiProviderConfig = z.infer<typeof AiProviderConfigSchema>;
 
 export const TtsConfigSchema = z.object({
-  provider: TtsProviderNameSchema,
+  provider: TtsProviderNameSchema.default("kokoro"),
   voice: z.string().optional(),
   model: z.string().optional(),
   /** 1.0 is natural speed. */
@@ -146,7 +151,7 @@ export const ProductConfigSchema = z.object({
     ai: AiProviderConfigSchema,
     /** Optional and explicit. Used only when the primary provider fails, and always recorded. */
     ai_fallback: AiProviderConfigSchema.optional(),
-    tts: TtsConfigSchema,
+    tts: TtsConfigSchema.prefault({}),
   }),
   safety: SafetyConfigSchema,
   recording: z

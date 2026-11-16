@@ -9,6 +9,8 @@ import { productContext } from "./rehearse";
 export interface NarrationResult {
   script: NarrationScript;
   clips: AudioClip[];
+  /** True when the narration track is silence (captions-only video). */
+  silent: boolean;
 }
 
 export async function prepareNarration(
@@ -38,7 +40,12 @@ export async function prepareNarration(
   job.metadata.tts = { provider: tts.name, voice: tts.voice, model: tts.model };
   const clips = await synthesizeNarration(script, tts, job.paths.narrationDir, job.log);
   await writeJson(`${job.paths.narrationDir}/clips.json`, clips);
-  return { script, clips };
+  if (tts.silent) {
+    if (!config.captions.enabled) {
+      job.metadata.warnings.push("Captions are disabled too, so the video has no narration at all.");
+    }
+  }
+  return { script, clips, silent: Boolean(tts.silent) };
 }
 
 function scriptMarkdown(workflow: Workflow, script: NarrationScript): string {

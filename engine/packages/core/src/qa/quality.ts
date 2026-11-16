@@ -5,6 +5,9 @@ import type { TimelinePlan } from "@showrun/video";
 import type { JobPaths } from "../job-manager/job";
 import type { RecordingOutcome } from "../pipeline/record";
 
+/** A still screen or a silence longer than this looks like the video got stuck. */
+const LONG_PAUSE_MS = 6000;
+
 export interface QualityInput {
   jobId: string;
   paths: JobPaths;
@@ -46,6 +49,28 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
 
   const lastStep = input.workflow.steps[input.workflow.steps.length - 1];
   add("workflow", "stopped at the intended endpoint", Boolean(lastStep && results.get(lastStep.id)?.status === "passed"), "error");
+
+  const retried = report.steps.filter((s) => s.status === "passed" && s.attempts > 1);
+  add("workflow", "no retries on camera", retried.length === 0, "warning", retried.length ? `retried: ${retried.map((s) => s.step_id).join(", ")}` : undefined);
+
+  // The pacer holds a step back until the previous line is spoken: a long hold is a frozen screen.
+  // The opening shot is left out: the first line sets the scene over the start page.
+  const ran = report.steps.filter((s) => s.status !== "skipped");
+  const stills = ran
+    .slice(2)
+    .map((s, i) => ({ id: s.step_id, ms: s.started_ms - (ran[i + 1] as (typeof ran)[number]).ended_ms }))
+    .filter((g) => g.ms > LONG_PAUSE_MS);
+  add("recording", "no long still screens", stills.length === 0, "warning", stills.length ? stills.map((g) => `${(g.ms / 1000).toFixed(1)}s before ${g.id}`).join(", ") : undefined);
+
+  const voice = [...input.recorded.placed].sort((a, b) => a.start_ms - b.start_ms);
+  const silences = voice
+    .slice(1)
+    .map((c, i) => {
+      const prev = voice[i] as (typeof voice)[number];
+      return { id: c.id, ms: c.start_ms - (prev.start_ms + prev.duration_ms) };
+    })
+    .filter((g) => g.ms > LONG_PAUSE_MS);
+  add("audio", "no long silences", silences.length === 0, "warning", silences.length ? silences.map((g) => `${(g.ms / 1000).toFixed(1)}s before ${g.id}`).join(", ") : undefined);
 
   const blocked = report.issues.filter((i) => i.kind === "blocked_navigation");
   add("workflow", "no unexpected navigation", blocked.length === 0, "warning", blocked.map((b) => b.url).join(", ") || undefined);

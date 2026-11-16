@@ -67,7 +67,7 @@ export async function runRehearsal(input: RehearsalInput): Promise<RehearsalOutc
 
   const actionHandler = (name: RehearsalToolName): ToolHandler => ({
     schema: RehearsalToolInputs[name],
-    async run(raw) {
+    async run(raw, _call, { last }) {
       counter += 1;
       const candidate = toolCallToStep(name, raw, `r${counter}`);
       if (!candidate) return { content: `Tool ${name} is not an action.`, isError: true };
@@ -79,11 +79,14 @@ export async function runRehearsal(input: RehearsalInput): Promise<RehearsalOutc
       const step = checked.data;
       const result = await executeStep(controller, step, { retries: 0, log, screenshotDir: input.screenshotDir });
       executed.set(step.id, { step, result, order: counter });
-      const page = await describePage(controller).catch(() => "(page snapshot unavailable)");
-      if (result.status === "passed") {
-        return { content: `OK — step ${step.id} succeeded${step.expected ? " and its expected outcome was verified" : ""}.\n${page}` };
+      const passed = result.status === "passed";
+      // The page snapshot is the biggest part of the conversation: send it once per turn
+      // (after the last action), or when something failed and the model must look again.
+      const page = passed && !last ? "" : `\n${await describePage(controller).catch(() => "(page snapshot unavailable)")}`;
+      if (passed) {
+        return { content: `OK — step ${step.id} succeeded${step.expected ? " and its expected outcome was verified" : ""}.${page}` };
       }
-      return { content: `FAILED — step ${step.id}: ${result.error} [${result.error_code}]\n${page}`, isError: true };
+      return { content: `FAILED — step ${step.id}: ${result.error} [${result.error_code}]${page}`, isError: true };
     },
   });
 

@@ -9,9 +9,14 @@ export interface ToolHandlerResult {
   done?: boolean;
 }
 
+export interface ToolCallContext {
+  /** True for the last tool call of the model's turn (worth returning the page state). */
+  last: boolean;
+}
+
 export interface ToolHandler {
   schema: z.ZodType;
-  run(input: unknown, call: ToolCall): Promise<ToolHandlerResult>;
+  run(input: unknown, call: ToolCall, context: ToolCallContext): Promise<ToolHandlerResult>;
 }
 
 export interface ToolLoopOptions {
@@ -65,24 +70,34 @@ export async function runToolLoop(
 
     const results: ToolResult[] = [];
     let done = false;
-    for (const call of turn.toolCalls) {
+    let failed = false;
+    // Several calls in one turn run in order; after an error the rest are skipped, because
+    // they were planned for a page that is no longer what the model expected.
+    for (const [index, call] of turn.toolCalls.entries()) {
       if (done) {
         results.push({ callId: call.id, content: "Ignored: the task already finished.", isError: true });
+        continue;
+      }
+      if (failed) {
+        results.push({ callId: call.id, content: "Skipped: an earlier tool call in this turn failed.", isError: true });
         continue;
       }
       const handler = handlers[call.name];
       if (!handler) {
         results.push({ callId: call.id, content: `Unknown tool "${call.name}".`, isError: true });
+        failed = true;
         continue;
       }
       const parsed = handler.schema.safeParse(call.input);
       if (!parsed.success) {
         results.push({ callId: call.id, content: `Invalid input: ${parsed.error.message}`, isError: true });
+        failed = true;
         continue;
       }
-      const result = await handler.run(parsed.data, call);
+      const result = await handler.run(parsed.data, call, { last: index === turn.toolCalls.length - 1 });
       results.push({ callId: call.id, content: result.content, isError: result.isError });
       if (result.done) done = true;
+      if (result.isError) failed = true;
     }
     if (done) return { iterations: iteration, finished: true };
 

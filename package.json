@@ -1,6 +1,7 @@
 {
   "name": "app-story-monorepo",
   "private": true,
+  "license": "MIT",
   "workspaces": [
     "engine/cli",
     "engine/packages/*"

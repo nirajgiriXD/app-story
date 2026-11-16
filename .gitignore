@@ -1,7 +1,8 @@
 node_modules/
 dist/
 output/
-.demoforge/
+engine/data/demoforge.db*
+engine/data/work/
 coverage/
 .env
 .env.*

@@ -86,7 +86,7 @@ app changing so the plan no longer works, makes DemoForge plan again by itself. 
 ## What a video job keeps
 
 Only the video goes to `output/<product>/<job-id>-<name>.mp4`. Everything else is in the
-SQLite database `.demoforge/demoforge.db` (see "Output" in the README):
+SQLite database `engine/data/demoforge.db` (see "Output" in the README):
 
 | Record | What |
 | --- | --- |
@@ -98,13 +98,13 @@ SQLite database `.demoforge/demoforge.db` (see "Output" in the README):
 | `execution`, `browser_issues`, `quality` | step results, console/network problems, quality checks |
 | `log`, `thumbnail` | the full log, and a PNG cover image |
 
-A failed video keeps its scratch folder, `.demoforge/work/<job>/`, with the raw recording,
+A failed video keeps its scratch folder, `engine/data/work/<job>/`, with the raw recording,
 failure screenshots and `logs/trace.zip` (open it with `npx playwright show-trace`).
 
 Any SQLite tool can read the database, for example:
 
 ```bash
-sqlite3 .demoforge/demoforge.db "SELECT created_at, product_id, status, video_path FROM jobs ORDER BY created_at DESC"
+sqlite3 engine/data/demoforge.db "SELECT created_at, product_id, status, video_path FROM jobs ORDER BY created_at DESC"
 ```
 
 ## Environment variables

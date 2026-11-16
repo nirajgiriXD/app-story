@@ -10,10 +10,13 @@ export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", 
 export const PRODUCTS_DIR = join(REPO_ROOT, "products");
 export const OUTPUT_DIR = join(REPO_ROOT, "output");
 export const ROOT_ENV_FILE = join(REPO_ROOT, ".env");
-/** DemoForge's own data: the SQLite database and scratch folders of running jobs. Hidden, git-ignored. */
-export const DATA_DIR = join(REPO_ROOT, ".demoforge");
+/** DemoForge's own data: the SQLite database and scratch folders of running jobs. Git-ignored. */
+export const DATA_DIR = join(REPO_ROOT, "engine", "data");
 
-/** The data folder that belongs to an output folder: `<parent>/.demoforge` (tests use temporary ones). */
+/**
+ * The data folder that belongs to an output folder: `<parent>/engine/data`. For the real
+ * `output/` that is DATA_DIR; tests use temporary folders laid out the same way.
+ */
 export function dataDirFor(outputDir: string): string {
-  return join(dirname(outputDir), ".demoforge");
+  return join(dirname(outputDir), "engine", "data");
 }

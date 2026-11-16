@@ -61,13 +61,13 @@ CREATE TABLE IF NOT EXISTS plans (
 
 const open = new Map<string, Store>();
 
-/** The database that belongs to an output folder (`<parent>/.demoforge/demoforge.db`). */
+/** The database that belongs to an output folder (`<parent>/engine/data/demoforge.db`). */
 export function storeFor(outputDir: string): Store {
   return Store.open(dataDirFor(outputDir));
 }
 
 /**
- * Everything DemoForge tracks, in one SQLite file (`.demoforge/demoforge.db`): jobs and
+ * Everything DemoForge tracks, in one SQLite file (`engine/data/demoforge.db`): jobs and
  * their metadata, every record a job produces, and the saved plans. Only finished videos
  * live outside it, in `output/`. Uses Node's built-in `node:sqlite`.
  */

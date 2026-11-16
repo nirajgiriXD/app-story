@@ -138,8 +138,8 @@ output/
     └── 20261116-141010-d4e5f6-bulk-export.mp4
 ```
 
-Everything else is kept in one SQLite database, `.demoforge/demoforge.db` (hidden, ignored
-by git):
+Everything else is kept in one SQLite database, `engine/data/demoforge.db` (ignored by
+git):
 
 | Table | What it keeps |
 | --- | --- |
@@ -148,11 +148,11 @@ by git):
 | `plans` | the working click-plan of each feature, replayed by the next video without AI planning |
 
 While a video is being made, its raw recording and voice clips sit in
-`.demoforge/work/<job>/`. That folder is deleted when the video succeeds, and kept when it
+`engine/data/work/<job>/`. That folder is deleted when the video succeeds, and kept when it
 fails so you can see what happened (the path is printed).
 
 `npx demoforge history` lists recent videos from the database. Deleting a video file is
-safe; deleting `.demoforge/` forgets the history and the saved plans (the next videos
+safe; deleting `engine/data/` forgets the history and the saved plans (the next videos
 are planned again).
 
 ## Engine
@@ -174,6 +174,7 @@ engine/
 │   ├── products/     reads the product files in products/
 │   ├── contracts/    the shape of every config and result file
 │   └── shared/       small helpers used everywhere
+├── data/           the SQLite database and scratch folders of running jobs (git-ignored)
 ├── example-app/    a tiny fake app to practise on (npm run example-app)
 ├── tests/          unit, integration (real browser) and e2e (real AI) tests, fixtures
 ├── scripts/        helper that starts the tests
@@ -751,7 +752,6 @@ demoforge/
 │   └── example.md            the practice app
 │
 ├── output/                   finished videos only (git-ignored)
-├── .demoforge/               SQLite database and scratch folders (hidden, git-ignored)
 ├── docs/
 │
 ├── engine/                   DemoForge itself
@@ -768,6 +768,7 @@ demoforge/
 │   │   ├── contracts/
 │   │   └── shared/
 │   │
+│   ├── data/                 SQLite database and scratch folders (git-ignored)
 │   ├── example-app/          tiny fake app for practice and tests
 │   ├── tests/                unit/, integration/, e2e/, support/, fixtures/
 │   ├── scripts/
@@ -794,12 +795,12 @@ output/
     20261116-134205-a1b2c3-website-backup.mp4
 ```
 
-Everything else is in the SQLite database `.demoforge/demoforge.db`: the `jobs` table
+Everything else is in the SQLite database `engine/data/demoforge.db`: the `jobs` table
 (product, objective, timestamps, AI provider and model, voice, workflow version, status,
 recording duration, video path, token usage and estimated AI cost, errors), `job_records`
 (settings used, plan, practice run, narration, captions, reports, quality checks, log,
 thumbnail) and `plans` (saved click-plans). A job's scratch files live in
-`.demoforge/work/<job>/`, deleted on success and kept on failure for troubleshooting.
+`engine/data/work/<job>/`, deleted on success and kept on failure for troubleshooting.
 
 ---
 

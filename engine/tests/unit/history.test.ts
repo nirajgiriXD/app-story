@@ -11,7 +11,7 @@ import { forgetPlan, loadSavedPlan, savePlan } from "../../packages/core/src/pip
 const job = (outputDir: string, productId: string, name: string) =>
   createJob({ outputDir, productId, name, mode: "guided", objective: `show ${name}`, scenarioId: null, logLevel: "silent" });
 
-/** A temporary workspace: <root>/output for videos, <root>/.demoforge for the database. */
+/** A temporary workspace: <root>/output for videos, <root>/engine/data for the database. */
 const workspace = async () => join(await mkdtemp(join(tmpdir(), "df-store-")), "output");
 
 describe("job history in SQLite", () => {
@@ -31,7 +31,7 @@ describe("job history in SQLite", () => {
     ]);
     expect((await readHistory(out, { productId: "shop" })).map((e) => e.job_id)).toEqual([first.id]);
     expect(await readHistory(out, { limit: 1 })).toHaveLength(1);
-    expect(existsSync(join(dirname(out), ".demoforge", "demoforge.db"))).toBe(true);
+    expect(existsSync(join(dirname(out), "engine", "data", "demoforge.db"))).toBe(true);
   });
 
   it("keeps a job's records, log and thumbnail in the database, with secrets scrubbed", async () => {

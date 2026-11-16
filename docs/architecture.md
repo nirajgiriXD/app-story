@@ -52,11 +52,11 @@ at login time and registered as secrets.
 ## Storage
 
 `output/` receives only the finished MP4. Everything else is in one SQLite file,
-`.demoforge/demoforge.db`, through Node's built-in `node:sqlite` (`Store` in
+`engine/data/demoforge.db`, through Node's built-in `node:sqlite` (`Store` in
 `engine/packages/core/src/store/`): a `jobs` table with each job's metadata, `job_records`
 with everything a job produces (settings used, plan, practice run, narration, captions,
 reports, quality checks, log, thumbnail), and `plans` with the saved click-plans. Jobs work
-in `.demoforge/work/<job>/`, deleted on success and kept on failure for troubleshooting.
+in `engine/data/work/<job>/`, deleted on success and kept on failure for troubleshooting.
 
 ## Decisions that differ from a literal reading of the spec
 

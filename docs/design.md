@@ -2,7 +2,8 @@
 
 > The original design brief that AppStory was built from. Where it describes product
 > folders, `product.yaml`, scenarios or other commands, sections 5 to 9 have been
-> updated to the current one-file design. For how to use AppStory, see the
+> updated to the current one-file design. Videos are no longer rendered with Remotion,
+> as planned below, but in headless Chromium and FFmpeg. For how to use AppStory, see the
 > [README](../README.md); for how the code fits together, see [architecture.md](architecture.md).
 
 ---

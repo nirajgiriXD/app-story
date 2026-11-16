@@ -199,7 +199,7 @@ engine/
 │   ├── workflow/     checks and replays click-plans
 │   ├── narration/    writes the script and speaks it (Kokoro, OpenAI, ElevenLabs)
 │   ├── captions/     subtitles
-│   ├── video/        renders the final MP4 (Remotion)
+│   ├── video/        renders the final MP4 (headless Chromium + FFmpeg)
 │   ├── products/     reads the product files in products/
 │   ├── contracts/    the shape of every config and result file
 │   └── shared/       small helpers used everywhere

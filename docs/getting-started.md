@@ -118,6 +118,7 @@ sqlite3 engine/data/app-story.db "SELECT created_at, product_id, status, video_p
 | `APP_STORY_AI_PROVIDER`, `APP_STORY_AI_MODEL`, `APP_STORY_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
 | `APP_STORY_AI_EFFORT` | `low` to `max`: how hard the AI thinks in every step (default: `high` for planning, `low` for the script) |
 | `APP_STORY_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
+| `APP_STORY_RENDER_WORKERS` | how many frames are drawn at once while rendering (default: one per two CPU cores, up to 8) |
 | anything a product file names, e.g. `ACME_PASSWORD` | `login: demo@acme.com / env:ACME_PASSWORD` |
 
 All of them go in the root `.env`, which git ignores.
@@ -126,7 +127,7 @@ All of them go in the root `.env`, which git ignores.
 
 ```bash
 npm test                  # unit (fast, no browser)
-npm run test:integration  # real Chromium, login, recorder and Remotion; fake AI and voice
+npm run test:integration  # real Chromium, login, recorder and renderer; fake AI and voice
 npm run test:e2e          # real APIs (costs money); skipped when keys are missing
 npm run typecheck
 ```

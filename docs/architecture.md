@@ -11,7 +11,7 @@ cli ──► core (orchestrator, pipeline stages, job manager, QA, SQLite store
         ├─ browser    Playwright session, controller, locators, guards, recorders
         ├─ narration  script writer, TTS providers, narration pacer
         ├─ captions   cue builder, SRT / WebVTT
-        └─ video      Remotion compositions, templates, timeline maths, render
+        └─ video      React compositions, templates, timeline maths, render
   contracts (Zod schemas)  ·  shared (errors, logging, secrets, FFmpeg helpers)
 ```
 
@@ -51,11 +51,15 @@ at login time and registered as secrets.
    here, it is dropped and the demo is planned again once, in the same job; any other
    failure stops the job and no video is made.
 5. **Captions + render.** Narration is placed on the final timeline (intro card →
-   recording → outro card), captions are cut from it, and Remotion renders H.264/AAC
-   (frames at JPEG quality 100, BT.709) with zoom-to-element, cursor highlight, click
-   ripples, chapter chips and branding. The compositions are bundled once per process, in
-   the background from the start of the job; each render stages only its own files. The
-   thumbnail is a frame of the finished MP4.
+   recording → outro card), captions are cut from it, and the video is rendered with
+   zoom-to-element, cursor highlight, click ripples, chapter chips and branding. The
+   compositions (React) are bundled once per process with esbuild. The frames are split
+   into stretches, one per worker (`APP_STORY_RENDER_WORKERS`, default one per two CPU
+   cores, up to 8). Each worker draws its frames in a headless Chromium tab, with FFmpeg
+   streaming it the recording's frames and encoding the captured frames to H.264 (JPEG
+   quality 100, BT.709). FFmpeg then joins the stretches without re-encoding and mixes
+   the sound: each voice clip at its place, and the music looped under it, dipping
+   under the voice. The thumbnail is a frame of the finished MP4.
 6. **Quality checks** and **metadata**. A plan made by the AI is saved for reuse only
    after its video passed. Videos are never published automatically.
 

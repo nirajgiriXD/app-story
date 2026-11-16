@@ -14,6 +14,24 @@ export const TTS_PROVIDERS = ["kokoro", "openai", "elevenlabs", "none"] as const
 export const TtsProviderNameSchema = z.enum(TTS_PROVIDERS);
 export type TtsProviderName = z.infer<typeof TtsProviderNameSchema>;
 
+/** The video looks (templates) the renderer offers. */
+export const TEMPLATE_NAMES = ["modern-saas", "minimal", "product-update", "tutorial", "feature-highlight"] as const;
+export type TemplateName = (typeof TEMPLATE_NAMES)[number];
+
+/** What a video is for, which decides its look when the product file sets no `template:`. */
+export type VideoKind = "whats-new" | "feature" | "how-to";
+
+const TEMPLATE_FOR_KIND: Record<VideoKind, TemplateName> = {
+  "whats-new": "product-update", // all new features of a release: "New" badge, announcement feel
+  feature: "feature-highlight", // one feature in focus: strongest zoom, big title
+  "how-to": "tutorial", // a plain-language goal: big cursor, close zoom, easy to follow
+};
+
+/** The template for a video: the product file's choice, else one that suits the kind of video. */
+export function pickTemplate(chosen: TemplateName | undefined, kind: VideoKind | undefined): TemplateName {
+  return chosen ?? (kind ? TEMPLATE_FOR_KIND[kind] : "modern-saas");
+}
+
 export const EffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);
 
 const slug = z
@@ -131,7 +149,8 @@ export const ProductConfigSchema = z.object({
       default_duration: z.number().int().positive().default(90),
       default_resolution: ResolutionSchema.default("1080p"),
       fps: z.number().int().min(24).max(60).default(30),
-      template: z.string().default("modern-saas"),
+      /** Video look. Unset: picked per video (see `pickTemplate`). */
+      template: z.enum(TEMPLATE_NAMES).optional(),
       audience: z.string().optional(),
     })
     .prefault({}),

@@ -1,5 +1,5 @@
 import { chromium } from "playwright";
-import { resolveKokoroVoice } from "@demoforge/contracts";
+import { pickTemplate, resolveKokoroVoice } from "@demoforge/contracts";
 import { resolveProductPath, type LoadedProduct } from "@demoforge/products";
 import { credentialEnvName, dataDirFor, fileExists, hasBinary } from "@demoforge/shared";
 import { Store } from "../store/store";
@@ -71,6 +71,12 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
   } else {
     ok("login: none");
   }
+
+  ok(
+    config.demo.template
+      ? `video look: ${config.demo.template} (set in the file)`
+      : `video look: picked per video (${pickTemplate(undefined, "whats-new")} for what's new, ${pickTemplate(undefined, "feature")} with --each, ${pickTemplate(undefined, "how-to")} for a goal)`,
+  );
 
   const allowed = Object.entries(config.safety.allow).filter(([, on]) => on).map(([name]) => name.replace(/_/g, " "));
   ok(`blocked actions: ${allowed.length ? `all except ${allowed.join(", ")}` : "delete, payments, emails, publishing, account settings, invites"}`);

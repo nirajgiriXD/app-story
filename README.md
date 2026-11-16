@@ -89,6 +89,7 @@ ai: anthropic                              # anthropic | openai (default: whiche
 model: claude-opus-5-5                     # default: the provider's default model
 voice: kokoro                              # kokoro (free) | openai | elevenlabs | none
 length: 60                                 # seconds per video (default: 90)
+template: product-update                   # the video's look (default: picked per video, see below)
 language: en                               # Kokoro speaks English only
 logo: acme-logo.png                        # next to this file
 color: "#4F46E5"                           # in quotes
@@ -104,6 +105,17 @@ allow: delete, emails                      # risky actions are blocked unless li
   account settings or invites users. List any of `delete, payments, emails, publishing,
   account settings, invite users, production data` to allow them.
 - **ai**: with keys for both providers, the other one is used as a backup if the first fails.
+- **template**: the video's look. Only the look changes; clicks, narration and length do not.
+
+  | Template | Look | Picked by itself for |
+  | --- | --- | --- |
+  | `product-update` | app in a browser window, dark background, "New" badge on the title | `npx demoforge acme` (what's new) |
+  | `feature-highlight` | browser window, strongest zoom, biggest title | `npx demoforge acme --each` (one feature per video) |
+  | `tutorial` | full screen, light, big cursor, close zoom | `npx demoforge acme "show how to …"` (a how-to) |
+  | `modern-saas` | browser window, colorful background, medium zoom | — |
+  | `minimal` | full screen, plain light, gentle zoom, no chapter labels | — |
+
+  Set `template:` to use one look for every video of the product.
 
 Files whose name starts with `_` (for example `_draft.md`) are not treated as products.
 

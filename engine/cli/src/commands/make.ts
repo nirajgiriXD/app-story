@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import type { VideoKind } from "@demoforge/contracts";
 import { generateDemo, planFeatures } from "@demoforge/core";
 import { objectiveForAllFeatures, objectiveForFeature, type LoadedProduct } from "@demoforge/products";
 import { DemoForgeError, slugify } from "@demoforge/shared";
@@ -26,7 +27,7 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
   }
   const { outputDir, logLevel } = globals(cmd);
   const product = await openProduct(productId);
-  const jobs = goal ? [{ objective: goal, name: slugify(goal) }] : await featureJobs(product, Boolean(opts.each), logLevel);
+  const jobs = goal ? [{ objective: goal, name: slugify(goal), kind: "how-to" as const }] : await featureJobs(product, Boolean(opts.each), logLevel);
 
   const results = [];
   for (const job of jobs) {
@@ -47,7 +48,11 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
 }
 
 /** Let the AI pick the new features from the release notes, then one job for all, or one each. */
-async function featureJobs(product: LoadedProduct, each: boolean, logLevel: string | undefined): Promise<{ objective: string; name: string }[]> {
+async function featureJobs(
+  product: LoadedProduct,
+  each: boolean,
+  logLevel: string | undefined,
+): Promise<{ objective: string; name: string; kind: VideoKind }[]> {
   const { plan, costUsd } = await planFeatures({ product, logLevel });
   const cost = costUsd ? ` · $${costUsd.toFixed(3)}` : "";
   console.log(`${bold(`New in ${plan.title ?? product.config.product.name}`)} ${dim(`(from ${product.file}${cost})`)}`);
@@ -55,8 +60,8 @@ async function featureJobs(product: LoadedProduct, each: boolean, logLevel: stri
   for (const s of plan.skipped) console.log(dim(`  - skipped: ${s.item} (${s.reason})`));
   console.log();
 
-  if (each) return plan.features.map((f) => ({ objective: objectiveForFeature(f), name: slugify(f.title) }));
+  if (each) return plan.features.map((f) => ({ objective: objectiveForFeature(f), name: slugify(f.title), kind: "feature" as const }));
   const first = plan.features[0] as { title: string };
   const name = plan.title ? `whats-new-${plan.title}` : plan.features.length === 1 ? first.title : "whats-new";
-  return [{ objective: objectiveForAllFeatures(plan), name: slugify(name) }];
+  return [{ objective: objectiveForAllFeatures(plan), name: slugify(name), kind: "whats-new" }];
 }

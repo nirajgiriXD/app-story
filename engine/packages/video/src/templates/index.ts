@@ -1,6 +1,9 @@
+import type { TemplateName } from "@demoforge/contracts";
+
 /**
  * Video templates. A template only controls presentation (framing, motion, typography,
- * captions); it never touches browser automation. Add a template by adding an entry here.
+ * captions); it never touches browser automation. To add one, add its name to
+ * TEMPLATE_NAMES in the contracts package and an entry here.
  */
 export interface VideoTemplate {
   name: string;
@@ -32,7 +35,7 @@ const base: Omit<VideoTemplate, "name"> = {
   musicVolume: 0.08,
 };
 
-export const TEMPLATES: Record<string, VideoTemplate> = {
+export const TEMPLATES: Record<TemplateName, VideoTemplate> = {
   "modern-saas": { name: "modern-saas", ...base },
   minimal: {
     name: "minimal",
@@ -71,7 +74,7 @@ export const TEMPLATES: Record<string, VideoTemplate> = {
 };
 
 export function getTemplate(name: string): VideoTemplate {
-  const template = TEMPLATES[name];
+  const template = TEMPLATES[name as TemplateName];
   if (!template) {
     throw new Error(`Unknown video template '${name}'. Available: ${Object.keys(TEMPLATES).join(", ")}.`);
   }

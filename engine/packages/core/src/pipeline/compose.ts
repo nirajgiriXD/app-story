@@ -1,6 +1,6 @@
 import { copyFile, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
-import type { AudioClip, CaptionCue, Workflow } from "@demoforge/contracts";
+import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Workflow } from "@demoforge/contracts";
 import { buildCues, toSrt, toVtt } from "@demoforge/captions";
 import { resolveProductPath, type LoadedProduct } from "@demoforge/products";
 import { ensureDir, fileExists, toPosixRelative } from "@demoforge/shared";
@@ -33,10 +33,12 @@ export async function composeVideo(
   workflow: Workflow,
   clips: AudioClip[],
   recorded: RecordingOutcome,
-  options: { templateName?: string },
+  options: { kind?: VideoKind },
 ): Promise<ComposeResult> {
   const config = product.config;
-  const template = getTemplate(options.templateName ?? config.demo.template);
+  const templateName = pickTemplate(config.demo.template, options.kind);
+  const template = getTemplate(templateName);
+  job.log.info({ template: templateName, chosen: config.demo.template ? "product file" : `suits a ${options.kind ?? "general"} video` }, "video template");
   const toSrc = (path: string) => toPosixRelative(job.paths.root, path);
 
   const { plan, placements } = placeNarration({

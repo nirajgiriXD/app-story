@@ -1,4 +1,4 @@
-import type { JobMetadata, JobStatus, Workflow } from "@demoforge/contracts";
+import type { JobMetadata, JobStatus, VideoKind, Workflow } from "@demoforge/contracts";
 import { WORKFLOW_VERSION } from "@demoforge/contracts";
 import type { LoadedProduct } from "@demoforge/products";
 import { validateWorkflow } from "@demoforge/workflow";
@@ -27,7 +27,8 @@ export interface GenerateRequest {
   /** Ignore a saved plan and plan again. */
   fresh?: boolean;
   durationS?: number;
-  templateName?: string;
+  /** What the video is for; picks its look unless the product file sets `template:`. */
+  kind?: VideoKind;
   headless?: boolean;
   logLevel?: string;
   providers?: ProviderOverrides;
@@ -130,7 +131,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
     // 4. Captions + render
     phase = "render";
-    const composed = await composeVideo(job, product, workflow, clips, recorded, { templateName: request.templateName });
+    const composed = await composeVideo(job, product, workflow, clips, recorded, { kind: request.kind });
     const final = await probeMedia(job.paths.finalVideo);
     job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
 

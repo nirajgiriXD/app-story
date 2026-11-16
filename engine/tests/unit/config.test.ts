@@ -2,7 +2,8 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ProductConfigSchema, WorkflowSchema } from "@demoforge/contracts";
+import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } from "@demoforge/contracts";
+import { getTemplate } from "@demoforge/video";
 import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@demoforge/products";
 import { DemoForgeError, redactSecrets, resolveCredential } from "@demoforge/shared";
 
@@ -73,6 +74,23 @@ describe("product file", () => {
     expect(config.demo).toMatchObject({ default_duration: 45, default_language: "de" });
     expect(config.branding).toMatchObject({ logo: "acme.png", primary_color: "#112233" });
     expect(config.safety.allow).toMatchObject({ delete: true, invite_users: true, payments: false });
+  });
+
+  it("uses the template set in the file, or picks one that suits the kind of video", () => {
+    const set = parse(file("url: https://acme.test\ntemplate: minimal")).config.demo.template;
+    expect(set).toBe("minimal");
+    expect(pickTemplate(set, "whats-new")).toBe("minimal"); // the file's choice always wins
+
+    const unset = parse(file("url: https://acme.test")).config.demo.template;
+    expect(unset).toBeUndefined();
+    expect(pickTemplate(unset, "whats-new")).toBe("product-update");
+    expect(pickTemplate(unset, "feature")).toBe("feature-highlight");
+    expect(pickTemplate(unset, "how-to")).toBe("tutorial");
+    expect(pickTemplate(unset, undefined)).toBe("modern-saas");
+    // Every name the product file accepts is a template the renderer has.
+    for (const name of TEMPLATE_NAMES) expect(getTemplate(name).name).toBe(name);
+
+    expect(errorOf(() => parse(file("url: https://acme.test\ntemplate: fancy"))).message).toMatch(/template must be one of: modern-saas/);
   });
 
   it("explains every mistake clearly", () => {

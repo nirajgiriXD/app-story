@@ -11,6 +11,7 @@ import type {
   StructuredGenerationRequest,
   TextGenerationRequest,
   TokenUsage,
+  Effort,
 } from "../../contracts/types";
 import { toStrictJsonSchema } from "../../contracts/json-schema";
 import type { UsageTracker } from "../../usage";
@@ -27,14 +28,12 @@ export class AnthropicProvider implements AIProvider {
   readonly name = "anthropic" as const;
   readonly model: string;
   private readonly client: Anthropic;
-  private readonly effort: NonNullable<AiProviderConfig["effort"]>;
 
   constructor(
     private readonly config: AiProviderConfig,
     private readonly deps: AnthropicProviderDeps,
   ) {
     this.model = config.model ?? ANTHROPIC_DEFAULT_MODEL;
-    this.effort = config.effort ?? ANTHROPIC_DEFAULT_EFFORT;
     // Credentials come from ANTHROPIC_API_KEY (or an `ant auth login` profile). The SDK retries
     // 408/409/429/5xx and connection errors with backoff.
     this.client = deps.client ?? new Anthropic({ maxRetries: config.max_retries });
@@ -50,7 +49,7 @@ export class AnthropicProvider implements AIProvider {
         max_tokens: request.maxTokens ?? ANTHROPIC_MAX_TOKENS.text,
         system: request.system,
         messages: [{ role: "user", content: request.prompt }],
-        output_config: { effort: this.effort },
+        output_config: { effort: this.effortFor(request.effort) },
       }),
     );
     this.track(message.usage);
@@ -65,7 +64,7 @@ export class AnthropicProvider implements AIProvider {
         max_tokens: request.maxTokens ?? ANTHROPIC_MAX_TOKENS.structured,
         system: request.system,
         messages: [{ role: "user", content: request.prompt }],
-        output_config: { effort: this.effort, format: zodOutputFormat(request.schema) },
+        output_config: { effort: this.effortFor(request.effort), format: zodOutputFormat(request.schema) },
       }),
     );
     this.track(message.usage);
@@ -90,6 +89,8 @@ export class AnthropicProvider implements AIProvider {
     }));
     const messages: Anthropic.MessageParam[] = [];
     const maxTokens = request.maxTokens ?? ANTHROPIC_MAX_TOKENS.agentTurn;
+    // One effort for the whole session: changing it between turns would reset the prompt cache.
+    const effort = this.effortFor(request.effort);
 
     const send = async (input: AgentInput): Promise<AgentTurnResult> => {
       if (input.type === "user") {
@@ -117,7 +118,7 @@ export class AnthropicProvider implements AIProvider {
                 system: request.system,
                 tools,
                 messages,
-                output_config: { effort: this.effort },
+                output_config: { effort },
                 // Cache the growing conversation prefix between turns of the agent loop.
                 cache_control: { type: "ephemeral" },
               })
@@ -147,6 +148,11 @@ export class AnthropicProvider implements AIProvider {
       return { text: textOf(message.content), toolCalls, stop, usage: usageOf(message.usage) };
     };
     return { send };
+  }
+
+  /** The product's configured effort wins; otherwise the phase's own default. */
+  private effortFor(requested: Effort | undefined): Effort {
+    return this.config.effort ?? requested ?? ANTHROPIC_DEFAULT_EFFORT;
   }
 
   private track(usage: Anthropic.Usage): void {

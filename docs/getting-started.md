@@ -116,6 +116,7 @@ sqlite3 engine/data/showrun.db "SELECT created_at, product_id, status, video_pat
 | `ELEVENLABS_API_KEY` | optional; ElevenLabs voice |
 | `SHOWRUN_VOICE`, `SHOWRUN_VOICE_ACCENT`, `SHOWRUN_VOICE_SPEED`, `SHOWRUN_VOICE_TONE` | which voice speaks (female, male or a name), accent, speed and tone |
 | `SHOWRUN_AI_PROVIDER`, `SHOWRUN_AI_MODEL`, `SHOWRUN_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
+| `SHOWRUN_AI_EFFORT` | `low` to `max`: how hard the AI thinks in every step (default: `high` for planning, `low` for the script) |
 | `SHOWRUN_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
 | anything a product file names, e.g. `ACME_PASSWORD` | `login: demo@acme.com / env:ACME_PASSWORD` |
 

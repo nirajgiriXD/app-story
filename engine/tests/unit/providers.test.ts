@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AnthropicProvider, OpenAIProvider, UsageTracker, stripNulls, toStrictJsonSchema, type AIProvider } from "@showrun/ai";
-import { AiProviderConfigSchema } from "@showrun/contracts";
+import { AiProviderConfigSchema, type AiProviderConfig } from "@showrun/contracts";
 import { createSilentLogger } from "@showrun/shared";
 
 /*
@@ -20,7 +20,7 @@ type Reply =
 
 interface Harness {
   name: string;
-  make(replies: Reply[]): { provider: AIProvider; requests: Record<string, unknown>[]; usage: UsageTracker };
+  make(replies: Reply[], config?: Partial<AiProviderConfig>): { provider: AIProvider; requests: Record<string, unknown>[]; usage: UsageTracker };
 }
 
 const usageA = { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 4, cache_creation_input_tokens: 0 };
@@ -28,7 +28,7 @@ const usageO = { input_tokens: 14, output_tokens: 5, total_tokens: 19, input_tok
 
 const anthropic: Harness = {
   name: "anthropic",
-  make(replies) {
+  make(replies, config = {}) {
     const requests: Record<string, unknown>[] = [];
     const next = (params: Record<string, unknown>) => {
       requests.push(JSON.parse(JSON.stringify(params)));
@@ -57,7 +57,7 @@ const anthropic: Harness = {
       },
     } as unknown as Anthropic;
     const usage = new UsageTracker();
-    const provider = new AnthropicProvider(AiProviderConfigSchema.parse({ provider: "anthropic" }), { usage, log: createSilentLogger(), client });
+    const provider = new AnthropicProvider(AiProviderConfigSchema.parse({ provider: "anthropic", ...config }), { usage, log: createSilentLogger(), client });
     return { provider, requests, usage };
   },
 };
@@ -160,6 +160,16 @@ describe("provider-specific request details", () => {
     await provider.generateText({ system: "s", prompt: "p" });
     expect(requests[0]).not.toHaveProperty("temperature");
     expect(requests[0]).toMatchObject({ model: "claude-opus-5-5", output_config: { effort: "high" } });
+  });
+
+  it("uses the phase's effort unless the config sets one", async () => {
+    const phase = anthropic.make([{ kind: "text", text: "x" }]);
+    await phase.provider.generateText({ system: "s", prompt: "p", effort: "low" });
+    expect(phase.requests[0]).toMatchObject({ output_config: { effort: "low" } });
+
+    const configured = anthropic.make([{ kind: "text", text: "x" }], { effort: "xhigh" });
+    await configured.provider.generateText({ system: "s", prompt: "p", effort: "low" });
+    expect(configured.requests[0]).toMatchObject({ output_config: { effort: "xhigh" } });
   });
 
   it("chains OpenAI turns with previous_response_id", async () => {

@@ -1,5 +1,5 @@
-import { NarrationScriptSchema, type NarrationScript, type Workflow } from "@showrun/contracts";
-import { formatProductContext, loadPrompt, type AIProvider, type ProductContext } from "@showrun/ai";
+import { NarrationScriptSchema, type NarrationScript, type Step, type VideoKind, type Workflow } from "@showrun/contracts";
+import { PHASE_EFFORT, formatProductContext, loadPrompt, type AIProvider, type ProductContext } from "@showrun/ai";
 
 export interface ScriptRequest {
   provider: AIProvider | undefined;
@@ -49,6 +49,7 @@ export async function writeNarrationScript(request: ScriptRequest): Promise<{ sc
     prompt,
     schema: NarrationScriptSchema,
     schemaName: "narration_script",
+    effort: PHASE_EFFORT.narration,
   });
   return { script: normalizeScript(script, workflow.steps.map((s) => s.id)), source: "ai" };
 }

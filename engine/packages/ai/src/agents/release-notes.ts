@@ -1,5 +1,5 @@
 import { FeaturePlanSchema, type FeaturePlan } from "@showrun/contracts";
-import type { AIProvider } from "../contracts/types";
+import { PHASE_EFFORT, type AIProvider } from "../contracts/types";
 import { loadPrompt } from "../prompts";
 import { formatProductContext, type ProductContext } from "./context";
 
@@ -18,6 +18,7 @@ export async function pickFeatures(input: { provider: AIProvider; product: Omit<
     prompt: `${formatProductContext(input.product)}\n\n# Product file\n<product_file>\n${text}\n</product_file>`,
     schema: FeaturePlanSchema,
     schemaName: "feature_plan",
+    effort: PHASE_EFFORT.features,
   });
   return {
     title: plan.title?.trim() || null,

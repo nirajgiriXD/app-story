@@ -11,6 +11,7 @@ import type {
   StructuredGenerationRequest,
   TextGenerationRequest,
   TokenUsage,
+  Effort,
 } from "../../contracts/types";
 import { toStrictJsonSchema } from "../../contracts/json-schema";
 import type { UsageTracker } from "../../usage";
@@ -40,8 +41,8 @@ export class OpenAIProvider implements AIProvider {
   }
 
   /** Only send tuning parameters the user configured; reasoning models reject temperature. */
-  private tuning(): Pick<OpenAI.Responses.ResponseCreateParamsNonStreaming, "reasoning" | "temperature"> {
-    const effort = openAiReasoningEffort(this.config.effort);
+  private tuning(requested?: Effort): Pick<OpenAI.Responses.ResponseCreateParamsNonStreaming, "reasoning" | "temperature"> {
+    const effort = openAiReasoningEffort(this.config.effort ?? requested);
     return {
       ...(effort ? { reasoning: { effort } } : {}),
       ...(this.config.temperature !== undefined ? { temperature: this.config.temperature } : {}),
@@ -55,7 +56,7 @@ export class OpenAIProvider implements AIProvider {
         instructions: request.system,
         input: request.prompt,
         max_output_tokens: request.maxTokens ?? OPENAI_MAX_OUTPUT_TOKENS.text,
-        ...this.tuning(),
+        ...this.tuning(request.effort),
       }),
     );
     this.track(response.usage);
@@ -71,7 +72,7 @@ export class OpenAIProvider implements AIProvider {
         input: request.prompt,
         max_output_tokens: request.maxTokens ?? OPENAI_MAX_OUTPUT_TOKENS.structured,
         text: { format: zodTextFormat(request.schema, request.schemaName) },
-        ...this.tuning(),
+        ...this.tuning(request.effort),
       }),
     );
     this.track(response.usage);
@@ -117,7 +118,7 @@ export class OpenAIProvider implements AIProvider {
           parallel_tool_calls: false,
           previous_response_id: previousResponseId,
           max_output_tokens: request.maxTokens ?? OPENAI_MAX_OUTPUT_TOKENS.agentTurn,
-          ...this.tuning(),
+          ...this.tuning(request.effort),
         }),
       );
       previousResponseId = response.id;

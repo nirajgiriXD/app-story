@@ -2,7 +2,7 @@ import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepR
 import type { BrowserController } from "@showrun/browser";
 import { assembleWorkflow, executeStep } from "@showrun/workflow";
 import type { Logger } from "@showrun/shared";
-import type { AIProvider } from "../contracts/types";
+import { PHASE_EFFORT, type AIProvider } from "../contracts/types";
 import { loadPrompt, untrusted } from "../prompts";
 import { RehearsalToolInputs, rehearsalToolSpecs, toolCallToStep, type RehearsalToolName } from "../tools/browser-tools";
 import { runToolLoop, type ToolHandler } from "./tool-loop";
@@ -129,7 +129,7 @@ export async function runRehearsal(input: RehearsalInput): Promise<RehearsalOutc
     handlers[name] = actionHandler(name);
   }
 
-  const session = input.provider.startAgentSession({ system: loadPrompt("rehearsal"), tools: rehearsalToolSpecs() });
+  const session = input.provider.startAgentSession({ system: loadPrompt("rehearsal"), tools: rehearsalToolSpecs(), effort: PHASE_EFFORT.rehearsal });
   const firstMessage = [
     formatProductContext(input.product),
     `# Demonstration objective\n${input.objective}`,

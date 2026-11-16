@@ -4,6 +4,7 @@ import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import {
   AI_PROVIDERS,
+  EffortSchema,
   KOKORO_VOICES,
   ProductConfigSchema,
   TEMPLATE_NAMES,
@@ -209,8 +210,8 @@ export function parseProductFile(text: string, file: string, id: string): { conf
 }
 
 /**
- * Environment overrides (SHOWRUN_AI_PROVIDER, SHOWRUN_AI_MODEL, SHOWRUN_TTS_PROVIDER)
- * and explicit ones from code win over the product file.
+ * Environment overrides (SHOWRUN_AI_PROVIDER, SHOWRUN_AI_MODEL, SHOWRUN_AI_EFFORT,
+ * SHOWRUN_TTS_PROVIDER) and explicit ones from code win over the product file.
  */
 export function applyOverrides(config: ProductConfig, overrides: ProviderOverrides = {}): ProductConfig {
   const env = process.env;
@@ -227,6 +228,16 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
     if (next.providers.ai_fallback?.provider === aiProvider) next.providers.ai_fallback = undefined;
   }
   if (aiModel) next.providers.ai.model = aiModel;
+  const effort = env.SHOWRUN_AI_EFFORT?.trim().toLowerCase();
+  if (effort) {
+    const parsed = EffortSchema.safeParse(effort);
+    if (!parsed.success) {
+      throw new ShowrunError("CONFIG_INVALID", `SHOWRUN_AI_EFFORT must be one of ${EffortSchema.options.join(", ")}, not '${effort}'.`);
+    }
+    // Applies to every AI phase, on the fallback provider too.
+    next.providers.ai.effort = parsed.data;
+    if (next.providers.ai_fallback) next.providers.ai_fallback.effort = parsed.data;
+  }
   if (ttsProvider && ttsProvider !== next.providers.tts.provider) {
     if (!(TTS_PROVIDERS as readonly string[]).includes(ttsProvider)) {
       throw new ShowrunError("CONFIG_INVALID", `Unknown voice '${ttsProvider}'. Use ${TTS_PROVIDERS.join(", ")}.`);

@@ -1,4 +1,4 @@
-import { DemoForgeError } from "./errors";
+import { ShowrunError } from "./errors";
 
 const registered = new Set<string>();
 const MASK = "***";
@@ -43,7 +43,7 @@ export function resolveEnvTemplate(value: string, env: NodeJS.ProcessEnv = proce
   return value.replace(ENV_TEMPLATE, (_match, name: string) => {
     const resolved = env[name];
     if (resolved === undefined || resolved === "") {
-      throw new DemoForgeError("CONFIG_INVALID", `Environment variable ${name} is not set.`, {
+      throw new ShowrunError("CONFIG_INVALID", `Environment variable ${name} is not set.`, {
         hint: `Add ${name}=... to your .env file.`,
       });
     }
@@ -61,7 +61,7 @@ export function resolveCredential(value: string, options: { secret: boolean; hin
   const match = /^env:([A-Za-z_][A-Za-z0-9_]*)$/.exec(value.trim());
   const resolved = match ? (process.env[match[1] as string] ?? "") : value;
   if (!resolved) {
-    throw new DemoForgeError("CONFIG_INVALID", `Environment variable ${match?.[1]} is not set.`, {
+    throw new ShowrunError("CONFIG_INVALID", `Environment variable ${match?.[1]} is not set.`, {
       hint: options.hint ?? `Add ${match?.[1]}=... to your .env file.`,
     });
   }
@@ -77,7 +77,7 @@ export function credentialEnvName(value: string): string | undefined {
 export function requireEnv(name: string, hint?: string): string {
   const value = process.env[name];
   if (!value) {
-    throw new DemoForgeError("CONFIG_INVALID", `Environment variable ${name} is not set.`, {
+    throw new ShowrunError("CONFIG_INVALID", `Environment variable ${name} is not set.`, {
       hint: hint ?? `Add ${name}=... to your .env file (see .env.example).`,
     });
   }

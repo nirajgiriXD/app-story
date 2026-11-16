@@ -1,5 +1,5 @@
 {
-  "name": "@demoforge/core",
+  "name": "@showrun/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,15 +7,15 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/ai": "*",
-    "@demoforge/browser": "*",
-    "@demoforge/captions": "*",
-    "@demoforge/contracts": "*",
-    "@demoforge/narration": "*",
-    "@demoforge/products": "*",
-    "@demoforge/shared": "*",
-    "@demoforge/video": "*",
-    "@demoforge/workflow": "*",
+    "@showrun/ai": "*",
+    "@showrun/browser": "*",
+    "@showrun/captions": "*",
+    "@showrun/contracts": "*",
+    "@showrun/narration": "*",
+    "@showrun/products": "*",
+    "@showrun/shared": "*",
+    "@showrun/video": "*",
+    "@showrun/workflow": "*",
     "playwright": "^1.65.1",
     "zod": "^4.6.7"
   }

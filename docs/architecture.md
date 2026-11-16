@@ -26,7 +26,7 @@ product context every AI step reads. Logins are filled by `autoLogin` (in the br
 package), which finds the password field itself; `env:NAME` values are read from `.env`
 at login time and registered as secrets.
 
-## Pipeline (`npx demoforge <product>`)
+## Pipeline (`npx showrun <product>`)
 
 0. **Features.** Without a goal, one structured AI call reads the product file and picks
    the new user-visible features from its release notes (`planFeatures`). Each becomes an
@@ -52,7 +52,7 @@ at login time and registered as secrets.
 ## Storage
 
 `output/` receives only the finished MP4. Everything else is in one SQLite file,
-`engine/data/demoforge.db`, through Node's built-in `node:sqlite` (`Store` in
+`engine/data/showrun.db`, through Node's built-in `node:sqlite` (`Store` in
 `engine/packages/core/src/store/`): a `jobs` table with each job's metadata, `job_records`
 with everything a job produces (settings used, plan, practice run, narration, captions,
 reports, quality checks, log, thumbnail), and `plans` with the saved click-plans. Jobs work

@@ -1,4 +1,4 @@
-import { FeaturePlanSchema, type FeaturePlan } from "@demoforge/contracts";
+import { FeaturePlanSchema, type FeaturePlan } from "@showrun/contracts";
 import type { AIProvider } from "../contracts/types";
 import { loadPrompt } from "../prompts";
 import { formatProductContext, type ProductContext } from "./context";

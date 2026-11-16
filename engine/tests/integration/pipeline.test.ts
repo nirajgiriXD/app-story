@@ -3,10 +3,10 @@ import { mkdtemp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { Workflow } from "@demoforge/contracts";
-import { generateDemo, storeFor } from "@demoforge/core";
-import { loadProduct, parseWorkflow } from "@demoforge/products";
-import { probeMedia } from "@demoforge/shared";
+import type { Workflow } from "@showrun/contracts";
+import { generateDemo, storeFor } from "@showrun/core";
+import { loadProduct, parseWorkflow } from "@showrun/products";
+import { probeMedia } from "@showrun/shared";
 import { startExampleApp } from "../support/example-app";
 import { ScriptedProvider, ToneTTS } from "../support/fakes";
 
@@ -19,7 +19,7 @@ let plan: Workflow;
 
 beforeAll(async () => {
   app = await startExampleApp(PORT);
-  root = await mkdtemp(join(tmpdir(), "demoforge-it-"));
+  root = await mkdtemp(join(tmpdir(), "showrun-it-"));
   productsDir = join(root, "products");
   outputDir = join(root, "output");
   await mkdir(productsDir);

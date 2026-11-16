@@ -2,22 +2,22 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } from "@demoforge/contracts";
-import { getTemplate } from "@demoforge/video";
-import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@demoforge/products";
-import { DemoForgeError, redactSecrets, resolveCredential } from "@demoforge/shared";
+import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } from "@showrun/contracts";
+import { getTemplate } from "@showrun/video";
+import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@showrun/products";
+import { ShowrunError, redactSecrets, resolveCredential } from "@showrun/shared";
 
 const KEYS = [
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_AUTH_TOKEN",
   "OPENAI_API_KEY",
-  "DEMOFORGE_AI_PROVIDER",
-  "DEMOFORGE_AI_MODEL",
-  "DEMOFORGE_TTS_PROVIDER",
-  "DEMOFORGE_VOICE",
-  "DEMOFORGE_VOICE_ACCENT",
-  "DEMOFORGE_VOICE_SPEED",
-  "DEMOFORGE_VOICE_TONE",
+  "SHOWRUN_AI_PROVIDER",
+  "SHOWRUN_AI_MODEL",
+  "SHOWRUN_TTS_PROVIDER",
+  "SHOWRUN_VOICE",
+  "SHOWRUN_VOICE_ACCENT",
+  "SHOWRUN_VOICE_SPEED",
+  "SHOWRUN_VOICE_TONE",
 ];
 let savedEnv: Record<string, string | undefined> = {};
 beforeEach(() => {
@@ -33,11 +33,11 @@ afterEach(() => {
 
 const file = (settings: string, body = "# Acme\n\nAcme is a billing tool for small shops.\n") => `---\n${settings}\n---\n\n${body}`;
 const parse = (text: string) => parseProductFile(text, "acme.md", "acme");
-const errorOf = (fn: () => unknown): DemoForgeError => {
+const errorOf = (fn: () => unknown): ShowrunError => {
   try {
     fn();
   } catch (error) {
-    return error as DemoForgeError;
+    return error as ShowrunError;
   }
   throw new Error("expected an error");
 };

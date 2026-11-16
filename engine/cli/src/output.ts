@@ -1,5 +1,5 @@
-import type { JobMetadata } from "@demoforge/contracts";
-import { isDemoForgeError } from "@demoforge/shared";
+import type { JobMetadata } from "@showrun/contracts";
+import { isShowrunError } from "@showrun/shared";
 
 const color = (code: number) => (text: string) => (process.stdout.isTTY ? `\x1b[${code}m${text}\x1b[0m` : text);
 export const green = color(32);
@@ -9,7 +9,7 @@ export const dim = color(2);
 export const bold = color(1);
 
 export function printError(error: unknown): void {
-  if (isDemoForgeError(error)) {
+  if (isShowrunError(error)) {
     console.error(red(`✖ ${error.message}`));
     if (error.hint) console.error(dim(`  hint: ${error.hint}`));
   } else {

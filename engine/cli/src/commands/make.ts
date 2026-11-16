@@ -1,8 +1,8 @@
 import type { Command } from "commander";
-import type { VideoKind } from "@demoforge/contracts";
-import { generateDemo, planFeatures } from "@demoforge/core";
-import { objectiveForAllFeatures, objectiveForFeature, type LoadedProduct } from "@demoforge/products";
-import { DemoForgeError, slugify } from "@demoforge/shared";
+import type { VideoKind } from "@showrun/contracts";
+import { generateDemo, planFeatures } from "@showrun/core";
+import { objectiveForAllFeatures, objectiveForFeature, type LoadedProduct } from "@showrun/products";
+import { ShowrunError, slugify } from "@showrun/shared";
 import { globals, openProduct } from "../context";
 import { bold, dim, exitCodeFor, green, printJob } from "../output";
 
@@ -13,7 +13,7 @@ export interface MakeOptions {
 }
 
 /**
- * `demoforge <product> [goal...]`: with a goal, one video of it; without, the AI picks the
+ * `showrun <product> [goal...]`: with a goal, one video of it; without, the AI picks the
  * new features from the product file's release notes and makes one video (or one each).
  */
 export async function makeVideos(productId: string | undefined, goalWords: string[], opts: MakeOptions, cmd: Command): Promise<void> {
@@ -23,7 +23,7 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
   }
   const goal = goalWords.join(" ").trim();
   if (goal && opts.each) {
-    throw new DemoForgeError("CONFIG_INVALID", "--each splits the release notes into one video per feature, so it cannot be used with a goal.");
+    throw new ShowrunError("CONFIG_INVALID", "--each splits the release notes into one video per feature, so it cannot be used with a goal.");
   }
   const { outputDir, logLevel } = globals(cmd);
   const product = await openProduct(productId);

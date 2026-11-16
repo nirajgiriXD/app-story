@@ -1,5 +1,5 @@
 {
-  "name": "@demoforge/workflow",
+  "name": "@showrun/workflow",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,9 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/browser": "*",
-    "@demoforge/contracts": "*",
-    "@demoforge/shared": "*",
+    "@showrun/browser": "*",
+    "@showrun/contracts": "*",
+    "@showrun/shared": "*",
     "zod": "^4.6.7"
   }
 }

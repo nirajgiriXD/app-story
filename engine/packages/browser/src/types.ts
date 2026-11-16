@@ -1,4 +1,4 @@
-import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@demoforge/contracts";
+import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@showrun/contracts";
 
 export interface PageObservation {
   url: string;

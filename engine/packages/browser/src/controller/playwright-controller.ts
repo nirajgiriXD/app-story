@@ -1,6 +1,6 @@
 import type { Locator, Page } from "playwright";
-import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@demoforge/contracts";
-import { DemoForgeError, sleep, type Logger } from "@demoforge/shared";
+import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@showrun/contracts";
+import { ShowrunError, sleep, type Logger } from "@showrun/shared";
 import type { ActionOptions, ActionOutcome, BrowserController, PageObservation, VerificationResult } from "../types";
 import { buildLocators, resolveLocator, describeTarget } from "../selectors/locator";
 import { ActionGuard, type ElementInfo } from "../security/action-guard";
@@ -69,8 +69,8 @@ export class PlaywrightController implements BrowserController {
   async navigate(urlOrPath: string, options?: ActionOptions): Promise<ActionOutcome> {
     const url = resolveUrl(this.options.baseUrl, urlOrPath);
     if (!isAllowedUrl(url, this.options.allowedDomains)) {
-      throw new DemoForgeError("POLICY_VIOLATION", `Navigation to ${url} is outside the allowed domains.`, {
-        hint: "DemoForge only visits the site in the product file's url, to keep demos on the product.",
+      throw new ShowrunError("POLICY_VIOLATION", `Navigation to ${url} is outside the allowed domains.`, {
+        hint: "Showrun only visits the site in the product file's url, to keep demos on the product.",
       });
     }
     try {
@@ -79,18 +79,18 @@ export class PlaywrightController implements BrowserController {
         timeout: options?.timeoutMs ?? this.options.navigationTimeoutMs,
       });
       if (response && response.status() >= 500) {
-        throw new DemoForgeError("APP_UNAVAILABLE", `${url} answered with HTTP ${response.status()}.`);
+        throw new ShowrunError("APP_UNAVAILABLE", `${url} answered with HTTP ${response.status()}.`);
       }
     } catch (error) {
-      if (error instanceof DemoForgeError) throw error;
+      if (error instanceof ShowrunError) throw error;
       const message = (error as Error).message;
       if (/ERR_CONNECTION_REFUSED|ERR_NAME_NOT_RESOLVED|ERR_CONNECTION_RESET|ERR_ADDRESS_UNREACHABLE|ERR_INTERNET_DISCONNECTED/.test(message)) {
-        throw new DemoForgeError("APP_UNAVAILABLE", `The application at ${url} is not reachable.`, { cause: error });
+        throw new ShowrunError("APP_UNAVAILABLE", `The application at ${url} is not reachable.`, { cause: error });
       }
       if (/ERR_BLOCKED_BY_CLIENT/.test(message)) {
-        throw new DemoForgeError("POLICY_VIOLATION", `Navigation to ${url} was blocked by the domain allow-list.`);
+        throw new ShowrunError("POLICY_VIOLATION", `Navigation to ${url} was blocked by the domain allow-list.`);
       }
-      throw new DemoForgeError("WORKFLOW_FAILED", `Navigation to ${url} failed: ${message}`, { cause: error });
+      throw new ShowrunError("WORKFLOW_FAILED", `Navigation to ${url} failed: ${message}`, { cause: error });
     }
     await this.settle();
     return { urlAfter: this.page.url() };
@@ -172,7 +172,7 @@ export class PlaywrightController implements BrowserController {
   async press(key: string, options?: ActionOptions): Promise<ActionOutcome> {
     const focused = await this.focusedElementInfo();
     const decision = this.options.guard.check("press", focused, key);
-    if (!decision.allowed) throw new DemoForgeError("POLICY_VIOLATION", decision.reason ?? "Key press blocked.");
+    if (!decision.allowed) throw new ShowrunError("POLICY_VIOLATION", decision.reason ?? "Key press blocked.");
     await this.page.keyboard.press(key, { delay: this.presentation ? 60 : 0 });
     await this.settle(options);
     return { urlAfter: this.page.url() };
@@ -305,7 +305,7 @@ export class PlaywrightController implements BrowserController {
     const info = await elementInfo(locator);
     const decision = this.options.guard.check(action, info, extraText);
     if (!decision.allowed) {
-      throw new DemoForgeError("POLICY_VIOLATION", decision.reason ?? `${action} blocked by safety policy.`, {
+      throw new ShowrunError("POLICY_VIOLATION", decision.reason ?? `${action} blocked by safety policy.`, {
         details: { target, category: decision.category },
       });
     }

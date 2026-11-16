@@ -2,9 +2,9 @@ import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { withBrowser } from "@demoforge/core";
-import { loadProduct } from "@demoforge/products";
-import { createSilentLogger, isDemoForgeError } from "@demoforge/shared";
+import { withBrowser } from "@showrun/core";
+import { loadProduct } from "@showrun/products";
+import { createSilentLogger, isShowrunError } from "@showrun/shared";
 import { startExampleApp } from "../support/example-app";
 
 const PORT = 4393;
@@ -15,7 +15,7 @@ const log = createSilentLogger();
 
 beforeAll(async () => {
   app = await startExampleApp(PORT);
-  const root = await mkdtemp(join(tmpdir(), "demoforge-safety-"));
+  const root = await mkdtemp(join(tmpdir(), "showrun-safety-"));
   productsDir = join(root, "products");
   outputDir = join(root, "output");
   await mkdir(productsDir);
@@ -32,13 +32,13 @@ describe("browser safety in a real Chromium", () => {
       const c = session.controller;
       await c.navigate("/settings");
       const blocked = await c.click({ role: "button", name: "Delete workspace" }).catch((e) => e);
-      expect(isDemoForgeError(blocked) && blocked.code).toBe("POLICY_VIOLATION");
+      expect(isShowrunError(blocked) && blocked.code).toBe("POLICY_VIOLATION");
 
       const invite = await c.navigate("/team").then(() => c.click({ role: "button", name: "Invite member" })).catch((e) => e);
-      expect(isDemoForgeError(invite) && invite.code).toBe("POLICY_VIOLATION");
+      expect(isShowrunError(invite) && invite.code).toBe("POLICY_VIOLATION");
 
       const offsite = await c.navigate("https://example.org/").catch((e) => e);
-      expect(isDemoForgeError(offsite) && offsite.code).toBe("POLICY_VIOLATION");
+      expect(isShowrunError(offsite) && offsite.code).toBe("POLICY_VIOLATION");
 
       // Links the page itself points off-domain are blocked by the network guard too.
       await session.page.evaluate(() => {
@@ -59,7 +59,7 @@ describe("browser safety in a real Chromium", () => {
     if (product.config.authentication.strategy !== "auto") throw new Error("expected a login");
     product.config.authentication.password = "wrong-password";
     const error = await withBrowser(product, { workDir: join(outputDir, "b3"), log }, async () => "unreachable").catch((e) => e);
-    expect(isDemoForgeError(error) && error.code).toBe("AUTH_FAILED");
+    expect(isShowrunError(error) && error.code).toBe("AUTH_FAILED");
   });
 
   it("read-only mode cannot type or submit", async () => {
@@ -68,9 +68,9 @@ describe("browser safety in a real Chromium", () => {
       const c = session.controller;
       await c.navigate("/projects/new");
       const typed = await c.fill({ label: "Project name" }, "Should not be typed").catch((e) => e);
-      expect(isDemoForgeError(typed) && typed.code).toBe("POLICY_VIOLATION");
+      expect(isShowrunError(typed) && typed.code).toBe("POLICY_VIOLATION");
       const submitted = await c.click({ role: "button", name: "Create project" }).catch((e) => e);
-      expect(isDemoForgeError(submitted) && submitted.code).toBe("POLICY_VIOLATION");
+      expect(isShowrunError(submitted) && submitted.code).toBe("POLICY_VIOLATION");
     });
   });
 });

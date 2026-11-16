@@ -1,4 +1,4 @@
-import type { AiProviderConfig, UsageSummary } from "@demoforge/contracts";
+import type { AiProviderConfig, UsageSummary } from "@showrun/contracts";
 import type { TokenUsage } from "./contracts/types";
 
 interface Price {

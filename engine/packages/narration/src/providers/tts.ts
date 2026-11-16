@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import OpenAI from "openai";
-import type { TtsConfig } from "@demoforge/contracts";
-import { DemoForgeError, registerSecret, retry, runFfmpeg } from "@demoforge/shared";
+import type { TtsConfig } from "@showrun/contracts";
+import { ShowrunError, registerSecret, retry, runFfmpeg } from "@showrun/shared";
 import { KokoroTTS } from "./kokoro";
 
 export interface TTSProvider {
@@ -48,17 +48,17 @@ export class ElevenLabsTTS implements TTSProvider {
           }),
         });
         if (res.status === 401 || res.status === 403) {
-          throw new DemoForgeError("PROVIDER_AUTH", "ElevenLabs rejected the API key.", { hint: "Check ELEVENLABS_API_KEY in .env." });
+          throw new ShowrunError("PROVIDER_AUTH", "ElevenLabs rejected the API key.", { hint: "Check ELEVENLABS_API_KEY in .env." });
         }
         if (!res.ok) {
           const body = (await res.text()).slice(0, 300);
-          throw new DemoForgeError("TTS_ERROR", `ElevenLabs returned HTTP ${res.status}: ${body}`, {
+          throw new ShowrunError("TTS_ERROR", `ElevenLabs returned HTTP ${res.status}: ${body}`, {
             retryable: res.status === 429 || res.status >= 500,
           });
         }
         return Buffer.from(await res.arrayBuffer());
       },
-      { retries: 3, baseDelayMs: 1500, shouldRetry: (e) => e instanceof DemoForgeError && e.retryable },
+      { retries: 3, baseDelayMs: 1500, shouldRetry: (e) => e instanceof ShowrunError && e.retryable },
     );
     await writeFile(outPath, audio);
   }
@@ -89,10 +89,10 @@ export class OpenAITTS implements TTSProvider {
       await writeFile(outPath, Buffer.from(await response.arrayBuffer()));
     } catch (error) {
       if (error instanceof OpenAI.AuthenticationError) {
-        throw new DemoForgeError("PROVIDER_AUTH", "OpenAI rejected the API key for text-to-speech.", { hint: "Check OPENAI_API_KEY." });
+        throw new ShowrunError("PROVIDER_AUTH", "OpenAI rejected the API key for text-to-speech.", { hint: "Check OPENAI_API_KEY." });
       }
       if (error instanceof OpenAI.APIError) {
-        throw new DemoForgeError("TTS_ERROR", `OpenAI text-to-speech failed: ${error.message}`, { cause: error });
+        throw new ShowrunError("TTS_ERROR", `OpenAI text-to-speech failed: ${error.message}`, { cause: error });
       }
       throw error;
     }
@@ -123,7 +123,7 @@ export type TTSFactory = (config: TtsConfig) => TTSProvider;
 
 function openaiTTS(config: TtsConfig): TTSProvider {
   if (!process.env.OPENAI_API_KEY) {
-    throw new DemoForgeError("PROVIDER_AUTH", "OPENAI_API_KEY is not set (needed for OpenAI text-to-speech).", {
+    throw new ShowrunError("PROVIDER_AUTH", "OPENAI_API_KEY is not set (needed for OpenAI text-to-speech).", {
       hint: "Add it to .env, or use the free local voice: `voice: kokoro` in the product file.",
     });
   }
@@ -136,7 +136,7 @@ const factories = new Map<string, TTSFactory>([
     (config) => {
       const key = process.env.ELEVENLABS_API_KEY;
       if (!key) {
-        throw new DemoForgeError("PROVIDER_AUTH", "ELEVENLABS_API_KEY is not set.", {
+        throw new ShowrunError("PROVIDER_AUTH", "ELEVENLABS_API_KEY is not set.", {
           hint: "Add it to .env, or use the free local voice: `voice: kokoro` in the product file.",
         });
       }
@@ -155,6 +155,6 @@ export function registerTTSProvider(name: string, factory: TTSFactory): void {
 
 export function createTTSProvider(config: TtsConfig): TTSProvider {
   const factory = factories.get(config.provider);
-  if (!factory) throw new DemoForgeError("CONFIG_INVALID", `Unknown TTS provider '${config.provider}'.`);
+  if (!factory) throw new ShowrunError("CONFIG_INVALID", `Unknown TTS provider '${config.provider}'.`);
   return factory(config);
 }

@@ -1,8 +1,8 @@
-import type { JobMetadata, JobStatus, VideoKind, Workflow } from "@demoforge/contracts";
-import { WORKFLOW_VERSION } from "@demoforge/contracts";
-import type { LoadedProduct } from "@demoforge/products";
-import { validateWorkflow } from "@demoforge/workflow";
-import { DemoForgeError, isDemoForgeError, probeMedia, slugify } from "@demoforge/shared";
+import type { JobMetadata, JobStatus, VideoKind, Workflow } from "@showrun/contracts";
+import { WORKFLOW_VERSION } from "@showrun/contracts";
+import type { LoadedProduct } from "@showrun/products";
+import { validateWorkflow } from "@showrun/workflow";
+import { ShowrunError, isShowrunError, probeMedia, slugify } from "@showrun/shared";
 import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type Job } from "../job-manager/job";
 import type { ProviderOverrides } from "../pipeline/providers";
 import { rehearseWorkflow } from "../pipeline/rehearse";
@@ -70,7 +70,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     const validation = validateWorkflow(workflow, config);
     job.metadata.warnings.push(...validation.warnings);
     if (validation.errors.length > 0) {
-      throw new DemoForgeError("UNSUPPORTED_WORKFLOW", `The plan is not safe or not verifiable:\n- ${validation.errors.join("\n- ")}`);
+      throw new ShowrunError("UNSUPPORTED_WORKFLOW", `The plan is not safe or not verifiable:\n- ${validation.errors.join("\n- ")}`);
     }
     saveRecord(job, "plan", workflow);
     await saveMetadata(job);
@@ -116,7 +116,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     try {
       take = await narrateAndRecord(workflow);
     } catch (error) {
-      if (!fromSavedPlan || !(isDemoForgeError(error) && STALE_PLAN_CODES.has(error.code))) throw error;
+      if (!fromSavedPlan || !(isShowrunError(error) && STALE_PLAN_CODES.has(error.code))) throw error;
       job.log.warn({ error: (error as Error).message }, "the saved plan no longer works (did the app change?); planning again");
       job.metadata.warnings.push("The saved plan no longer matched the app, so the demo was planned again.");
       forgetPlan(job.store, product.id, name);
@@ -156,7 +156,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
     let status: JobStatus;
     if (errors.length > 0) {
-      for (const e of errors) recordError(job, new DemoForgeError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
+      for (const e of errors) recordError(job, new ShowrunError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
       status = "failed";
     } else {
       status = job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
@@ -175,7 +175,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 function failIfIncomplete(recorded: RecordingOutcome): void {
   if (recorded.report.ok) return;
   const failed = recorded.report.steps.find((s) => s.status === "failed");
-  throw new DemoForgeError(
+  throw new ShowrunError(
     failed?.error_code === "APP_UNAVAILABLE" ? "APP_UNAVAILABLE" : failed?.error_code === "POLICY_VIOLATION" ? "POLICY_VIOLATION" : "WORKFLOW_FAILED",
     `Step ${failed?.step_id} failed during recording: ${failed?.error}. No video was produced.`,
     { hint: failed?.screenshot ? `See ${failed.screenshot} and logs/trace.zip (open with \`npx playwright show-trace\`).` : undefined },

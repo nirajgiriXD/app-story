@@ -1,8 +1,8 @@
 import { join } from "node:path";
-import type { Workflow } from "@demoforge/contracts";
-import { runRehearsal, type ProductContext, type RehearsalOutcome } from "@demoforge/ai";
-import type { LoadedProduct } from "@demoforge/products";
-import { DemoForgeError, type ErrorCode } from "@demoforge/shared";
+import type { Workflow } from "@showrun/contracts";
+import { runRehearsal, type ProductContext, type RehearsalOutcome } from "@showrun/ai";
+import type { LoadedProduct } from "@showrun/products";
+import { ShowrunError, type ErrorCode } from "@showrun/shared";
 import { saveRecord, type Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
 import { withProviderFallback, type ProviderOverrides } from "./providers";
@@ -70,8 +70,8 @@ export async function rehearseWorkflow(
     return outcome.workflow;
   }
   if (outcome.status === "gave_up") {
-    throw new DemoForgeError(GIVE_UP_CODES[outcome.category], `The AI agent could not complete the demo: ${outcome.reason}`);
+    throw new ShowrunError(GIVE_UP_CODES[outcome.category], `The AI agent could not complete the demo: ${outcome.reason}`);
   }
   const failed = outcome.report.steps.filter((s) => s.status === "failed").slice(-1)[0];
-  throw new DemoForgeError("WORKFLOW_FAILED", `${outcome.reason}${failed ? ` Last error: ${failed.error}` : ""}`);
+  throw new ShowrunError("WORKFLOW_FAILED", `${outcome.reason}${failed ? ` Last error: ${failed.error}` : ""}`);
 }

@@ -1,4 +1,4 @@
-import type { Box, CursorPoint } from "@demoforge/contracts";
+import type { Box, CursorPoint } from "@showrun/contracts";
 import type { VideoTemplate } from "./templates";
 
 /** Everything the Remotion composition needs. JSON-serialisable; all times are global ms unless noted. */

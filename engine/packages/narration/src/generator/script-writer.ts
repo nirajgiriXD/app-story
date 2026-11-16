@@ -1,5 +1,5 @@
-import { NarrationScriptSchema, type NarrationScript, type Workflow } from "@demoforge/contracts";
-import { formatProductContext, loadPrompt, type AIProvider, type ProductContext } from "@demoforge/ai";
+import { NarrationScriptSchema, type NarrationScript, type Workflow } from "@showrun/contracts";
+import { formatProductContext, loadPrompt, type AIProvider, type ProductContext } from "@showrun/ai";
 
 export interface ScriptRequest {
   provider: AIProvider | undefined;

@@ -1,5 +1,5 @@
 import { config as loadEnv } from "dotenv";
-import { ROOT_ENV_FILE } from "@demoforge/shared";
+import { ROOT_ENV_FILE } from "@showrun/shared";
 import { buildProgram } from "./program";
 import { printError } from "./output";
 

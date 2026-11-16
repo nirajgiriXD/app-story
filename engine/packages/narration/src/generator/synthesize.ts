@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { rename } from "node:fs/promises";
-import type { AudioClip, NarrationScript } from "@demoforge/contracts";
-import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, type Logger } from "@demoforge/shared";
+import type { AudioClip, NarrationScript } from "@showrun/contracts";
+import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, type Logger } from "@showrun/shared";
 import type { TTSProvider } from "../providers/tts";
 
 /**

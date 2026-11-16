@@ -1,6 +1,6 @@
-import type { AudioClip, NarrationScript, Workflow } from "@demoforge/contracts";
-import { synthesizeNarration, writeNarrationScript } from "@demoforge/narration";
-import type { LoadedProduct } from "@demoforge/products";
+import type { AudioClip, NarrationScript, Workflow } from "@showrun/contracts";
+import { synthesizeNarration, writeNarrationScript } from "@showrun/narration";
+import type { LoadedProduct } from "@showrun/products";
 import { saveRecord, type Job } from "../job-manager/job";
 import { makeTTS, withProviderFallback, type ProviderOverrides } from "./providers";
 import { productContext } from "./rehearse";

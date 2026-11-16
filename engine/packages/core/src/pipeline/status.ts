@@ -1,5 +1,5 @@
-import type { JobStatus } from "@demoforge/contracts";
-import { toDemoForgeError, type ErrorCode } from "@demoforge/shared";
+import type { JobStatus } from "@showrun/contracts";
+import { toShowrunError, type ErrorCode } from "@showrun/shared";
 
 const STATUS_BY_CODE: Partial<Record<ErrorCode, JobStatus>> = {
   APP_UNAVAILABLE: "application_unavailable",
@@ -13,9 +13,9 @@ const STATUS_BY_CODE: Partial<Record<ErrorCode, JobStatus>> = {
   PROVIDER_RATE_LIMIT: "recoverable_failure",
 };
 
-/** Map an error to the job outcome the README asks DemoForge to distinguish. */
+/** Map an error to the job outcome the README asks Showrun to distinguish. */
 export function statusForError(error: unknown): JobStatus {
-  const e = toDemoForgeError(error);
+  const e = toShowrunError(error);
   const mapped = STATUS_BY_CODE[e.code];
   if (mapped) return mapped;
   if (e.retryable) return "recoverable_failure";

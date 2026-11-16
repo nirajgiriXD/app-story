@@ -1,5 +1,5 @@
 {
-  "name": "@demoforge/browser",
+  "name": "@showrun/browser",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/contracts": "*",
-    "@demoforge/shared": "*",
+    "@showrun/contracts": "*",
+    "@showrun/shared": "*",
     "playwright": "^1.65.1"
   }
 }

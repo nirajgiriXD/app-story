@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import { DemoForgeError, type Logger } from "@demoforge/shared";
+import { ShowrunError, type Logger } from "@showrun/shared";
 import type { AgentSession, ToolCall, ToolResult } from "../contracts/types";
 
 export interface ToolHandlerResult {
@@ -44,7 +44,7 @@ export async function runToolLoop(
 
   for (let iteration = 1; iteration <= options.maxIterations; iteration++) {
     if (turn.stop === "refusal") {
-      throw new DemoForgeError("PROVIDER_REFUSAL", "The AI model declined to continue this task.");
+      throw new ShowrunError("PROVIDER_REFUSAL", "The AI model declined to continue this task.");
     }
     if (turn.text) options.log.debug({ iteration }, `agent: ${turn.text.slice(0, 300)}`);
 
@@ -87,7 +87,7 @@ export async function runToolLoop(
     if (done) return { iterations: iteration, finished: true };
 
     if (Date.now() > options.deadline) {
-      throw new DemoForgeError("TIMEOUT", "The AI agent ran out of time before finishing.");
+      throw new ShowrunError("TIMEOUT", "The AI agent ran out of time before finishing.");
     }
     const remaining = options.maxIterations - iteration;
     turn = await session.send({

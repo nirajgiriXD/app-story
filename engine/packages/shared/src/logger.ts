@@ -26,7 +26,7 @@ const REDACT_PATHS = [
 ];
 
 export function createLogger(options: LoggerOptions = {}): Logger {
-  const level = options.level ?? process.env.DEMOFORGE_LOG_LEVEL ?? "info";
+  const level = options.level ?? process.env.SHOWRUN_LOG_LEVEL ?? "info";
   const streams: { level: string; stream: DestinationStream }[] = [];
 
   if (options.pretty ?? process.stdout.isTTY) {

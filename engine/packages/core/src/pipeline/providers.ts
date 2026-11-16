@@ -1,7 +1,7 @@
-import type { AiProviderConfig, ProductConfig } from "@demoforge/contracts";
-import { createAIProvider, type AIProvider, type AIProviderFactory } from "@demoforge/ai";
-import { createTTSProvider, type TTSProvider } from "@demoforge/narration";
-import { isDemoForgeError } from "@demoforge/shared";
+import type { AiProviderConfig, ProductConfig } from "@showrun/contracts";
+import { createAIProvider, type AIProvider, type AIProviderFactory } from "@showrun/ai";
+import { createTTSProvider, type TTSProvider } from "@showrun/narration";
+import { isShowrunError } from "@showrun/shared";
 import { saveMetadata, type Job } from "../job-manager/job";
 
 /** Dependency-injection points at the provider boundaries (used by tests and extensions). */
@@ -20,7 +20,7 @@ export function makeTTS(config: ProductConfig["providers"]["tts"], overrides: Pr
 }
 
 function isProviderFailure(error: unknown): boolean {
-  return isDemoForgeError(error) && error.code.startsWith("PROVIDER_");
+  return isShowrunError(error) && error.code.startsWith("PROVIDER_");
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { Page } from "playwright";
-import { runFfmpeg } from "@demoforge/shared";
+import { runFfmpeg } from "@showrun/shared";
 import type { Recorder, RecorderResult } from "./cdp-recorder";
 
 /**

@@ -1,5 +1,5 @@
-import type { AudioClip, CursorPoint, PlacedClip, ProductConfig, Step, StepResult } from "@demoforge/contracts";
-import { RESOLUTIONS } from "@demoforge/contracts";
+import type { AudioClip, CursorPoint, PlacedClip, ProductConfig, Step, StepResult } from "@showrun/contracts";
+import { RESOLUTIONS } from "@showrun/contracts";
 import type { RenderProps } from "./props";
 import type { VideoTemplate } from "./templates";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";

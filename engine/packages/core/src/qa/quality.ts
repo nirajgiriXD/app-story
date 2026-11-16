@@ -1,7 +1,7 @@
-import type { AudioClip, CaptionCue, ProductConfig, QualityCheck, QualityReport, Workflow } from "@demoforge/contracts";
-import { RESOLUTIONS } from "@demoforge/contracts";
-import { fileExists, frameContrast, meanVolumeDb, probeMedia, type MediaProbe } from "@demoforge/shared";
-import type { TimelinePlan } from "@demoforge/video";
+import type { AudioClip, CaptionCue, ProductConfig, QualityCheck, QualityReport, Workflow } from "@showrun/contracts";
+import { RESOLUTIONS } from "@showrun/contracts";
+import { fileExists, frameContrast, meanVolumeDb, probeMedia, type MediaProbe } from "@showrun/shared";
+import type { TimelinePlan } from "@showrun/video";
 import type { JobPaths } from "../job-manager/job";
 import type { RecordingOutcome } from "../pipeline/record";
 

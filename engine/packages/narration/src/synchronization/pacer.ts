@@ -1,4 +1,4 @@
-import type { AudioClip, PlacedClip, Step } from "@demoforge/contracts";
+import type { AudioClip, PlacedClip, Step } from "@showrun/contracts";
 
 export interface PacerClock {
   now(): number;

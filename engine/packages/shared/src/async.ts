@@ -1,4 +1,4 @@
-import { DemoForgeError } from "./errors";
+import { ShowrunError } from "./errors";
 
 export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
@@ -7,7 +7,7 @@ export async function withTimeout<T>(promise: Promise<T>, ms: number, label: str
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(
-      () => reject(new DemoForgeError("TIMEOUT", `${label} timed out after ${Math.round(ms / 1000)}s.`)),
+      () => reject(new ShowrunError("TIMEOUT", `${label} timed out after ${Math.round(ms / 1000)}s.`)),
       ms,
     );
   });

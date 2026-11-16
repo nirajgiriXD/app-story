@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bundle } from "@remotion/bundler";
 import { ensureBrowser, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
-import { DemoForgeError, ensureDir, type Logger } from "@demoforge/shared";
+import { ShowrunError, ensureDir, type Logger } from "@showrun/shared";
 import type { RenderProps } from "./props";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -58,7 +58,7 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
       await renderStill({ composition, serveUrl, output: options.thumbnailFile, frame, inputProps: props, imageFormat: "png", logLevel: "error" });
     }
   } catch (error) {
-    if (error instanceof DemoForgeError) throw error;
-    throw new DemoForgeError("RENDER_FAILED", `Video rendering failed: ${(error as Error).message}`, { cause: error });
+    if (error instanceof ShowrunError) throw error;
+    throw new ShowrunError("RENDER_FAILED", `Video rendering failed: ${(error as Error).message}`, { cause: error });
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildCues, chunkText, toSrt, toVtt, wrapLines } from "@demoforge/captions";
-import { cameraAt, cameraTransform, cursorAt, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@demoforge/video";
+import { buildCues, chunkText, toSrt, toVtt, wrapLines } from "@showrun/captions";
+import { cameraAt, cameraTransform, cursorAt, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@showrun/video";
 
 describe("captions", () => {
   it("splits into sentences and screen-sized chunks", () => {

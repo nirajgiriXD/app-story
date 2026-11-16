@@ -1,5 +1,5 @@
 {
-  "name": "@demoforge/video",
+  "name": "@showrun/video",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/contracts": "*",
-    "@demoforge/shared": "*",
+    "@showrun/contracts": "*",
+    "@showrun/shared": "*",
     "@remotion/bundler": "4.0.543",
     "@remotion/renderer": "4.0.543",
     "react": "^19.3.1",

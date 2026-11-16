@@ -1,6 +1,6 @@
-import type { TtsConfig } from "@demoforge/contracts";
-import type { TTSProvider } from "@demoforge/narration";
-import { runFfmpeg } from "@demoforge/shared";
+import type { TtsConfig } from "@showrun/contracts";
+import type { TTSProvider } from "@showrun/narration";
+import { runFfmpeg } from "@showrun/shared";
 import type {
   AIProvider,
   AgentInput,
@@ -9,7 +9,7 @@ import type {
   StructuredGenerationRequest,
   ToolCall,
   UsageTracker,
-} from "@demoforge/ai";
+} from "@showrun/ai";
 
 /** Test-only TTS: a soft tone whose length matches natural speech for the text. */
 export class ToneTTS implements TTSProvider {

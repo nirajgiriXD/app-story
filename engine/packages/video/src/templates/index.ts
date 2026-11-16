@@ -1,4 +1,4 @@
-import type { TemplateName } from "@demoforge/contracts";
+import type { TemplateName } from "@showrun/contracts";
 
 /**
  * Video templates. A template only controls presentation (framing, motion, typography,

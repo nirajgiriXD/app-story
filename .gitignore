@@ -1,7 +1,7 @@
 node_modules/
 dist/
 output/
-engine/data/demoforge.db*
+engine/data/showrun.db*
 engine/data/work/
 coverage/
 .env

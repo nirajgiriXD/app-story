@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ProductConfigSchema, WorkflowSchema, type Step } from "@demoforge/contracts";
-import { executeStep, runSteps, sectionsOf, validateWorkflow } from "@demoforge/workflow";
-import { createSilentLogger } from "@demoforge/shared";
+import { ProductConfigSchema, WorkflowSchema, type Step } from "@showrun/contracts";
+import { executeStep, runSteps, sectionsOf, validateWorkflow } from "@showrun/workflow";
+import { createSilentLogger } from "@showrun/shared";
 import { FakeController } from "../support/fake-controller";
 
 const log = createSilentLogger();

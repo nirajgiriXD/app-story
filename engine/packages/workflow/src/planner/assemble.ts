@@ -1,5 +1,5 @@
-import { WORKFLOW_VERSION, WorkflowSchema, formatZodError, type Step, type Workflow } from "@demoforge/contracts";
-import { DemoForgeError, slugify } from "@demoforge/shared";
+import { WORKFLOW_VERSION, WorkflowSchema, formatZodError, type Step, type Workflow } from "@showrun/contracts";
+import { ShowrunError, slugify } from "@showrun/shared";
 
 export interface AssembleInput {
   title: string;
@@ -34,7 +34,7 @@ export function assembleWorkflow(input: AssembleInput): Workflow {
   };
   const parsed = WorkflowSchema.safeParse(candidate);
   if (!parsed.success) {
-    throw new DemoForgeError("PROVIDER_INVALID_OUTPUT", `The planned workflow is invalid:\n${formatZodError(parsed.error)}`);
+    throw new ShowrunError("PROVIDER_INVALID_OUTPUT", `The planned workflow is invalid:\n${formatZodError(parsed.error)}`);
   }
   return parsed.data;
 }

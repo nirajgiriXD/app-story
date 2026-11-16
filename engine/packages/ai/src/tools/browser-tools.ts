@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EXPECTATION_TYPES, type Expectation, type Step, type Target } from "@demoforge/contracts";
+import { EXPECTATION_TYPES, type Expectation, type Step, type Target } from "@showrun/contracts";
 import { stripNulls } from "../contracts/json-schema";
 import type { ToolSpec } from "../contracts/types";
 

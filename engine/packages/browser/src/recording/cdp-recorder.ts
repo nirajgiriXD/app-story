@@ -1,7 +1,7 @@
 import { writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { CDPSession, Page } from "playwright";
-import { ensureDir, runFfmpeg, type Logger } from "@demoforge/shared";
+import { ensureDir, runFfmpeg, type Logger } from "@showrun/shared";
 
 export interface RecorderResult {
   path: string;

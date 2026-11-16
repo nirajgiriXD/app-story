@@ -19,7 +19,7 @@ npm run browsers:install       # Playwright Chromium
 cp .env.example .env           # then add your AI key
 ```
 
-Run it with `npx demoforge`. For a global `demoforge` command: `cd engine/cli && npm link`.
+Run it with `npx showrun`. For a global `showrun` command: `cd engine/cli && npm link`.
 
 ## Where things are
 
@@ -29,14 +29,14 @@ Run it with `npx demoforge`. For a global `demoforge` command: `cd engine/cli &&
 | `output/` | **Yours.** Finished videos, nothing else |
 | `.env` | **Yours.** Your AI key, and any password a product file reads with `env:NAME` |
 | `docs/` | These guides |
-| `engine/` | DemoForge itself; no need to touch it |
+| `engine/` | Showrun itself; no need to touch it |
 
 ## Try the practice app
 
 ```bash
 npm run example-app            # terminal 1: a tiny app at http://localhost:4310
-npx demoforge check example    # terminal 2
-npx demoforge example
+npx showrun check example    # terminal 2
+npx showrun example
 ```
 
 `products/example.md` describes it: its address, its login and its release notes.
@@ -44,49 +44,49 @@ npx demoforge example
 ## Your own product
 
 ```bash
-npx demoforge new acme         # creates products/acme.md and asks for the app's address
+npx showrun new acme         # creates products/acme.md and asks for the app's address
 ```
 
 Open `products/acme.md`, add the login if the app has one, describe the app in a few
 sentences, and paste your release notes. Then:
 
 ```bash
-npx demoforge check acme                    # settings, keys, login, the app, local tools
-npx demoforge acme                          # one video of everything new in the release notes
-npx demoforge acme --each                   # one video per new feature
-npx demoforge acme "show how to export"     # a video of anything else, in plain words
+npx showrun check acme                    # settings, keys, login, the app, local tools
+npx showrun acme                          # one video of everything new in the release notes
+npx showrun acme --each                   # one video per new feature
+npx showrun acme "show how to export"     # a video of anything else, in plain words
 ```
 
 What happens:
 
 1. The AI reads the release notes and picks the new features a viewer can see. Bug fixes,
    internal changes and headings like "Added"/"Fixed" are skipped. Both lists are printed.
-2. DemoForge logs in. For each feature, the AI works out the clicks in the real app and
+2. Showrun logs in. For each feature, the AI works out the clicks in the real app and
    proves the feature works.
 3. The narration is written and spoken, the app is recorded at presentation speed in
    time with it, and the video is rendered and checked.
 
 The working click-plan is saved in the database. The next video of the same feature
 replays it: no AI planning, same video. Editing the feature in the release notes, or the
-app changing so the plan no longer works, makes DemoForge plan again by itself. Use
+app changing so the plan no longer works, makes Showrun plan again by itself. Use
 `--fresh` to force it.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npx demoforge <product> [goal]` | make videos (options: `--each`, `--fresh`, `--headed`) |
-| `npx demoforge new <name>` | create `products/<name>.md` |
-| `npx demoforge check <product>` | check settings, keys, login, the app and local tools |
-| `npx demoforge list` | list your products |
-| `npx demoforge history [product]` | recent videos |
+| `npx showrun <product> [goal]` | make videos (options: `--each`, `--fresh`, `--headed`) |
+| `npx showrun new <name>` | create `products/<name>.md` |
+| `npx showrun check <product>` | check settings, keys, login, the app and local tools |
+| `npx showrun list` | list your products |
+| `npx showrun history [product]` | recent videos |
 
 `--headed` shows the browser while it works. `--log-level` sets how much is printed.
 
 ## What a video job keeps
 
 Only the video goes to `output/<product>/<job-id>-<name>.mp4`. Everything else is in the
-SQLite database `engine/data/demoforge.db` (see "Output" in the README):
+SQLite database `engine/data/showrun.db` (see "Output" in the README):
 
 | Record | What |
 | --- | --- |
@@ -104,7 +104,7 @@ failure screenshots and `logs/trace.zip` (open it with `npx playwright show-trac
 Any SQLite tool can read the database, for example:
 
 ```bash
-sqlite3 engine/data/demoforge.db "SELECT created_at, product_id, status, video_path FROM jobs ORDER BY created_at DESC"
+sqlite3 engine/data/showrun.db "SELECT created_at, product_id, status, video_path FROM jobs ORDER BY created_at DESC"
 ```
 
 ## Environment variables
@@ -114,9 +114,9 @@ sqlite3 engine/data/demoforge.db "SELECT created_at, product_id, status, video_p
 | `ANTHROPIC_API_KEY` | Claude |
 | `OPENAI_API_KEY` | OpenAI models, and the optional OpenAI voice |
 | `ELEVENLABS_API_KEY` | optional; ElevenLabs voice |
-| `DEMOFORGE_VOICE`, `DEMOFORGE_VOICE_ACCENT`, `DEMOFORGE_VOICE_SPEED`, `DEMOFORGE_VOICE_TONE` | which voice speaks (female, male or a name), accent, speed and tone |
-| `DEMOFORGE_AI_PROVIDER`, `DEMOFORGE_AI_MODEL`, `DEMOFORGE_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
-| `DEMOFORGE_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
+| `SHOWRUN_VOICE`, `SHOWRUN_VOICE_ACCENT`, `SHOWRUN_VOICE_SPEED`, `SHOWRUN_VOICE_TONE` | which voice speaks (female, male or a name), accent, speed and tone |
+| `SHOWRUN_AI_PROVIDER`, `SHOWRUN_AI_MODEL`, `SHOWRUN_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
+| `SHOWRUN_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
 | anything a product file names, e.g. `ACME_PASSWORD` | `login: demo@acme.com / env:ACME_PASSWORD` |
 
 All of them go in the root `.env`, which git ignores.

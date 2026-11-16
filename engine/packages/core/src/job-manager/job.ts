@@ -1,8 +1,8 @@
 import { copyFile, mkdir, rename, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { JobError, JobMetadata, JobStatus } from "@demoforge/contracts";
-import { UsageTracker } from "@demoforge/ai";
-import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugify, toDemoForgeError, type Logger } from "@demoforge/shared";
+import type { JobError, JobMetadata, JobStatus } from "@showrun/contracts";
+import { UsageTracker } from "@showrun/ai";
+import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugify, toShowrunError, type Logger } from "@showrun/shared";
 import { Store, type RecordKind } from "../store/store";
 
 /**
@@ -114,7 +114,7 @@ export function saveRecord(job: Job, kind: RecordKind, value: unknown): void {
 }
 
 export function recordError(job: Job, error: unknown, phase?: string, stepId?: string): JobError {
-  const e = toDemoForgeError(error);
+  const e = toShowrunError(error);
   const entry: JobError = { code: e.code, message: e.message, hint: e.hint, phase, step_id: stepId };
   job.metadata.errors.push(redactSecrets(entry));
   return entry;

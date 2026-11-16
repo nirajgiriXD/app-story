@@ -1,4 +1,4 @@
-import type { Feature, FeaturePlan } from "@demoforge/contracts";
+import type { Feature, FeaturePlan } from "@showrun/contracts";
 
 /** Objective for one video that walks through every feature, in order. */
 export function objectiveForAllFeatures(plan: Pick<FeaturePlan, "title" | "features">): string {

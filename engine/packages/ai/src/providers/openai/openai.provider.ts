@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import type { AiProviderConfig } from "@demoforge/contracts";
-import { DemoForgeError, type Logger } from "@demoforge/shared";
+import type { AiProviderConfig } from "@showrun/contracts";
+import { ShowrunError, type Logger } from "@showrun/shared";
 import type {
   AIProvider,
   AgentInput,
@@ -78,7 +78,7 @@ export class OpenAIProvider implements AIProvider {
     assertComplete(response);
     const parsed = request.schema.safeParse(response.output_parsed);
     if (!parsed.success) {
-      throw new DemoForgeError("PROVIDER_INVALID_OUTPUT", `OpenAI returned an invalid ${request.schemaName}: ${parsed.error.message}`);
+      throw new ShowrunError("PROVIDER_INVALID_OUTPUT", `OpenAI returned an invalid ${request.schemaName}: ${parsed.error.message}`);
     }
     return parsed.data;
   }
@@ -170,10 +170,10 @@ function assertComplete(response: OpenAI.Responses.Response): void {
     .flatMap((item) => (item.type === "message" ? item.content : []))
     .find((c) => c.type === "refusal");
   if (refusal && refusal.type === "refusal") {
-    throw new DemoForgeError("PROVIDER_REFUSAL", `OpenAI declined the request: ${refusal.refusal}`);
+    throw new ShowrunError("PROVIDER_REFUSAL", `OpenAI declined the request: ${refusal.refusal}`);
   }
   if (response.status === "incomplete") {
-    throw new DemoForgeError(
+    throw new ShowrunError(
       "PROVIDER_INVALID_OUTPUT",
       `OpenAI response was incomplete (${response.incomplete_details?.reason ?? "unknown reason"}).`,
     );
@@ -181,30 +181,30 @@ function assertComplete(response: OpenAI.Responses.Response): void {
 }
 
 export function mapOpenAIError(error: unknown, model: string): unknown {
-  if (error instanceof DemoForgeError) return error;
+  if (error instanceof ShowrunError) return error;
   if (error instanceof OpenAI.AuthenticationError || error instanceof OpenAI.PermissionDeniedError) {
-    return new DemoForgeError("PROVIDER_AUTH", "OpenAI rejected the API key.", {
+    return new ShowrunError("PROVIDER_AUTH", "OpenAI rejected the API key.", {
       cause: error,
       hint: "Check OPENAI_API_KEY in your .env file.",
     });
   }
   if (error instanceof OpenAI.NotFoundError) {
-    return new DemoForgeError("PROVIDER_ERROR", `OpenAI model '${model}' was not found.`, {
+    return new ShowrunError("PROVIDER_ERROR", `OpenAI model '${model}' was not found.`, {
       cause: error,
       hint: "Set a valid model id in providers.ai.model.",
     });
   }
   if (error instanceof OpenAI.RateLimitError) {
-    return new DemoForgeError("PROVIDER_RATE_LIMIT", "OpenAI rate limit reached (after retries).", { cause: error, retryable: true });
+    return new ShowrunError("PROVIDER_RATE_LIMIT", "OpenAI rate limit reached (after retries).", { cause: error, retryable: true });
   }
   if (error instanceof OpenAI.BadRequestError) {
-    return new DemoForgeError("PROVIDER_ERROR", `OpenAI rejected the request: ${error.message}`, { cause: error });
+    return new ShowrunError("PROVIDER_ERROR", `OpenAI rejected the request: ${error.message}`, { cause: error });
   }
   if (error instanceof OpenAI.APIConnectionError) {
-    return new DemoForgeError("PROVIDER_ERROR", "Could not reach the OpenAI API.", { cause: error, retryable: true });
+    return new ShowrunError("PROVIDER_ERROR", "Could not reach the OpenAI API.", { cause: error, retryable: true });
   }
   if (error instanceof OpenAI.APIError) {
-    return new DemoForgeError("PROVIDER_ERROR", `OpenAI API error ${error.status ?? ""}: ${error.message}`, {
+    return new ShowrunError("PROVIDER_ERROR", `OpenAI API error ${error.status ?? ""}: ${error.message}`, {
       cause: error,
       retryable: (error.status ?? 0) >= 500,
     });

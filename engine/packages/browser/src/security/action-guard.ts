@@ -1,4 +1,4 @@
-import type { SafetyConfig, StepAction } from "@demoforge/contracts";
+import type { SafetyConfig, StepAction } from "@showrun/contracts";
 
 export type SensitiveCategory = "delete" | "payments" | "emails" | "publishing" | "account_settings" | "invite_users";
 

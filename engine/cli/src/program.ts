@@ -5,14 +5,14 @@ import { historyCommand } from "./commands/history";
 
 const EXAMPLES = `
 Examples:
-  npx demoforge acme                          one video of what's new in products/acme.md
-  npx demoforge acme --each                   one video per new feature
-  npx demoforge acme "show how to export"     a video of anything else, in plain words
-  npx demoforge new acme                      create products/acme.md
-  npx demoforge check acme                    check settings, keys, login and tools`;
+  npx showrun acme                          one video of what's new in products/acme.md
+  npx showrun acme --each                   one video per new feature
+  npx showrun acme "show how to export"     a video of anything else, in plain words
+  npx showrun new acme                      create products/acme.md
+  npx showrun check acme                    check settings, keys, login and tools`;
 
 export function buildProgram(): Command {
-  return new Command("demoforge")
+  return new Command("showrun")
     .description("Make product demo videos from products/<product>.md")
     .version("0.1.0")
     .argument("[product]", "product name: the file products/<product>.md")

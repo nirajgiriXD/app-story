@@ -1,5 +1,5 @@
 import type { z } from "zod";
-import type { AiProviderName } from "@demoforge/contracts";
+import type { AiProviderName } from "@showrun/contracts";
 
 /**
  * Provider-neutral contracts. Nothing in here references an SDK type, so the agents,

@@ -1,6 +1,6 @@
-import { launchBrowserSession, type BrowserSession } from "@demoforge/browser";
-import type { LoadedProduct } from "@demoforge/products";
-import type { Logger } from "@demoforge/shared";
+import { launchBrowserSession, type BrowserSession } from "@showrun/browser";
+import type { LoadedProduct } from "@showrun/products";
+import type { Logger } from "@showrun/shared";
 
 export interface WithBrowserOptions {
   workDir: string;

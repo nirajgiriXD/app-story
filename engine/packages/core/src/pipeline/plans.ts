@@ -1,5 +1,5 @@
-import type { Workflow } from "@demoforge/contracts";
-import { slugify } from "@demoforge/shared";
+import type { Workflow } from "@showrun/contracts";
+import { slugify } from "@showrun/shared";
 import type { Store } from "../store/store";
 
 /**

@@ -1,6 +1,6 @@
-import type { ExecutionReport, Step, StepResult } from "@demoforge/contracts";
-import type { BrowserController } from "@demoforge/browser";
-import { DemoForgeError, ensureDir, type Logger } from "@demoforge/shared";
+import type { ExecutionReport, Step, StepResult } from "@showrun/contracts";
+import type { BrowserController } from "@showrun/browser";
+import { ShowrunError, ensureDir, type Logger } from "@showrun/shared";
 import { executeStep } from "./execute-step";
 
 export interface RunHooks {
@@ -37,7 +37,7 @@ export async function runSteps(
   let ok = true;
   for (const [index, step] of steps.entries()) {
     if (options.deadline && Date.now() > options.deadline) {
-      throw new DemoForgeError("TIMEOUT", `Workflow exceeded its maximum duration at step ${step.id}.`);
+      throw new ShowrunError("TIMEOUT", `Workflow exceeded its maximum duration at step ${step.id}.`);
     }
     await options.hooks?.beforeStep?.(step, index);
     const stepStart = Date.now();

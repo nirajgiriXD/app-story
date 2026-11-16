@@ -1,4 +1,4 @@
-import type { CaptionCue } from "@demoforge/contracts";
+import type { CaptionCue } from "@showrun/contracts";
 
 export interface TimedText {
   text: string;

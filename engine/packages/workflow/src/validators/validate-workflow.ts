@@ -1,6 +1,6 @@
-import type { ProductConfig, Step, Workflow } from "@demoforge/contracts";
-import { ActionGuard, isAllowedUrl, resolveUrl } from "@demoforge/browser";
-import { hasEnvTemplate } from "@demoforge/shared";
+import type { ProductConfig, Step, Workflow } from "@showrun/contracts";
+import { ActionGuard, isAllowedUrl, resolveUrl } from "@showrun/browser";
+import { hasEnvTemplate } from "@showrun/shared";
 
 export interface WorkflowValidation {
   errors: string[];

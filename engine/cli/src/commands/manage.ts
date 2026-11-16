@@ -1,8 +1,8 @@
 import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
-import { validateProduct } from "@demoforge/core";
-import { listProducts, newProductFile } from "@demoforge/products";
-import { DemoForgeError, slugify } from "@demoforge/shared";
+import { validateProduct } from "@showrun/core";
+import { listProducts, newProductFile } from "@showrun/products";
+import { ShowrunError, slugify } from "@showrun/shared";
 import { RESERVED_NAMES, globals, openProduct } from "../context";
 import { bold, dim, green, red, yellow } from "../output";
 
@@ -13,12 +13,12 @@ export function newCommand(): Command {
     .option("--url <url>", "address of the running app")
     .action(async (rawName: string, opts: { url?: string }, cmd: Command) => {
       const id = slugify(rawName);
-      if (RESERVED_NAMES.has(id)) throw new DemoForgeError("CONFIG_INVALID", `'${id}' is a command name; pick another product name.`);
+      if (RESERVED_NAMES.has(id)) throw new ShowrunError("CONFIG_INVALID", `'${id}' is a command name; pick another product name.`);
       const url = opts.url ?? (await ask("Address of the app", "https://staging.my-app.com"));
       const file = await newProductFile(globals(cmd).productsDir, { id, url });
       console.log(green(`✔ Created ${file}`));
       console.log(dim("  Add the login if the app has one, describe the app and paste your release notes."));
-      console.log(dim(`  Then: npx demoforge check ${id}   and   npx demoforge ${id}`));
+      console.log(dim(`  Then: npx showrun check ${id}   and   npx showrun ${id}`));
     });
 }
 
@@ -34,7 +34,7 @@ export function checkCommand(): Command {
         console.log(`${icon} ${item.message}`);
       }
       const errors = items.filter((i) => i.level === "error").length;
-      console.log(errors ? red(`\n${errors} problem(s) found.`) : green(`\nReady: npx demoforge ${id}`));
+      console.log(errors ? red(`\n${errors} problem(s) found.`) : green(`\nReady: npx showrun ${id}`));
       process.exitCode = errors ? 1 : 0;
     });
 }
@@ -44,7 +44,7 @@ export function listCommand(): Command {
     const { productsDir } = globals(cmd);
     const items = await listProducts(productsDir);
     if (items.length === 0) {
-      console.log(dim(`No products yet. Create one with: npx demoforge new <name>`));
+      console.log(dim(`No products yet. Create one with: npx showrun new <name>`));
       return;
     }
     for (const p of items) {

@@ -1,5 +1,5 @@
 /**
- * Error codes map onto the job outcomes the README requires DemoForge to distinguish
+ * Error codes map onto the job outcomes the README requires Showrun to distinguish
  * (application unavailable, authentication failure, unsupported workflow, ...).
  */
 export type ErrorCode =
@@ -24,22 +24,22 @@ export type ErrorCode =
   | "DEPENDENCY_MISSING"
   | "INTERNAL";
 
-export interface DemoForgeErrorOptions {
+export interface ShowrunErrorOptions {
   hint?: string;
   cause?: unknown;
   retryable?: boolean;
   details?: Record<string, unknown>;
 }
 
-export class DemoForgeError extends Error {
+export class ShowrunError extends Error {
   readonly code: ErrorCode;
   readonly hint: string | undefined;
   readonly retryable: boolean;
   readonly details: Record<string, unknown> | undefined;
 
-  constructor(code: ErrorCode, message: string, options: DemoForgeErrorOptions = {}) {
+  constructor(code: ErrorCode, message: string, options: ShowrunErrorOptions = {}) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause });
-    this.name = "DemoForgeError";
+    this.name = "ShowrunError";
     this.code = code;
     this.hint = options.hint;
     this.retryable = options.retryable ?? false;
@@ -57,12 +57,12 @@ export class DemoForgeError extends Error {
   }
 }
 
-export function isDemoForgeError(error: unknown): error is DemoForgeError {
-  return error instanceof DemoForgeError;
+export function isShowrunError(error: unknown): error is ShowrunError {
+  return error instanceof ShowrunError;
 }
 
-export function toDemoForgeError(error: unknown, fallback: ErrorCode = "INTERNAL"): DemoForgeError {
-  if (error instanceof DemoForgeError) return error;
+export function toShowrunError(error: unknown, fallback: ErrorCode = "INTERNAL"): ShowrunError {
+  if (error instanceof ShowrunError) return error;
   const message = error instanceof Error ? error.message : String(error);
-  return new DemoForgeError(fallback, message, { cause: error });
+  return new ShowrunError(fallback, message, { cause: error });
 }

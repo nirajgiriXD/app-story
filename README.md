@@ -1,42 +1,42 @@
-# DemoForge
+# Showrun
 
 > An AI-powered platform for automatically exploring web applications, demonstrating product features, and generating professional product demo videos.
 
-DemoForge uses AI agents powered by **Anthropic Claude or OpenAI**, **Playwright for real browser interaction**, and a video-rendering pipeline to turn product workflows into polished demonstration videos.
+Showrun uses AI agents powered by **Anthropic Claude or OpenAI**, **Playwright for real browser interaction**, and a video-rendering pipeline to turn product workflows into polished demonstration videos.
 
-The goal is to make product demo creation repeatable and largely automated. Instead of manually recording every feature, users provide a web application, define what they want to demonstrate, and let DemoForge plan, execute, record, narrate, and render the demo.
+The goal is to make product demo creation repeatable and largely automated. Instead of manually recording every feature, users provide a web application, define what they want to demonstrate, and let Showrun plan, execute, record, narrate, and render the demo.
 
 ## Where things are
 
 ```text
-demo-forge/
+showrun/
 ├── products/     👉 your products: one file each, e.g. products/acme.md (see "Product files")
 ├── output/       👉 finished videos, nothing else (see "Output")
 ├── .env          👉 your AI key, voice choices, and passwords read with env:NAME
 ├── docs/         guides: start with docs/getting-started.md
-└── engine/       DemoForge itself — no need to touch it to make videos (see "Engine")
+└── engine/       Showrun itself — no need to touch it to make videos (see "Engine")
 ```
 
 Quick start: `npm install`, `npm run browsers:install`, add a key to `.env`, then
-`npx demoforge new acme`, fill in `products/acme.md`, and `npx demoforge acme`.
+`npx showrun new acme`, fill in `products/acme.md`, and `npx showrun acme`.
 See [docs/getting-started.md](docs/getting-started.md).
 
 ## Product files
 
-Each product is a single Markdown file: `products/<name>.md`. That is all DemoForge
+Each product is a single Markdown file: `products/<name>.md`. That is all Showrun
 needs. It never needs your product's source code: it opens the running app in a browser.
 
 ```bash
-npx demoforge new acme          # creates products/acme.md
-npx demoforge check acme        # checks it
-npx demoforge acme              # one video of what's new in its release notes
+npx showrun new acme          # creates products/acme.md
+npx showrun check acme        # checks it
+npx showrun acme              # one video of what's new in its release notes
 ```
 
 `products/example.md` is a working product for the practice app (`npm run example-app`).
 
 ### What goes in the file
 
-A small settings block at the top, read by DemoForge and **never sent to the AI**. Then
+A small settings block at the top, read by Showrun and **never sent to the AI**. Then
 plain English for the AI: what the app is, tips, and your release notes, as they are.
 
 ```markdown
@@ -73,7 +73,7 @@ form are for, and types believable values that fit. Credentials that a feature n
 (a test card, an API key, a second account) are used **only** if your file gives them;
 the AI never makes them up. Write secret ones as `{{env:NAME}}`, e.g.
 "Test card: `{{env:ACME_TEST_CARD}}`", so the value comes from `.env` and is hidden in logs.
-The app's own login is the `login:` setting, which DemoForge handles before the AI starts.
+The app's own login is the `login:` setting, which Showrun handles before the AI starts.
 
 ### Settings
 
@@ -98,10 +98,10 @@ allow: delete, emails                      # risky actions are blocked unless li
 ```
 
 - **login**: `env:ACME_PASSWORD` reads the password from `.env`, so it never sits in a
-  file you might share. Writing the password directly works too. DemoForge finds the
+  file you might share. Writing the password directly works too. Showrun finds the
   login form on its own; if it cannot, add `login page:`. Logins with two steps (email
   first, password on the next page) and single sign-on are not supported yet.
-- **allow**: by default DemoForge never deletes, pays, sends emails, publishes, changes
+- **allow**: by default Showrun never deletes, pays, sends emails, publishes, changes
   account settings or invites users. List any of `delete, payments, emails, publishing,
   account settings, invite users, production data` to allow them.
 - **ai**: with keys for both providers, the other one is used as a backup if the first fails.
@@ -109,9 +109,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 
   | Template | Look | Picked by itself for |
   | --- | --- | --- |
-  | `product-update` | app in a browser window, dark background, "New" badge on the title | `npx demoforge acme` (what's new) |
-  | `feature-highlight` | browser window, strongest zoom, biggest title | `npx demoforge acme --each` (one feature per video) |
-  | `tutorial` | full screen, light, big cursor, close zoom | `npx demoforge acme "show how to …"` (a how-to) |
+  | `product-update` | app in a browser window, dark background, "New" badge on the title | `npx showrun acme` (what's new) |
+  | `feature-highlight` | browser window, strongest zoom, biggest title | `npx showrun acme --each` (one feature per video) |
+  | `tutorial` | full screen, light, big cursor, close zoom | `npx showrun acme "show how to …"` (a how-to) |
   | `modern-saas` | browser window, colorful background, medium zoom | — |
   | `minimal` | full screen, plain light, gentle zoom, no chapter labels | — |
 
@@ -119,7 +119,7 @@ allow: delete, emails                      # risky actions are blocked unless li
 
 Files whose name starts with `_` (for example `_draft.md`) are not treated as products.
 
-### What DemoForge handles by itself
+### What Showrun handles by itself
 
 - Picks the features from the release notes.
 - Logs in, plans the clicks in the real app, proves each feature works, then records it.
@@ -132,19 +132,19 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
 The voice is set in `.env` and applies to every product. All of it is optional.
 
 ```bash
-DEMOFORGE_VOICE=female            # female | male | a voice name (default: female)
-DEMOFORGE_VOICE_ACCENT=american   # american | british (default: american)
-DEMOFORGE_VOICE_SPEED=1.0         # 0.7 (slower) to 1.3 (faster)
-DEMOFORGE_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
+SHOWRUN_VOICE=female            # female | male | a voice name (default: female)
+SHOWRUN_VOICE_ACCENT=american   # american | british (default: american)
+SHOWRUN_VOICE_SPEED=1.0         # 0.7 (slower) to 1.3 (faster)
+SHOWRUN_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
 ```
 
 - **Kokoro** (the free default) picks its best voice for the gender and accent:
   female American *Heart*, male American *Michael*, female British *Emma*, male British
-  *George*. You can also name any Kokoro voice, e.g. `DEMOFORGE_VOICE=am_puck`; the 28
-  names are listed by `npx demoforge check <product>` when a name is wrong. Kokoro has no
+  *George*. You can also name any Kokoro voice, e.g. `SHOWRUN_VOICE=am_puck`; the 28
+  names are listed by `npx showrun check <product>` when a name is wrong. Kokoro has no
   tone, emotion or pitch control.
 - **OpenAI** (`voice: openai` in the product file) needs a voice name, e.g. `marin`,
-  `cedar`, `coral` or `onyx`, and is the one that follows `DEMOFORGE_VOICE_TONE`.
+  `cedar`, `coral` or `onyx`, and is the one that follows `SHOWRUN_VOICE_TONE`.
 - **ElevenLabs** (`voice: elevenlabs`) needs a voice id from your ElevenLabs account.
 
 ## Output
@@ -158,7 +158,7 @@ output/
     └── 20261116-141010-d4e5f6-bulk-export.mp4
 ```
 
-Everything else is kept in one SQLite database, `engine/data/demoforge.db` (ignored by
+Everything else is kept in one SQLite database, `engine/data/showrun.db` (ignored by
 git):
 
 | Table | What it keeps |
@@ -171,18 +171,18 @@ While a video is being made, its raw recording and voice clips sit in
 `engine/data/work/<job>/`. That folder is deleted when the video succeeds, and kept when it
 fails so you can see what happened (the path is printed).
 
-`npx demoforge history` lists recent videos from the database. Deleting a video file is
+`npx showrun history` lists recent videos from the database. Deleting a video file is
 safe; deleting `engine/data/` forgets the history and the saved plans (the next videos
 are planned again).
 
 ## Engine
 
-`engine/` is DemoForge itself. You do not need to change anything there to make videos:
+`engine/` is Showrun itself. You do not need to change anything there to make videos:
 your work happens in `products/`, and the videos land in `output/`.
 
 ```text
 engine/
-├── cli/            the `demoforge` command (npx demoforge ...)
+├── cli/            the `showrun` command (npx showrun ...)
 ├── packages/       the building blocks
 │   ├── core/         runs every step of a job, in order; keeps the SQLite database
 │   ├── ai/           talks to Anthropic or OpenAI; plans the clicks
@@ -214,7 +214,7 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
 ## 1. Vision
 
-DemoForge should be a generic, reusable product-demo generation engine.
+Showrun should be a generic, reusable product-demo generation engine.
 
 It must not contain business logic or assumptions specific to any particular application.
 
@@ -249,7 +249,7 @@ demo:
   duration: 90
 ```
 
-DemoForge should:
+Showrun should:
 
 1. Understand the product and the requested demonstration.
 2. Use the configured AI provider to plan the demonstration.
@@ -343,10 +343,10 @@ The first version should be a CLI-based application. Do not build a dashboard or
 
 # 4. Architecture
 
-Build DemoForge as a modular system with clearly separated responsibilities.
+Build Showrun as a modular system with clearly separated responsibilities.
 
 ```text
-                         DemoForge
+                         Showrun
                              |
                              v
                      Configuration Loader
@@ -404,7 +404,7 @@ tips and release notes (read by the AI). The engine contains no product-specific
 
 ## 4.3 AI Agent
 
-DemoForge must support multiple AI providers, with **Anthropic Claude and OpenAI as first-class providers**.
+Showrun must support multiple AI providers, with **Anthropic Claude and OpenAI as first-class providers**.
 
 The user must be able to choose which AI provider powers the agent through product configuration, environment variables, or CLI options.
 
@@ -514,11 +514,11 @@ Never store API keys in product YAML files or commit them to Git.
 
 ### Provider override
 
-The product file picks the provider (`ai: openai`); without it, DemoForge uses the one
+The product file picks the provider (`ai: openai`); without it, Showrun uses the one
 that has a key. For a single run, override it from the environment:
 
 ```bash
-DEMOFORGE_AI_PROVIDER=openai demoforge easydash
+SHOWRUN_AI_PROVIDER=openai showrun easydash
 ```
 
 ### Important implementation requirements
@@ -728,8 +728,8 @@ Secrets must never be committed: `env:NAME` reads a value from the git-ignored `
 ## From release notes (default)
 
 ```bash
-demoforge easydash            # one video of everything new
-demoforge easydash --each     # one video per new feature
+showrun easydash            # one video of everything new
+showrun easydash --each     # one video per new feature
 ```
 
 The AI picks the new user-visible features from the release notes, then plans, verifies,
@@ -738,7 +738,7 @@ records and narrates each one.
 ## From a plain-language goal
 
 ```bash
-demoforge easydash "Demonstrate how to create and restore a website backup"
+showrun easydash "Demonstrate how to create and restore a website backup"
 ```
 
 ## Repeatable runs
@@ -752,11 +752,11 @@ or the app no longer matches it, or on `--fresh`.
 # 7. CLI Interface
 
 ```bash
-demoforge <product> [goal]      # make videos (--each, --fresh, --headed)
-demoforge new <name>            # create products/<name>.md
-demoforge check <product>       # settings, keys, login, the app, local tools
-demoforge list                  # list products
-demoforge history [product]     # recent videos
+showrun <product> [goal]      # make videos (--each, --fresh, --headed)
+showrun new <name>            # create products/<name>.md
+showrun check <product>       # settings, keys, login, the app, local tools
+showrun list                  # list products
+showrun history [product]     # recent videos
 ```
 
 ---
@@ -767,15 +767,15 @@ Use an npm workspaces monorepo. What users touch stays at the top level; everyth
 lives in `engine/`.
 
 ```text
-demoforge/
+showrun/
 ├── products/                 user-owned: one file per product
 │   └── example.md            the practice app
 │
 ├── output/                   finished videos only (git-ignored)
 ├── docs/
 │
-├── engine/                   DemoForge itself
-│   ├── cli/                  the demoforge command
+├── engine/                   Showrun itself
+│   ├── cli/                  the showrun command
 │   ├── packages/
 │   │   ├── core/             orchestrator, pipeline, plans, job-manager, SQLite store
 │   │   ├── ai/               providers, agents, prompts, tools, factory
@@ -815,7 +815,7 @@ output/
     20261116-134205-a1b2c3-website-backup.mp4
 ```
 
-Everything else is in the SQLite database `engine/data/demoforge.db`: the `jobs` table
+Everything else is in the SQLite database `engine/data/showrun.db`: the `jobs` table
 (product, objective, timestamps, AI provider and model, voice, workflow version, status,
 recording duration, video path, token usage and estimated AI cost, errors), `job_records`
 (settings used, plan, practice run, narration, captions, reports, quality checks, log,
@@ -826,7 +826,7 @@ thumbnail) and `plans` (saved click-plans). A job's scratch files live in
 
 # 10. Agent Execution and Reliability
 
-This is one of the most important parts of DemoForge.
+This is one of the most important parts of Showrun.
 
 The agent must be capable of handling real-world application differences without turning every workflow into unreliable autonomous browsing.
 
@@ -892,7 +892,7 @@ However:
 
 # 11. Security
 
-DemoForge will interact with real applications, so security must be part of the architecture.
+Showrun will interact with real applications, so security must be part of the architecture.
 
 Implement:
 
@@ -909,7 +909,7 @@ Implement:
 11. Secure handling of authentication state.
 12. Safe handling of untrusted page content.
 
-Treat website content as untrusted input. A webpage may contain prompt-injection instructions. Such content must never override DemoForge system policies or tool permissions.
+Treat website content as untrusted input. A webpage may contain prompt-injection instructions. Such content must never override Showrun system policies or tool permissions.
 
 Support configurable restrictions for:
 
@@ -1169,7 +1169,7 @@ Use a simple test web application with synthetic data.
 The program should accept:
 
 ```bash
-demoforge example "Demonstrate how to create a new project"
+showrun example "Demonstrate how to create a new project"
 ```
 
 It must then:
@@ -1231,7 +1231,7 @@ Every implementation phase must leave the project in a working state.
 
 The initial release is complete when a user can:
 
-1. Install DemoForge.
+1. Install Showrun.
 2. Initialize a product.
 3. Configure its URL and authentication.
 4. Select Anthropic Claude or OpenAI.
@@ -1244,7 +1244,7 @@ The initial release is complete when a user can:
 11. Generate subtitles.
 12. Render a professional MP4.
 13. Review the generated video and execution report.
-14. Repeat the process for another product without modifying DemoForge's core code.
+14. Repeat the process for another product without modifying Showrun's core code.
 15. Switch AI providers without changing product configurations or workflow implementations unnecessarily.
 
 **The ultimate objective: one reusable engine, multiple products, multiple AI providers, automated product demonstrations, and minimal manual video editing.**

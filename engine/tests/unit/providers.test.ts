@@ -2,9 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AnthropicProvider, OpenAIProvider, UsageTracker, stripNulls, toStrictJsonSchema, type AIProvider } from "@demoforge/ai";
-import { AiProviderConfigSchema } from "@demoforge/contracts";
-import { createSilentLogger } from "@demoforge/shared";
+import { AnthropicProvider, OpenAIProvider, UsageTracker, stripNulls, toStrictJsonSchema, type AIProvider } from "@showrun/ai";
+import { AiProviderConfigSchema } from "@showrun/contracts";
+import { createSilentLogger } from "@showrun/shared";
 
 /*
  * The same contract runs against both providers with their SDK clients mocked.

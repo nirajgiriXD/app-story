@@ -1,7 +1,7 @@
-import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepResult, type Workflow } from "@demoforge/contracts";
-import type { BrowserController } from "@demoforge/browser";
-import { assembleWorkflow, executeStep } from "@demoforge/workflow";
-import type { Logger } from "@demoforge/shared";
+import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepResult, type Workflow } from "@showrun/contracts";
+import type { BrowserController } from "@showrun/browser";
+import { assembleWorkflow, executeStep } from "@showrun/workflow";
+import type { Logger } from "@showrun/shared";
 import type { AIProvider } from "../contracts/types";
 import { loadPrompt, untrusted } from "../prompts";
 import { RehearsalToolInputs, rehearsalToolSpecs, toolCallToStep, type RehearsalToolName } from "../tools/browser-tools";

@@ -1,16 +1,16 @@
 {
-  "name": "@demoforge/cli",
+  "name": "@showrun/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
-    "demoforge": "./bin/demoforge.mjs"
+    "showrun": "./bin/showrun.mjs"
   },
   "dependencies": {
-    "@demoforge/contracts": "*",
-    "@demoforge/core": "*",
-    "@demoforge/products": "*",
-    "@demoforge/shared": "*",
+    "@showrun/contracts": "*",
+    "@showrun/core": "*",
+    "@showrun/products": "*",
+    "@showrun/shared": "*",
     "commander": "^15.1.0",
     "dotenv": "^18.0.10",
     "tsx": "^4.23.15"

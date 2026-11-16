@@ -63,3 +63,29 @@ jobs:
       - run: npm run test:integration -- --reporter=verbose
       # The full flow with AI answers recorded once (engine/tests/fixtures/ai-answers/): no key, no cost.
       - run: npm run test:e2e -- --reporter=verbose
+
+  package:
+    name: npm package and Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm install -g npm@12
+      - run: npm ci
+      - run: npm run build
+      - name: Install the package in an empty folder and run it
+        run: |
+          npm pack ./dist/app-story --pack-destination "$RUNNER_TEMP"
+          mkdir "$RUNNER_TEMP/try" && cd "$RUNNER_TEMP/try"
+          npm init -y > /dev/null
+          npm install --ignore-scripts "$RUNNER_TEMP"/app-story-*.tgz
+          npx app-story new demo --url http://localhost:3000
+          npx app-story list | grep demo
+      - name: Build the Docker image and run it
+        run: |
+          docker build -t app-story .
+          docker run --rm app-story --version

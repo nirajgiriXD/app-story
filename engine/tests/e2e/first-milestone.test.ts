@@ -5,7 +5,7 @@ import { config as loadEnv } from "dotenv";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateDemo, planFeatures } from "@app-story/core";
 import { loadProduct } from "@app-story/products";
-import { ROOT_ENV_FILE, probeMedia } from "@app-story/shared";
+import { probeMedia, workspace } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
 
 /*
@@ -13,7 +13,7 @@ import { startExampleApp } from "../support/example-app";
  * Costs real money, so each provider only runs when its key is present:
  *   npm run test:e2e
  */
-loadEnv({ path: ROOT_ENV_FILE, quiet: true });
+loadEnv({ path: workspace().envFile, quiet: true });
 
 const PORT = 4392;
 let app: { url: string; stop: () => void };

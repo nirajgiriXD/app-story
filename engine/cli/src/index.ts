@@ -1,9 +1,9 @@
 import { config as loadEnv } from "dotenv";
-import { ROOT_ENV_FILE } from "@app-story/shared";
+import { workspace } from "@app-story/shared";
 import { buildProgram } from "./program";
 import { printError } from "./output";
 
-loadEnv({ path: ROOT_ENV_FILE, quiet: true });
+loadEnv({ path: workspace().envFile, quiet: true });
 
 try {
   await buildProgram().parseAsync(process.argv);

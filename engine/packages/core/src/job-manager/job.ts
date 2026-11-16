@@ -7,7 +7,7 @@ import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugif
 import { Store, type RecordKind } from "../store/store";
 
 /**
- * Scratch files of a running job, in `engine/data/work/<job-id>-<name>/`. Only the finished
+ * Scratch files of a running job, in `.app-story/work/<job-id>-<name>/`. Only the finished
  * video leaves this folder (to `output/`); everything worth keeping goes into the database.
  * The folder is deleted when the job succeeds and kept for troubleshooting when it fails.
  */
@@ -60,7 +60,7 @@ export function jobPaths(root: string): JobPaths {
 }
 
 export interface CreateJobInput {
-  /** The output folder (videos only); the database is in `engine/data/` next to it. */
+  /** The output folder (videos only); the database is in `.app-story/` next to it. */
   outputDir: string;
   productId: string;
   /** Short name of the demo, used for the video file name. */

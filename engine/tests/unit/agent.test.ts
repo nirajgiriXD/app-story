@@ -175,7 +175,7 @@ describe("provider fallback", () => {
   it("switches only on provider failures and records every attempt", async () => {
     const { withProviderFallback } = await import("../../packages/core/src/pipeline/providers");
     const job = await createJob({
-      outputDir: await mkdtemp(join(tmpdir(), "df-")),
+      outputDir: join(await mkdtemp(join(tmpdir(), "df-")), "output"),
       productId: "app",
       name: "t",
       mode: "guided",
@@ -201,7 +201,7 @@ describe("provider fallback", () => {
   it("does not switch providers for workflow failures", async () => {
     const { withProviderFallback } = await import("../../packages/core/src/pipeline/providers");
     const job = await createJob({
-      outputDir: await mkdtemp(join(tmpdir(), "df-")),
+      outputDir: join(await mkdtemp(join(tmpdir(), "df-")), "output"),
       productId: "app",
       name: "t",
       mode: "guided",

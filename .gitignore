@@ -1,8 +1,7 @@
 node_modules/
 dist/
 output/
-engine/data/app-story.db*
-engine/data/work/
+.app-story/
 coverage/
 .env
 .env.*

@@ -20,7 +20,7 @@
     "test:integration": "node engine/scripts/vitest.mjs run --project integration",
     "test:e2e": "node engine/scripts/vitest.mjs run --project e2e",
     "test:all": "node engine/scripts/vitest.mjs run",
-    "example-app": "node engine/data/example-app/server.mjs",
+    "example-app": "node engine/tests/example-app/server.mjs",
     "browsers:install": "playwright install chromium"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 // Projectly — a tiny, dependency-free web app with synthetic data, used to test AppStory.
-// Run: npm run example-app  (or node engine/data/example-app/server.mjs)   (PORT defaults to 4310)
+// Run: npm run example-app  (or node engine/tests/example-app/server.mjs)   (PORT defaults to 4310)
 import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { JobMetadataSchema, type JobMetadata, type Workflow } from "@app-story/contracts";
 import { dataDirFor, redactSecrets } from "@app-story/shared";
@@ -81,17 +81,19 @@ export function cacheKey(kind: CacheKind, inputs: unknown): string {
 
 const open = new Map<string, Store>();
 
-/** The database that belongs to an output folder (`<parent>/engine/data/app-story.db`). */
+/** The database that belongs to an output folder (`<parent>/.app-story/app-story.db`). */
 export function storeFor(outputDir: string): Store {
   return Store.open(dataDirFor(outputDir));
 }
 
 /**
- * Everything AppStory tracks, in one SQLite file (`engine/data/app-story.db`): jobs and
- * their metadata, every record a job produces, and the saved plans. Only finished videos
- * live outside it, in `output/`. Uses Node's built-in `node:sqlite`.
+ * Everything AppStory tracks, in one SQLite file (`.app-story/app-story.db` in the user's
+ * project): jobs and their metadata, every record a job produces, the saved plans and the cache.
+ * Finished videos live in `output/`. Uses Node's
+ * built-in `node:sqlite`.
  */
 export class Store {
+  readonly dataDir: string;
   readonly file: string;
   private readonly db: DatabaseSync;
 
@@ -106,7 +108,8 @@ export class Store {
   }
 
   private constructor(dataDir: string) {
-    mkdirSync(dataDir, { recursive: true });
+    prepareDataDir(dataDir);
+    this.dataDir = dataDir;
     this.file = join(dataDir, "app-story.db");
     this.db = new DatabaseSync(this.file);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;");
@@ -249,5 +252,17 @@ export class Store {
   countPlans(productId: string): number {
     const row = this.db.prepare("SELECT COUNT(*) AS n FROM plans WHERE product_id = ?").get(productId) as { n: number };
     return Number(row.n);
+  }
+}
+
+/** Create the data folder, keep it out of git, and bring over a database from where older versions kept it. */
+function prepareDataDir(dataDir: string): void {
+  mkdirSync(dataDir, { recursive: true });
+  const ignore = join(dataDir, ".gitignore");
+  if (!existsSync(ignore)) writeFileSync(ignore, "# AppStory's records: never commit them.\n*\n");
+  const old = join(dirname(dataDir), "engine", "data", "app-story.db");
+  const now = join(dataDir, "app-story.db");
+  if (existsSync(old) && !existsSync(now)) {
+    for (const suffix of ["", "-wal", "-shm"]) if (existsSync(old + suffix)) renameSync(old + suffix, now + suffix);
   }
 }

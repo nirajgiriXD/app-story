@@ -2,7 +2,7 @@ import type { Command } from "commander";
 import type { VideoKind } from "@showrun/contracts";
 import { generateDemo, planFeatures } from "@showrun/core";
 import { objectiveForAllFeatures, objectiveForFeature, type LoadedProduct } from "@showrun/products";
-import { ShowrunError, slugify } from "@showrun/shared";
+import { ShowrunError, mapWithConcurrency, slugify } from "@showrun/shared";
 import { globals, openProduct } from "../context";
 import { bold, dim, exitCodeFor, green, printJob } from "../output";
 
@@ -31,20 +31,19 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
     ? [{ objective: goal, name: slugify(goal), kind: "how-to" as const }]
     : await featureJobs(product, Boolean(opts.each), { logLevel, outputDir, fresh: opts.fresh });
 
-  const results = [];
-  for (const job of jobs) {
-    results.push(
-      await generateDemo({
-        product,
-        outputDir,
-        logLevel,
-        ...job,
-        fresh: opts.fresh,
-        headless: opts.headed ? false : undefined,
-        onJobCreated: (j) => console.log(dim(`Making "${job.name}" → ${j.paths.root}`)),
-      }),
-    );
-  }
+  // Two videos at a time: the next one is planned by the AI while the current one records
+  // and renders (those heavy phases still take turns, see `exclusive` in core).
+  const results = await mapWithConcurrency(jobs, 2, (job) =>
+    generateDemo({
+      product,
+      outputDir,
+      logLevel,
+      ...job,
+      fresh: opts.fresh,
+      headless: opts.headed ? false : undefined,
+      onJobCreated: (j) => console.log(dim(`Making "${job.name}" → ${j.paths.root}`)),
+    }),
+  );
   results.forEach(printJob);
   process.exitCode = results.every((m) => exitCodeFor(m) === 0) ? 0 : 1;
 }

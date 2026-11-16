@@ -17,6 +17,12 @@ type KokoroModule = typeof import("kokoro-js");
 /** One model per process: loading takes seconds, so every job and clip shares it. */
 let loading: Promise<{ tts: KokoroModel; lib: KokoroModule }> | undefined;
 
+/**
+ * The model is not safe to run in parallel, and parallel runs would not be faster on one
+ * CPU. The queue is shared by every KokoroTTS, so two videos made at once take turns.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+
 function loadModel(model: string): Promise<{ tts: KokoroModel; lib: KokoroModule }> {
   loading ??= import("kokoro-js")
     .then(async (lib) => ({ lib, tts: await lib.KokoroTTS.from_pretrained(model, { dtype: KOKORO_DEFAULTS.dtype, device: "cpu" }) }))
@@ -39,8 +45,6 @@ export class KokoroTTS implements TTSProvider {
   readonly name = "kokoro";
   readonly voice: string;
   readonly model: string;
-  /** The model is not safe to run in parallel, and parallel runs would not be faster on one CPU. */
-  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly config: TtsConfig) {
     // "female"/"male" (with the accent) or a voice name; unknown names fail at synthesis with the full list.
@@ -49,8 +53,8 @@ export class KokoroTTS implements TTSProvider {
   }
 
   synthesize(text: string, outPath: string): Promise<void> {
-    const run = this.queue.then(() => this.speak(text, outPath));
-    this.queue = run.catch(() => undefined);
+    const run = queue.then(() => this.speak(text, outPath));
+    queue = run.catch(() => undefined);
     return run;
   }
 

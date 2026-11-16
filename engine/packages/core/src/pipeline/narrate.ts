@@ -5,6 +5,7 @@ import { synthesizeNarration, writeNarrationScript, type SpeechCache, type TTSPr
 import type { LoadedProduct } from "@showrun/products";
 import { saveRecord, type Job } from "../job-manager/job";
 import { cacheKey } from "../store/store";
+import { exclusive } from "./exclusive";
 import { makeTTS, withProviderFallback, type ProviderOverrides } from "./providers";
 import { productContext } from "./rehearse";
 
@@ -59,7 +60,7 @@ export async function prepareNarration(
   const tts = makeTTS(config.providers.tts, overrides);
   job.metadata.tts = { provider: tts.name, voice: tts.voice, model: tts.model };
   const cache = tts.silent ? undefined : speechCache(job, tts, config.providers.tts);
-  const clips = await synthesizeNarration(script, tts, job.paths.narrationDir, job.log, cache);
+  const clips = await exclusive(() => synthesizeNarration(script, tts, job.paths.narrationDir, job.log, cache));
   saveRecord(job, "narration_clips", clips.map(({ path: _path, ...clip }) => clip));
   if (tts.silent) {
     if (!config.captions.enabled) {

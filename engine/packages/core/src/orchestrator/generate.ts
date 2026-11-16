@@ -12,6 +12,7 @@ import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
 import { composeVideo } from "../pipeline/compose";
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
 import { statusForError } from "../pipeline/status";
+import { exclusive } from "../pipeline/exclusive";
 import { runQualityChecks } from "../qa/quality";
 
 export interface GenerateRequest {
@@ -91,7 +92,11 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     const narration = await prepareNarration(job, product, workflow, { durationS, kind: request.kind, fresh: request.fresh }, overrides);
     await saveMetadata(job);
     phase = "recording";
-    const recorded = await recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless });
+    const recorded = await exclusive(async () => {
+      // Never record while the renderer is still bundling: the screen capture would drop frames.
+      await prepareRenderer().catch(() => undefined);
+      return recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless });
+    });
     job.metadata.recording = {
       path: recorded.recording.path,
       duration_s: round(recorded.recording.durationMs / 1000),
@@ -140,7 +145,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
     // 4. Captions + render
     phase = "render";
-    const composed = await composeVideo(job, product, workflow, clips, recorded, { kind: request.kind });
+    const composed = await exclusive(() => composeVideo(job, product, workflow, clips, recorded, { kind: request.kind }));
     const final = await probeMedia(job.paths.finalVideo);
     job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
 

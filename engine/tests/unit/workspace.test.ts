@@ -1,10 +1,11 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { storeFor } from "@app-story/core";
 import { findWorkspaceRoot, workspaceAt } from "@app-story/shared";
+import { buildProgram } from "../../cli/src/program";
 
 describe("the user's project folder", () => {
   it("is the nearest folder upwards with products/ or .app-story/", async () => {
@@ -31,4 +32,9 @@ describe("the user's project folder", () => {
     expect(existsSync(join(root, "engine", "data", "app-story.db"))).toBe(false);
     expect(await readFile(join(ws.dataDir, ".gitignore"), "utf8")).toMatch(/^\*$/m);
   });
+});
+
+it("the command reports the package's version", () => {
+  const { version } = JSON.parse(readFileSync("engine/cli/package.json", "utf8")) as { version: string };
+  expect(buildProgram().version()).toBe(version);
 });

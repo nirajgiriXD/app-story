@@ -1,0 +1,55 @@
+// Animation maths for the compositions. No React here, so the engine can use it too.
+
+type Extrapolate = "extend" | "clamp" | "identity";
+
+/** Map `input` from `inputRange` onto `outputRange`, piecewise linearly. Outside the range it extends by default. */
+export function interpolate(
+  input: number,
+  inputRange: readonly number[],
+  outputRange: readonly number[],
+  options: { extrapolateLeft?: Extrapolate; extrapolateRight?: Extrapolate } = {},
+): number {
+  if (inputRange.length !== outputRange.length || inputRange.length < 2) {
+    throw new Error("interpolate() needs input and output ranges of the same length, with at least two points.");
+  }
+  const last = inputRange.length - 1;
+  const at = (i: number) => inputRange[i] as number;
+  const out = (i: number) => outputRange[i] as number;
+  if (input < at(0)) {
+    if (options.extrapolateLeft === "clamp") return out(0);
+    if (options.extrapolateLeft === "identity") return input;
+  }
+  if (input > at(last)) {
+    if (options.extrapolateRight === "clamp") return out(last);
+    if (options.extrapolateRight === "identity") return input;
+  }
+  let i = 1;
+  while (i < last && input > at(i)) i++;
+  const x0 = at(i - 1);
+  const x1 = at(i);
+  const k = x1 === x0 ? 0 : (input - x0) / (x1 - x0);
+  return out(i - 1) + (out(i) - out(i - 1)) * k;
+}
+
+/**
+ * A spring that moves from 0 to 1, starting at rest at frame 0. It is a closed-form
+ * solution, so it does not depend on which frames were drawn before.
+ *
+ * Springs with enough damping not to bounce (damping ratio ≥ 1) move as a critically
+ * damped spring, whatever the damping. That is how the animation library the templates
+ * were designed with behaves: `damping: 200` means "no bounce, settle in about half a
+ * second", not a slow crawl.
+ */
+export function spring(input: { frame: number; fps: number; config?: { damping?: number; mass?: number; stiffness?: number } }): number {
+  const { damping = 10, mass = 1, stiffness = 100 } = input.config ?? {};
+  if (input.frame <= 0) return 0;
+  const t = input.frame / input.fps;
+  const omega = Math.sqrt(stiffness / mass);
+  const zeta = damping / (2 * Math.sqrt(stiffness * mass));
+  const x0 = -1; // starts 1 below the target, at rest
+  if (zeta < 1) {
+    const wd = omega * Math.sqrt(1 - zeta * zeta);
+    return 1 + Math.exp(-zeta * omega * t) * (x0 * Math.cos(wd * t) + ((zeta * omega * x0) / wd) * Math.sin(wd * t));
+  }
+  return 1 + Math.exp(-omega * t) * (x0 + omega * x0 * t);
+}

@@ -1,8 +1,10 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
+/** Next to this file in the sources; in `prompts/` next to the bundle in the published package. */
+const promptDir = existsSync(join(here, "prompts")) ? join(here, "prompts") : here;
 
 /** Prompt versions in use. Bump the file suffix (and this table) when a prompt changes meaningfully. */
 export const PROMPT_VERSIONS = {
@@ -19,7 +21,7 @@ export function loadPrompt(name: PromptName): string {
   const file = `${name}.${PROMPT_VERSIONS[name]}.md`;
   let text = cache.get(file);
   if (!text) {
-    text = readFileSync(join(here, file), "utf8").trim();
+    text = readFileSync(join(promptDir, file), "utf8").trim();
     cache.set(file, text);
   }
   return text;

@@ -1,10 +1,10 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { availableParallelism, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
 import { chromium, type Browser, type Route } from "playwright";
 import { AppStoryError, ensureDir, extractFrame, runFfmpeg, type Logger } from "@app-story/shared";
 import { buildAudioMix } from "./audio";
@@ -25,6 +25,8 @@ import type { RenderProps } from "./props";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ENTRY = join(here, "page", "main.tsx");
+/** The published package ships the render page already bundled, next to its code. */
+const PREBUILT = join(here, "render-page.js");
 /** The render page's made-up address. Nothing is fetched from the network: every request is answered below. */
 const ORIGIN = "http://render.app-story.local";
 /** Fewer frames than this per worker is not worth another browser tab. */
@@ -45,7 +47,17 @@ let prepared: Promise<string> | undefined;
 
 /** Bundle the render page's script, once per process. The pipeline starts it early, while the AI works. */
 export function prepareRenderer(): Promise<string> {
-  prepared ??= build({
+  prepared ??= (existsSync(PREBUILT) ? readFile(PREBUILT, "utf8") : bundleRenderPage()).catch((error: unknown) => {
+    prepared = undefined;
+    throw error;
+  });
+  return prepared;
+}
+
+/** The render page's script: the compositions (React) bundled for the browser. */
+export async function bundleRenderPage(): Promise<string> {
+  const { build } = await import("esbuild");
+  const result = await build({
     entryPoints: [ENTRY],
     bundle: true,
     write: false,
@@ -56,17 +68,10 @@ export function prepareRenderer(): Promise<string> {
     minify: true,
     define: { "process.env.NODE_ENV": '"production"' },
     logLevel: "silent",
-  })
-    .then((result) => {
-      const script = result.outputFiles[0]?.text;
-      if (!script) throw new Error("bundling the render page produced no script");
-      return script;
-    })
-    .catch((error: unknown) => {
-      prepared = undefined;
-      throw error;
-    });
-  return prepared;
+  });
+  const script = result.outputFiles[0]?.text;
+  if (!script) throw new Error("bundling the render page produced no script");
+  return script;
 }
 
 /** One render at a time: two at once only fight over the CPU. */
@@ -193,7 +198,7 @@ async function launchBrowser(): Promise<Browser> {
   } catch (error) {
     if (/Executable doesn't exist|playwright install/i.test((error as Error).message)) {
       throw new AppStoryError("DEPENDENCY_MISSING", "The browser for rendering videos is not installed.", {
-        hint: "Run: npm run browsers:install",
+        hint: "Run: npx playwright install chromium",
         cause: error,
       });
     }

@@ -2,21 +2,21 @@
   "name": "demoforge-monorepo",
   "private": true,
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "engine/cli",
+    "engine/packages/*"
   ],
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "demoforge": "tsx apps/cli/src/index.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node scripts/vitest.mjs run --project unit",
-    "test:integration": "node scripts/vitest.mjs run --project integration",
-    "test:e2e": "node scripts/vitest.mjs run --project e2e",
-    "test:all": "node scripts/vitest.mjs run",
-    "example-app": "node examples/projects-app/server.mjs",
+    "demoforge": "tsx engine/cli/src/index.ts",
+    "typecheck": "tsc -p engine/tsconfig.json --noEmit",
+    "test": "node engine/scripts/vitest.mjs run --project unit",
+    "test:integration": "node engine/scripts/vitest.mjs run --project integration",
+    "test:e2e": "node engine/scripts/vitest.mjs run --project e2e",
+    "test:all": "node engine/scripts/vitest.mjs run",
+    "example-app": "node engine/example-app/server.mjs",
     "browsers:install": "playwright install chromium"
   },
   "devDependencies": {

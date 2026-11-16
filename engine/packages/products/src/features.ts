@@ -31,7 +31,7 @@ export function defaultFeaturesPath(product: { dir: string }): string {
 export async function loadFeatures(file: string): Promise<FeatureFile> {
   if (!(await fileExists(file))) {
     throw new DemoForgeError("CONFIG_INVALID", `Feature file not found: ${file}`, {
-      hint: `Create it with one "## Feature name" section per feature (see templates/features/${FEATURES_FILE}).`,
+      hint: `Create it with one "## Feature name" section per feature (see products/README.md).`,
     });
   }
   const parsed = parseFeatures(await readFile(file, "utf8"), file);

@@ -6,6 +6,21 @@ DemoForge uses AI agents powered by **Anthropic Claude or OpenAI**, **Playwright
 
 The goal is to make product demo creation repeatable and largely automated. Instead of manually recording every feature, users provide a web application, define what they want to demonstrate, and let DemoForge plan, execute, record, narrate, and render the demo.
 
+## Where things are
+
+```text
+demo-forge/
+├── products/     👉 your products: one folder each (every option explained in products/README.md)
+├── output/       👉 finished videos and reports
+├── .env          👉 your API keys and login passwords (copy from .env.example)
+├── docs/         guides: start with docs/getting-started.md
+└── engine/       DemoForge itself — no need to touch it to make videos
+```
+
+Quick start: `npm install`, `npm run browsers:install`, add a key to `.env`, then
+`npx demoforge init` and `npx demoforge generate --product <id> --features`.
+See [docs/getting-started.md](docs/getting-started.md).
+
 ---
 
 ## 1. Vision
@@ -716,99 +731,45 @@ Commands and flags may be adjusted as the implementation evolves, but keep the C
 
 Use an npm workspaces monorepo.
 
-Suggested structure:
+Structure: what users touch stays at the top level; everything else lives in `engine/`.
 
 ```text
 demoforge/
-├── apps/
-│   └── cli/
-│       └── src/
-│           ├── commands/
-│           ├── index.ts
-│           └── program.ts
+├── products/                 user-owned: one folder per product
+│   ├── README.md             product.yaml, features.md and scenario references
+│   └── example/              sample product for the practice app
 │
-├── packages/
-│   ├── core/
-│   │   └── src/
-│   │       ├── orchestrator/
-│   │       ├── pipeline/
-│   │       └── job-manager/
-│   │
-│   ├── ai/
-│   │   └── src/
-│   │       ├── providers/
-│   │       ├── agents/
-│   │       ├── prompts/
-│   │       ├── tools/
-│   │       └── factory/
-│   │
-│   ├── browser/
-│   │   └── src/
-│   │       ├── playwright/
-│   │       ├── controller/
-│   │       ├── selectors/
-│   │       ├── recording/
-│   │       └── security/
-│   │
-│   ├── workflow/
-│   │   └── src/
-│   │       ├── planner/
-│   │       ├── executor/
-│   │       ├── contracts/
-│   │       └── validators/
-│   │
-│   ├── products/
-│   │   └── src/
-│   │       ├── adapter/
-│   │       ├── loader/
-│   │       └── registry/
-│   │
-│   ├── narration/
-│   │   └── src/
-│   │       ├── generator/
-│   │       ├── providers/
-│   │       └── synchronization/
-│   │
-│   ├── video/
-│   │   └── src/
-│   │       ├── remotion/
-│   │       ├── ffmpeg/
-│   │       ├── compositions/
-│   │       └── templates/
-│   │
-│   ├── captions/
-│   │   └── src/
-│   │
-│   ├── contracts/
-│   │   └── src/
-│   │
-│   └── shared/
-│       └── src/
-│
-├── products/
-│   └── examples/
-│
-├── templates/
-│   ├── product/
-│   └── scenario/
-│
-├── assets/
-│
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-│
-├── examples/
-│
+├── output/                   generated jobs and videos (git-ignored)
 ├── docs/
 │
-├── scripts/
+├── engine/                   DemoForge itself
+│   ├── cli/
+│   │   └── src/
+│   │       ├── commands/
+│   │       ├── index.ts
+│   │       └── program.ts
+│   │
+│   ├── packages/
+│   │   ├── core/             orchestrator, pipeline, job-manager
+│   │   ├── ai/               providers, agents, prompts, tools, factory
+│   │   ├── browser/          playwright, controller, selectors, recording, security
+│   │   ├── workflow/         planner, executor, validators
+│   │   ├── products/         adapter, loader, registry, features
+│   │   ├── narration/        generator, providers, synchronization
+│   │   ├── video/            remotion, compositions, templates
+│   │   ├── captions/
+│   │   ├── contracts/
+│   │   └── shared/
+│   │
+│   ├── example-app/          tiny fake app for practice and tests
+│   ├── tests/                unit/, integration/, e2e/, support/
+│   ├── scripts/
+│   ├── tsconfig.json, tsconfig.base.json
+│   └── vitest.config.ts
 │
 ├── .env.example
 ├── .gitignore
-├── package.json
-├── tsconfig.base.json
+├── package.json              npm workspaces: engine/cli, engine/packages/*
 └── README.md
 ```
 

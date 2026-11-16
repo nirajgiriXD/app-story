@@ -56,6 +56,9 @@ describe("product configuration", () => {
     const product = await loadProduct(dir, "shop");
     expect(product.config.providers.ai.provider).toBe("openai");
     expect(product.knowledge.map((k) => k.file)).toEqual(["overview.md"]);
+    // Folders starting with `_` are not products.
+    await mkdir(join(dir, "_drafts"));
+    await writeFile(join(dir, "_drafts", "product.yaml"), JSON.stringify(minimal));
     const listed = await listProducts(dir);
     expect(listed).toEqual([expect.objectContaining({ id: "shop", valid: true })]);
     await expect(scaffoldProduct(dir, { id: "shop", name: "x", baseUrl: "http://x.test", description: "x", aiProvider: "openai", ttsProvider: "openai" })).rejects.toThrow(/already exists/);
@@ -68,12 +71,23 @@ describe("product configuration", () => {
     await expect(loadProduct(dir, "other")).rejects.toThrow(/must match/);
   });
 
-  it("keeps the reference templates valid", async () => {
+  it("keeps the examples in products/README.md valid", async () => {
     const { readFile } = await import("node:fs/promises");
     const { parse } = await import("yaml");
-    const { parseWorkflow } = await import("@demoforge/products");
-    expect(ProductConfigSchema.safeParse(parse(await readFile("templates/product/product.yaml", "utf8"))).success).toBe(true);
-    expect(parseWorkflow(await readFile("templates/scenario/scenario.yaml", "utf8")).steps).toHaveLength(5);
+    const { parseFeatures, parseWorkflow } = await import("@demoforge/products");
+    const readme = await readFile("products/README.md", "utf8");
+    const blocks = [...readme.matchAll(/```(yaml|markdown)\r?\n([\s\S]*?)```/g)].map((m) => ({ lang: m[1], text: m[2] as string }));
+    const product = blocks.find((b) => b.lang === "yaml" && b.text.startsWith("version: 1"));
+    const scenario = blocks.find((b) => b.lang === "yaml" && b.text.startsWith("workflow_version: 1"));
+    const features = blocks.find((b) => b.lang === "markdown");
+
+    const config = ProductConfigSchema.safeParse(parse(product!.text));
+    expect(config.success, config.error?.message).toBe(true);
+    // The reference claims to list the defaults, so it must match a minimal config's defaults.
+    const bare = ProductConfigSchema.parse({ ...minimal, providers: { ai: { provider: "anthropic" } } });
+    expect({ ...config.data!, product: null }).toEqual({ ...bare, product: null });
+    expect(parseWorkflow(scenario!.text).steps).toHaveLength(5);
+    expect(parseFeatures(features!.text).features.map((f) => f.title)).toEqual(["Bulk export", "Dark mode"]);
   });
 
   it("loads the bundled example product with its adapter and scenario", async () => {

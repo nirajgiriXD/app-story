@@ -17,7 +17,8 @@ export async function listProducts(productsDir: string): Promise<ProductListing[
   const entries = await readdir(productsDir, { withFileTypes: true });
   const listings: ProductListing[] = [];
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    // Folders starting with `_` or `.` are not products (drafts, tooling, hidden files).
+    if (!entry.isDirectory() || /^[_.]/.test(entry.name)) continue;
     const file = join(productsDir, entry.name, "product.yaml");
     if (!(await fileExists(file))) continue;
     try {

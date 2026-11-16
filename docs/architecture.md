@@ -1,16 +1,18 @@
 # Architecture
 
+All code lives in `engine/`: the CLI in `engine/cli`, the packages in `engine/packages/`.
+
 ```text
-apps/cli ──► packages/core (orchestrator, pipeline stages, job manager, QA)
-                │
-                ├─ products   config loader (YAML + Zod), registry, adapters, scenarios
-                ├─ ai         provider interface, Anthropic + OpenAI, agents, prompts, tools
-                ├─ workflow   step executor, validators, workflow assembly
-                ├─ browser    Playwright session, controller, locators, guards, recorders
-                ├─ narration  script writer, TTS providers, narration pacer
-                ├─ captions   cue builder, SRT / WebVTT
-                └─ video      Remotion compositions, templates, timeline maths, render
-          contracts (Zod schemas)  ·  shared (errors, logging, secrets, FFmpeg helpers)
+cli ──► core (orchestrator, pipeline stages, job manager, QA)
+        │
+        ├─ products   config loader (YAML + Zod), registry, adapters, scenarios
+        ├─ ai         provider interface, Anthropic + OpenAI, agents, prompts, tools
+        ├─ workflow   step executor, validators, workflow assembly
+        ├─ browser    Playwright session, controller, locators, guards, recorders
+        ├─ narration  script writer, TTS providers, narration pacer
+        ├─ captions   cue builder, SRT / WebVTT
+        └─ video      Remotion compositions, templates, timeline maths, render
+  contracts (Zod schemas)  ·  shared (errors, logging, secrets, FFmpeg helpers)
 ```
 
 Packages export TypeScript sources directly and run through `tsx`, so there is no build step.
@@ -52,7 +54,7 @@ These were chosen deliberately (and agreed before building):
 
 ## AI providers
 
-`AIProvider` (in `packages/ai/src/contracts/types.ts`) has `generateText`,
+`AIProvider` (in `engine/packages/ai/src/contracts/types.ts`) has `generateText`,
 `generateStructuredOutput` (Zod in, validated object out) and `startAgentSession`
 (tools as Zod schemas, strict mode on both providers, normalised tool calls).
 

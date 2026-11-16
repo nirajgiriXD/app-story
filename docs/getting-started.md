@@ -19,11 +19,21 @@ cp .env.example .env           # then fill in your keys
 ```
 
 Run the CLI with `npx demoforge <command>`. To get a global `demoforge` command:
-`cd apps/cli && npm link`.
+`cd engine/cli && npm link`.
+
+## Where things are
+
+| Folder | What it is |
+| --- | --- |
+| `products/` | **Yours.** One folder per product; every option explained in `products/README.md` |
+| `output/` | **Yours.** Finished videos and reports |
+| `.env` | **Yours.** API keys and login passwords |
+| `docs/` | These guides |
+| `engine/` | DemoForge itself; no need to touch it |
 
 ## Try the example product
 
-The repo ships a tiny app with synthetic data (`examples/projects-app`) and a product
+The repo ships a tiny app with synthetic data (`engine/example-app`) and a product
 configuration for it (`products/example`).
 
 ```bash
@@ -61,12 +71,12 @@ npx demoforge discover --product <id>              # optional: read-only explora
 ```
 
 Then describe the product in `instructions.md` and `knowledge/*.md`. See
-`templates/product/product.yaml` and `templates/scenario/scenario.yaml` for every option.
+[products/README.md](../products/README.md) for every option of `product.yaml` and scenarios.
 
 ## From a feature file (changelog) to a video
 
-Describe what to demo in `products/<id>/features.md`. A template is in
-`templates/features/features.md`.
+Describe what to demo in `products/<id>/features.md`. The format is in
+[products/README.md](../products/README.md#featuresmd).
 
 ```markdown
 # Release 2.4 — what's new        <- optional title

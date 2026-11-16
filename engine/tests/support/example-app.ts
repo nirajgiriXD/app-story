@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 
 /** Start the example Projectly app on a free-ish port for a test file. */
 export async function startExampleApp(port: number): Promise<{ url: string; stop: () => void }> {
-  const child: ChildProcess = spawn(process.execPath, [resolve("examples/projects-app/server.mjs")], {
+  const child: ChildProcess = spawn(process.execPath, [resolve("engine/example-app/server.mjs")], {
     env: { ...process.env, PORT: String(port) },
     stdio: "ignore",
   });

@@ -61,3 +61,5 @@ jobs:
           restore-keys: kokoro-
       # Print each test as it finishes, so a slow run shows where it is.
       - run: npm run test:integration -- --reporter=verbose
+      # The full flow with AI answers recorded once (engine/tests/fixtures/ai-answers/): no key, no cost.
+      - run: npm run test:e2e -- --reporter=verbose

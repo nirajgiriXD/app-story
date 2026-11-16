@@ -6,12 +6,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateDemo, planFeatures } from "@app-story/core";
 import { loadProduct } from "@app-story/products";
 import { probeMedia, workspace } from "@app-story/shared";
+import { hasCassette, isRecordingAI, openCassette } from "../support/cassette";
 import { startExampleApp } from "../support/example-app";
 
 /*
- * The full flow against real AI APIs, on the practice app.
- * Costs real money, so each provider only runs when its key is present:
- *   npm run test:e2e
+ * The full flow with real AI answers, on the practice app.
+ *
+ *   npm run test:e2e                         replays the answers saved in engine/tests/fixtures/ai-answers/
+ *                                            (no key, no cost, the same every time)
+ *   APP_STORY_RECORD_AI=1 npm run test:e2e   asks the real AI (needs the key, costs money) and saves its answers
+ *
+ * Record again after changing a prompt, the agent's tools or the practice app.
  */
 loadEnv({ path: workspace().envFile, quiet: true });
 
@@ -34,10 +39,17 @@ afterAll(() => app?.stop());
 
 for (const provider of ["anthropic", "openai"] as const) {
   const key = provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY;
-  describe.skipIf(!key)(`full flow with ${provider}`, () => {
+  const answers = `engine/tests/fixtures/ai-answers/${provider}.json`;
+  const mode = isRecordingAI() ? (key ? "record" : undefined) : hasCassette(answers) ? "replay" : undefined;
+
+  describe.skipIf(!mode)(`full flow with ${provider} (${mode ?? "no"} answers)`, () => {
+    const cassette = mode ? openCassette(answers, mode) : undefined;
+    const providers = { createAI: cassette?.createAI };
+    afterAll(() => cassette?.save());
+
     it("picks the new feature from the release notes and skips the bug fix", async () => {
       const product = await loadProduct(productsDir, "example", { aiProvider: provider });
-      const { plan } = await planFeatures({ product, logLevel: "warn" });
+      const { plan } = await planFeatures({ product, logLevel: "warn", providers });
       expect(plan.features.map((f) => f.title.toLowerCase())).toEqual([expect.stringContaining("project")]);
       expect(plan.skipped.length).toBeGreaterThanOrEqual(1);
     });
@@ -49,6 +61,7 @@ for (const provider of ["anthropic", "openai"] as const) {
         outputDir,
         objective: "Demonstrate how to create a new project",
         logLevel: "info",
+        providers,
       });
       console.log(`${provider}: ${metadata.status} → ${metadata.output_dir}`);
       expect(metadata.errors).toEqual([]);

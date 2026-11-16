@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
-import { AbsoluteFill, OffthreadVideo, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, OffthreadVideo, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RenderProps } from "../props";
 import { cameraAt, cameraTransform, cursorAt, latestAt, mergeFocusWindows } from "../timeline";
-import { fontStack, isDark, px } from "./theme";
+import { asset, fontStack, isDark, px } from "./theme";
 
 /** Window layout in output pixels. */
 function layout(p: RenderProps) {
@@ -53,7 +53,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
           position: "relative",
         }}
       >
-        <OffthreadVideo src={staticFile(p.recording.src)} muted style={{ width: viewport.width, height: viewport.height, display: "block" }} />
+        <OffthreadVideo src={asset(p, p.recording.src)} muted style={{ width: viewport.width, height: viewport.height, display: "block" }} />
         {cursor ? <Cursor p={p} x={cursor.x} y={cursor.y} sinceClickMs={cursor.sinceClickMs} zoom={view.scale} /> : null}
       </div>
     </div>

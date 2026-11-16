@@ -83,6 +83,11 @@ export async function probeMedia(path: string): Promise<MediaProbe> {
   };
 }
 
+/** Save the frame at `atSec` of a video as an image (format from the file extension). */
+export async function extractFrame(video: string, atSec: number, outFile: string): Promise<void> {
+  await runFfmpeg(["-ss", atSec.toFixed(3), "-i", video, "-frames:v", "1", "-update", "1", outFile]);
+}
+
 /** Mean volume in dB for an audio file (silence is around -91 dB). */
 export async function meanVolumeDb(path: string): Promise<number | undefined> {
   const result = await runProcess("ffmpeg", ["-hide_banner", "-i", path, "-af", "volumedetect", "-f", "null", "-"]);

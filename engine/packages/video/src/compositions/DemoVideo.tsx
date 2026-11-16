@@ -1,9 +1,9 @@
 import React from "react";
-import { AbsoluteFill, Audio, Sequence, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Audio, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RenderProps } from "../props";
 import { RecordingScene } from "./RecordingScene";
 import { TitleCard } from "./TitleCard";
-import { backdrop, fontStack, px } from "./theme";
+import { asset, backdrop, fontStack, px } from "./theme";
 
 export const DemoVideo: React.FC<RenderProps> = (p) => {
   const { fps } = useVideoConfig();
@@ -22,7 +22,7 @@ export const DemoVideo: React.FC<RenderProps> = (p) => {
       </Sequence>
       {p.audio.map((clip) => (
         <Sequence key={clip.src} from={f(clip.startMs)} durationInFrames={f(clip.durationMs) + 3} name={`Voice ${clip.src}`}>
-          <Audio src={staticFile(clip.src)} />
+          <Audio src={asset(p, clip.src)} />
         </Sequence>
       ))}
       {p.music ? <Music p={p} /> : null}
@@ -37,7 +37,7 @@ const Music: React.FC<{ p: RenderProps }> = ({ p }) => {
   if (!music) return null;
   return (
     <Audio
-      src={staticFile(music.src)}
+      src={asset(p, music.src)}
       loop
       volume={(frame) => {
         const ms = (frame / fps) * 1000;

@@ -17,6 +17,7 @@ const defaultProps: RenderProps = {
   height: 1080,
   fps: 30,
   durationMs: 6000,
+  assetBase: "",
   template: TEMPLATES["modern-saas"] as RenderProps["template"],
   brand: { productName: "Product", logo: null, primary: "#2563EB", accent: "#0F172A", font: "Inter", host: "example.com" },
   title: "Demo title",

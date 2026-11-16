@@ -3,6 +3,7 @@ import { WORKFLOW_VERSION } from "@showrun/contracts";
 import type { LoadedProduct } from "@showrun/products";
 import { validateWorkflow } from "@showrun/workflow";
 import { ShowrunError, isShowrunError, probeMedia, slugify } from "@showrun/shared";
+import { prepareRenderer } from "@showrun/video";
 import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type Job } from "../job-manager/job";
 import type { ProviderOverrides } from "../pipeline/providers";
 import { rehearseWorkflow } from "../pipeline/rehearse";
@@ -56,6 +57,8 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     logLevel: request.logLevel,
   });
   request.onJobCreated?.(job);
+  // Bundle the video compositions while the AI and the browser work (errors resurface at render).
+  void prepareRenderer().catch(() => undefined);
   saveRecord(job, "config", productConfigForRecord(product));
   const overrides = request.providers ?? {};
   const config = product.config;

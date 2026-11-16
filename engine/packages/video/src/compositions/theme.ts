@@ -1,4 +1,10 @@
+import { staticFile } from "remotion";
 import type { RenderProps } from "../props";
+
+/** URL of a job file (recording, voice clip, logo, music) as the renderer serves it. */
+export function asset(p: RenderProps, src: string): string {
+  return staticFile(p.assetBase ? `${p.assetBase}/${src}` : src);
+}
 
 export function fontStack(font: string): string {
   return `"${font}", Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif`;

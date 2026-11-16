@@ -1,7 +1,7 @@
 import React from "react";
-import { AbsoluteFill, Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RenderProps } from "../props";
-import { backdrop, fontStack, px, textColor } from "./theme";
+import { asset, backdrop, fontStack, px, textColor } from "./theme";
 
 export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; durationMs: number }> = ({ p, kind, durationMs }) => {
   const frame = useCurrentFrame();
@@ -30,7 +30,7 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
       }}
     >
       {p.brand.logo ? (
-        <Img src={staticFile(p.brand.logo)} style={{ height: px(p, 64), objectFit: "contain", alignSelf: "flex-start", marginBottom: px(p, 40), ...rise(0) }} />
+        <Img src={asset(p, p.brand.logo)} style={{ height: px(p, 64), objectFit: "contain", alignSelf: "flex-start", marginBottom: px(p, 40), ...rise(0) }} />
       ) : null}
       {kind === "intro" ? (
         <>

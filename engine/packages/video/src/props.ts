@@ -8,6 +8,8 @@ export interface RenderProps {
   height: number;
   fps: number;
   durationMs: number;
+  /** Folder (under the renderer's public folder) that every `src` below is relative to. */
+  assetBase: string;
   template: VideoTemplate;
   brand: {
     productName: string;

@@ -1,4 +1,4 @@
-import type { Locator, Page } from "playwright";
+import type { Locator, Page, Request } from "playwright";
 import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@showrun/contracts";
 import { ShowrunError, sleep, type Logger } from "@showrun/shared";
 import type { ActionOptions, ActionOutcome, BrowserController, PageObservation, VerificationResult } from "../types";
@@ -22,12 +22,27 @@ export interface PlaywrightControllerOptions {
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
+/** Longest a value is typed key by key on camera; the rest is inserted at once. */
+export const MAX_TYPING_MS = 2500;
+
+/** The page counts as settled after this long without DOM changes or new requests. */
+const QUIET_MS = 300;
+/** Never wait longer than this for a page to settle (apps that never stop changing). */
+const SETTLE_MAX_MS = 2500;
+/** Requests open longer than this are long-polls or streams, not page loading. */
+const LONG_REQUEST_MS = 2000;
+/** Request types that mean the page is still loading what it will show. */
+const LOADING_TYPES = new Set(["document", "xhr", "fetch", "script", "stylesheet"]);
+
 export class PlaywrightController implements BrowserController {
   readonly issues: BrowserIssue[];
   readonly cursor: CursorPoint[] = [];
   private origin = Date.now();
   private presentation = false;
   private mouse = { x: 0, y: 0 };
+  /** Requests in flight, with their start time, for `settle()`. */
+  private readonly inflight = new Map<Request, number>();
+  private settledAt = 0;
 
   constructor(
     readonly page: Page,
@@ -36,6 +51,12 @@ export class PlaywrightController implements BrowserController {
     this.issues = options.issues;
     const viewport = page.viewportSize();
     if (viewport) this.mouse = { x: viewport.width / 2, y: viewport.height / 2 };
+    page.on("request", (r) => {
+      if (LOADING_TYPES.has(r.resourceType())) this.inflight.set(r, Date.now());
+    });
+    const done = (r: Request) => this.inflight.delete(r);
+    page.on("requestfinished", done);
+    page.on("requestfailed", done);
   }
 
   get baseUrl(): string {
@@ -112,7 +133,11 @@ export class PlaywrightController implements BrowserController {
       await locator.click({ timeout: this.timeout(options) });
       this.recordClick();
       await locator.fill("", { timeout: this.timeout(options) });
-      await locator.pressSequentially(value, { delay: this.options.pacing.typingDelayMs });
+      // Type at a natural pace, but never for long: a long value is typed in part, then the rest appears.
+      const delay = this.options.pacing.typingDelayMs;
+      const typed = delay > 0 && value.length * delay > MAX_TYPING_MS ? value.slice(0, Math.floor(MAX_TYPING_MS / delay)) : value;
+      await locator.pressSequentially(typed, { delay });
+      if (typed.length < value.length) await this.page.keyboard.insertText(value.slice(typed.length));
     } else {
       await locator.fill(value, { timeout: this.timeout(options) });
     }
@@ -151,7 +176,7 @@ export class PlaywrightController implements BrowserController {
   async scroll(options: { target?: Target; direction?: "up" | "down"; amount?: number }): Promise<ActionOutcome> {
     if (options.target) {
       const locator = await resolveLocator(this.page, options.target, this.options.actionTimeoutMs);
-      await locator.scrollIntoViewIfNeeded();
+      await this.bringIntoView(locator, this.options.actionTimeoutMs);
       const box = (await locator.boundingBox()) ?? undefined;
       return { urlAfter: this.page.url(), box };
     }
@@ -276,7 +301,8 @@ export class PlaywrightController implements BrowserController {
   }
 
   async observe(maxChars = 14_000): Promise<PageObservation> {
-    await this.settle();
+    // An action that just finished has already waited for the page.
+    if (Date.now() - this.settledAt > 100) await this.settle();
     let snapshot = "";
     try {
       snapshot = await this.page.locator("body").ariaSnapshot({ timeout: 5000 });
@@ -301,7 +327,7 @@ export class PlaywrightController implements BrowserController {
     extraText = "",
   ): Promise<{ locator: Locator; box: Box | undefined; info: ElementInfo }> {
     const locator = await resolveLocator(this.page, target, this.timeout(options));
-    await locator.scrollIntoViewIfNeeded({ timeout: this.timeout(options) }).catch(() => undefined);
+    await this.bringIntoView(locator, this.timeout(options));
     const info = await elementInfo(locator);
     const decision = this.options.guard.check(action, info, extraText);
     if (!decision.allowed) {
@@ -356,10 +382,71 @@ export class PlaywrightController implements BrowserController {
       .catch(() => undefined);
   }
 
-  /** Wait briefly for the page to settle after an action without failing on long-polling apps. */
+  /**
+   * Wait until the page stops changing: no DOM mutations and no new loading requests for
+   * QUIET_MS, capped at SETTLE_MAX_MS. `networkidle` is no use here: in a single-page app it
+   * fired long ago, so it returns before the click's data arrives; in an app that polls it
+   * never fires, so every action would wait the full cap.
+   */
   private async settle(options?: ActionOptions): Promise<void> {
     await this.page.waitForLoadState("domcontentloaded", { timeout: this.timeout(options) }).catch(() => undefined);
-    await this.page.waitForLoadState("networkidle", { timeout: 2500 }).catch(() => undefined);
+    const deadline = Date.now() + SETTLE_MAX_MS;
+    while (Date.now() < deadline) {
+      const quiet = await this.page
+        .evaluate(waitForDomQuiet, { quietMs: QUIET_MS, maxMs: deadline - Date.now() })
+        .then(() => true, () => false);
+      if (!quiet) {
+        // The page navigated mid-wait; wait for the new document, then check again.
+        await this.page.waitForLoadState("domcontentloaded", { timeout: Math.max(1, deadline - Date.now()) }).catch(() => undefined);
+        await sleep(50);
+        continue;
+      }
+      if (!this.loading()) break;
+      await sleep(100);
+    }
+    this.settledAt = Date.now();
+  }
+
+  /** True while a request the page is waiting for (not a long-poll) is in flight. */
+  private loading(): boolean {
+    const now = Date.now();
+    let loading = false;
+    for (const [request, started] of this.inflight) {
+      if (now - started < LONG_REQUEST_MS) loading = true;
+      else if (now - started > 60_000) this.inflight.delete(request); // never finished; stop tracking it
+    }
+    return loading;
+  }
+
+  /**
+   * Make sure the element is on screen. On camera it glides into the middle of the view
+   * instead of jumping, which also frames it well for the zoom.
+   */
+  private async bringIntoView(locator: Locator, timeoutMs: number): Promise<void> {
+    if (this.presentation) {
+      const scrolled = await locator
+        .evaluate((el: Element) => {
+          const r = el.getBoundingClientRect();
+          const off = r.top < 0 || r.left < 0 || r.bottom > window.innerHeight || r.right > window.innerWidth;
+          if (off) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+          return off;
+        })
+        .catch(() => false);
+      if (scrolled) await this.waitForStill(locator);
+    }
+    await locator.scrollIntoViewIfNeeded({ timeout: timeoutMs }).catch(() => undefined);
+  }
+
+  /** Wait (up to 1.5s) until a smooth scroll has stopped moving the element. */
+  private async waitForStill(locator: Locator): Promise<void> {
+    const deadline = Date.now() + 1500;
+    let last: Box | null = null;
+    while (Date.now() < deadline) {
+      await sleep(80);
+      const box = await locator.boundingBox().catch(() => null);
+      if (box && last && Math.abs(box.y - last.y) < 0.5 && Math.abs(box.x - last.x) < 0.5) return;
+      last = box;
+    }
   }
 
   private async bodyText(): Promise<string> {
@@ -407,5 +494,25 @@ async function elementInfo(locator: Locator): Promise<ElementInfo> {
       el.getAttribute("title") ??
       "";
     return { role, name: String(name).replace(/\s+/g, " ").trim().slice(0, 160), tag, type };
+  });
+}
+
+/** Runs in the page: resolves once the DOM has not changed for `quietMs` (or after `maxMs`). */
+function waitForDomQuiet({ quietMs, maxMs }: { quietMs: number; maxMs: number }): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const finish = () => {
+      observer.disconnect();
+      clearTimeout(timer);
+      clearTimeout(cap);
+      resolve();
+    };
+    const observer = new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(finish, quietMs);
+    });
+    observer.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
+    timer = setTimeout(finish, quietMs);
+    const cap = setTimeout(finish, maxMs);
   });
 }

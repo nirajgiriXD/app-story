@@ -34,7 +34,6 @@ export async function recordWorkflow(
   const outcome = await withBrowser(
     product,
     {
-      phase: "recording",
       workDir: job.paths.recordingDir,
       log: job.log,
       record: true,
@@ -79,7 +78,7 @@ export async function recordWorkflow(
   await writeJson(job.paths.browserLog, outcome.report.issues);
 
   if (workflow.cleanup.length > 0) {
-    await withBrowser(product, { phase: "recording", workDir: join(job.paths.logsDir, "cleanup"), log: job.log, headless: options.headless }, async (s) => {
+    await withBrowser(product, { workDir: join(job.paths.logsDir, "cleanup"), log: job.log, headless: options.headless }, async (s) => {
       const cleanup = await runSteps(s.controller, workflow.cleanup, { phase: "recording", log: job.log, retries: 1 });
       if (!cleanup.ok) job.metadata.warnings.push("A cleanup step failed; demo data may need manual cleanup.");
     });

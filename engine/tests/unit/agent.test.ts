@@ -11,7 +11,7 @@ import { FakeController } from "../support/fake-controller";
 import { ScriptedProvider } from "../support/fakes";
 
 const log = createSilentLogger();
-const product = { name: "App", description: "Test", baseUrl: "http://app.test", knowledge: [] };
+const product = { name: "App", description: "Test", baseUrl: "http://app.test" };
 const T = (o: Record<string, unknown>) => ({ role: null, name: null, label: null, text: null, placeholder: null, test_id: null, css: null, nth: null, ...o });
 
 const rehearse = (provider: AIProvider, controller = new FakeController()) =>

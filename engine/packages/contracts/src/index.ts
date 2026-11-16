@@ -4,7 +4,6 @@ export * from "./execution";
 export * from "./narration";
 export * from "./job";
 export * from "./quality";
-export * from "./discovery";
 export * from "./release-notes";
 
 import type { ZodError } from "zod";

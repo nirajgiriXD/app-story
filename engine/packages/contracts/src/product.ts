@@ -54,26 +54,20 @@ export const TtsConfigSchema = z.object({
 export type TtsConfig = z.infer<typeof TtsConfigSchema>;
 
 const NoAuthSchema = z.object({ strategy: z.literal("none") });
-const StorageStateAuthSchema = z.object({
-  strategy: z.literal("storage_state"),
-  /** Relative to the product directory unless absolute. Create it with `demoforge browser inspect --save-auth`. */
-  storage_state_path: z.string(),
-});
-const FormAuthSchema = z.object({
-  strategy: z.literal("form"),
-  login_path: z.string().default("/login"),
-  username_env: z.string(),
-  password_env: z.string(),
-  username_label: z.string().default("Email"),
-  password_label: z.string().default("Password"),
-  submit_text: z.string().default("Sign in"),
-  /** Login is successful once the URL contains this text. */
-  success_url_contains: z.string().optional(),
+/**
+ * Fill the app's own login form, found automatically. `username` and `password` are
+ * either the value itself or `env:NAME` (read from the environment at login time).
+ */
+const AutoAuthSchema = z.object({
+  strategy: z.literal("auto"),
+  username: z.string().min(1),
+  password: z.string().min(1),
+  /** Page with the login form. Default: the start page, then common paths such as /login. */
+  login_path: z.string().optional(),
 });
 export const AuthConfigSchema = z.discriminatedUnion("strategy", [
   NoAuthSchema,
-  StorageStateAuthSchema,
-  FormAuthSchema,
+  AutoAuthSchema,
 ]);
 export type AuthConfig = z.infer<typeof AuthConfigSchema>;
 

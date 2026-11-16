@@ -1,7 +1,6 @@
 import type { Command } from "commander";
-import { loadProduct, type LoadedProduct, type ProviderOverrides } from "@demoforge/products";
+import { loadProduct, type LoadedProduct } from "@demoforge/products";
 import { OUTPUT_DIR, PRODUCTS_DIR } from "@demoforge/shared";
-import type { AiProviderName, TtsProviderName } from "@demoforge/contracts";
 
 export interface GlobalOptions {
   logLevel?: string;
@@ -13,20 +12,9 @@ export function globals(cmd: Command): { productsDir: string; outputDir: string;
   return { productsDir: PRODUCTS_DIR, outputDir: OUTPUT_DIR, logLevel: opts.logLevel };
 }
 
-export interface ProviderFlags {
-  aiProvider?: string;
-  aiModel?: string;
-  ttsProvider?: string;
+export async function openProduct(id: string): Promise<LoadedProduct> {
+  return loadProduct(PRODUCTS_DIR, id);
 }
 
-export function providerOverrides(flags: ProviderFlags): ProviderOverrides {
-  return {
-    aiProvider: flags.aiProvider as AiProviderName | undefined,
-    aiModel: flags.aiModel,
-    ttsProvider: flags.ttsProvider as TtsProviderName | undefined,
-  };
-}
-
-export async function openProduct(cmd: Command, id: string, flags: ProviderFlags = {}): Promise<LoadedProduct> {
-  return loadProduct(globals(cmd).productsDir, id, providerOverrides(flags));
-}
+/** Names of commands, which therefore cannot be product names. */
+export const RESERVED_NAMES = new Set(["new", "check", "list", "history", "help"]);

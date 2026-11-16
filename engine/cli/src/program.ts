@@ -1,25 +1,31 @@
 import { Command } from "commander";
-import { initCommand } from "./commands/init";
-import { productsCommand } from "./commands/products";
-import { validateCommand } from "./commands/validate";
-import { generateCommand } from "./commands/generate";
-import { runCommand } from "./commands/run";
-import { discoverCommand } from "./commands/discover";
-import { browserCommand } from "./commands/browser";
+import { makeVideos, type MakeOptions } from "./commands/make";
+import { checkCommand, listCommand, newCommand } from "./commands/manage";
 import { historyCommand } from "./commands/history";
+
+const EXAMPLES = `
+Examples:
+  npx demoforge acme                          one video of what's new in products/acme.md
+  npx demoforge acme --each                   one video per new feature
+  npx demoforge acme "show how to export"     a video of anything else, in plain words
+  npx demoforge new acme                      create products/acme.md
+  npx demoforge check acme                    check settings, keys, login and tools`;
 
 export function buildProgram(): Command {
   return new Command("demoforge")
-    .description("Generate product demo videos from real web applications")
+    .description("Make product demo videos from products/<product>.md")
     .version("0.1.0")
-    .option("--log-level <level>", "trace, debug, info, warn, error")
+    .argument("[product]", "product name: the file products/<product>.md")
+    .argument("[goal...]", "what to show, in plain words (default: what's new in the release notes)")
+    .option("--each", "one video per new feature instead of one for all")
+    .option("--fresh", "plan again instead of replaying a saved plan")
+    .option("--headed", "show the browser window while working")
+    .option("--log-level <level>", "debug, info, warn, error, silent")
     .showHelpAfterError()
-    .addCommand(initCommand())
-    .addCommand(productsCommand())
-    .addCommand(validateCommand())
-    .addCommand(discoverCommand())
-    .addCommand(generateCommand())
-    .addCommand(runCommand())
-    .addCommand(browserCommand())
+    .addHelpText("after", EXAMPLES)
+    .action((product: string | undefined, goal: string[], opts: MakeOptions, cmd: Command) => makeVideos(product, goal, opts, cmd))
+    .addCommand(newCommand())
+    .addCommand(checkCommand())
+    .addCommand(listCommand())
     .addCommand(historyCommand());
 }

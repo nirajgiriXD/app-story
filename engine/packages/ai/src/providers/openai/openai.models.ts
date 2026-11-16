@@ -1,6 +1,6 @@
 import type { AiProviderConfig } from "@demoforge/contracts";
 
-/** Default when product.yaml does not name a model. Any valid OpenAI model id can be configured. */
+/** Default when the product file sets no `model:`. Any valid OpenAI model id can be configured. */
 export const OPENAI_DEFAULT_MODEL = "gpt-5";
 
 export const OPENAI_MAX_OUTPUT_TOKENS = {

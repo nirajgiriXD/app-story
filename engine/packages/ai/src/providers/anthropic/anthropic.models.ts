@@ -1,4 +1,4 @@
-/** Default when product.yaml does not name a model. Any valid Claude model id can be configured. */
+/** Default when the product file sets no `model:`. Any valid Claude model id can be configured. */
 export const ANTHROPIC_DEFAULT_MODEL = "claude-opus-5-5";
 
 /** Effort is the depth control on current Claude models (thinking is adaptive and always on). */

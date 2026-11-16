@@ -1,23 +1,19 @@
 import { join } from "node:path";
 import type { Workflow } from "@demoforge/contracts";
 import { runRehearsal, type ProductContext, type RehearsalOutcome } from "@demoforge/ai";
-import type { LoadedProduct } from "@demoforge/products";
-import { FEATURES_FILE, workflowToYaml } from "@demoforge/products";
+import { workflowToYaml, type LoadedProduct } from "@demoforge/products";
 import { DemoForgeError, writeJson, writeText, type ErrorCode } from "@demoforge/shared";
 import type { Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
 import { withProviderFallback, type ProviderOverrides } from "./providers";
 
+/** What the AI knows about the product: its name, address and the product file's text. */
 export function productContext(product: LoadedProduct): ProductContext {
   return {
     name: product.config.product.name,
     description: product.config.product.description,
     baseUrl: product.config.product.base_url,
-    instructions: product.instructions,
-    // The feature file is what the videos are about, so the AI always sees it.
-    knowledge: product.features
-      ? [{ file: `${FEATURES_FILE} (features to demonstrate)`, content: product.features.content }, ...product.knowledge]
-      : product.knowledge,
+    brief: product.brief,
   };
 }
 
@@ -38,7 +34,7 @@ const GIVE_UP_CODES: Record<Extract<RehearsalOutcome, { status: "gave_up" }>["ca
 
 /**
  * Practice run: the AI explores and verifies the flow in an unrecorded browser and
- * returns a clean workflow. Saved as plan.json and as an unapproved scenario draft.
+ * returns a clean workflow (a click-plan), saved in the job folder as plan.json and plan.yaml.
  */
 export async function rehearseWorkflow(
   job: Job,
@@ -50,7 +46,7 @@ export async function rehearseWorkflow(
   const outcome = await withProviderFallback(job, "rehearsal", config, overrides, (provider) =>
     withBrowser(
       product,
-      { phase: "rehearsal", workDir: join(job.paths.logsDir, "rehearsal-browser"), log: job.log, headless: options.headless },
+      { workDir: join(job.paths.logsDir, "rehearsal-browser"), log: job.log, headless: options.headless },
       (session) =>
         runRehearsal({
           provider,
@@ -71,7 +67,7 @@ export async function rehearseWorkflow(
 
   if (outcome.status === "success") {
     await writeJson(job.paths.plan, outcome.workflow);
-    await writeText(job.paths.scenarioDraft, workflowToYaml(outcome.workflow));
+    await writeText(job.paths.planYaml, workflowToYaml(outcome.workflow));
     job.log.info({ steps: outcome.workflow.steps.length, iterations: outcome.iterations }, "rehearsal succeeded");
     return outcome.workflow;
   }

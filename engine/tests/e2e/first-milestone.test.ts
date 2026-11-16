@@ -1,19 +1,19 @@
-import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config as loadEnv } from "dotenv";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { generateDemo } from "@demoforge/core";
+import { generateDemo, planFeatures } from "@demoforge/core";
 import { loadProduct } from "@demoforge/products";
-import { probeMedia } from "@demoforge/shared";
+import { ROOT_ENV_FILE, probeMedia } from "@demoforge/shared";
 import { startExampleApp } from "../support/example-app";
 
 /*
- * README §16 — the first end-to-end milestone, against real AI and TTS APIs.
+ * The full flow against real AI APIs, on the practice app.
  * Costs real money, so each provider only runs when its key is present:
  *   npm run test:e2e
  */
-loadEnv({ quiet: true });
+loadEnv({ path: ROOT_ENV_FILE, quiet: true });
 
 const PORT = 4392;
 let app: { url: string; stop: () => void };
@@ -25,16 +25,23 @@ beforeAll(async () => {
   const root = await mkdtemp(join(tmpdir(), "demoforge-e2e-"));
   productsDir = join(root, "products");
   outputDir = join(root, "output");
-  await cp("products/example", join(productsDir, "example"), { recursive: true });
-  const file = join(productsDir, "example", "product.yaml");
-  await writeFile(file, (await readFile(file, "utf8")).replaceAll("4310", String(PORT)));
+  await mkdir(productsDir);
+  const text = (await readFile("products/example.md", "utf8")).replaceAll("4310", String(PORT));
+  await writeFile(join(productsDir, "example.md"), text);
 });
 
 afterAll(() => app?.stop());
 
 for (const provider of ["anthropic", "openai"] as const) {
   const key = provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY;
-  describe.skipIf(!key)(`first milestone with ${provider}`, () => {
+  describe.skipIf(!key)(`full flow with ${provider}`, () => {
+    it("picks the new feature from the release notes and skips the bug fix", async () => {
+      const product = await loadProduct(productsDir, "example", { aiProvider: provider });
+      const { plan } = await planFeatures({ product, logLevel: "warn" });
+      expect(plan.features.map((f) => f.title.toLowerCase())).toEqual([expect.stringContaining("project")]);
+      expect(plan.skipped.length).toBeGreaterThanOrEqual(1);
+    });
+
     it("plans, executes, verifies, records, narrates and renders a real demo", async () => {
       const product = await loadProduct(productsDir, "example", { aiProvider: provider });
       const metadata = await generateDemo({

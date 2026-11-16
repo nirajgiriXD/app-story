@@ -1,12 +1,11 @@
-import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { discoverProduct, withBrowser } from "@demoforge/core";
+import { withBrowser } from "@demoforge/core";
 import { loadProduct } from "@demoforge/products";
 import { createSilentLogger, isDemoForgeError } from "@demoforge/shared";
 import { startExampleApp } from "../support/example-app";
-import { ScriptedProvider } from "../support/fakes";
 
 const PORT = 4393;
 let app: { url: string; stop: () => void };
@@ -19,21 +18,17 @@ beforeAll(async () => {
   const root = await mkdtemp(join(tmpdir(), "demoforge-safety-"));
   productsDir = join(root, "products");
   outputDir = join(root, "output");
-  await cp("products/example", join(productsDir, "example"), { recursive: true });
-  const file = join(productsDir, "example", "product.yaml");
-  await writeFile(file, (await readFile(file, "utf8")).replaceAll("4310", String(PORT)));
-  process.env.EXAMPLE_APP_USER ??= "demo@example.com";
-  process.env.EXAMPLE_APP_PASSWORD ??= "demo1234";
+  await mkdir(productsDir);
+  const text = (await readFile("products/example.md", "utf8")).replaceAll("4310", String(PORT));
+  await writeFile(join(productsDir, "example.md"), text);
 });
 
 afterAll(() => app?.stop());
 
-const T = (o: Record<string, unknown>) => ({ role: null, name: null, label: null, text: null, placeholder: null, test_id: null, css: null, nth: null, ...o });
-
 describe("browser safety in a real Chromium", () => {
   it("blocks destructive clicks and off-domain navigation, even when asked to", async () => {
     const product = await loadProduct(productsDir, "example");
-    await withBrowser(product, { phase: "dry_run", workDir: join(outputDir, "b1"), log }, async (session) => {
+    await withBrowser(product, { workDir: join(outputDir, "b1"), log }, async (session) => {
       const c = session.controller;
       await c.navigate("/settings");
       const blocked = await c.click({ role: "button", name: "Delete workspace" }).catch((e) => e);
@@ -55,48 +50,27 @@ describe("browser safety in a real Chromium", () => {
     });
   });
 
-  it("logs in with the form strategy and reports wrong credentials as an auth failure", async () => {
+  it("finds the login form by itself, and reports a wrong password as an auth failure", async () => {
     const product = await loadProduct(productsDir, "example");
-    const previous = process.env.EXAMPLE_APP_PASSWORD;
-    process.env.EXAMPLE_APP_PASSWORD = "wrong-password";
-    try {
-      const error = await withBrowser(product, { phase: "dry_run", workDir: join(outputDir, "b2"), log }, async () => "unreachable").catch((e) => e);
-      expect(isDemoForgeError(error) && error.code).toBe("AUTH_FAILED");
-    } finally {
-      process.env.EXAMPLE_APP_PASSWORD = previous;
-    }
+    // The right login lands on the start page.
+    await withBrowser(product, { workDir: join(outputDir, "b2"), log }, async (session) => {
+      expect(session.page.url()).toContain("/projects");
+    });
+    if (product.config.authentication.strategy !== "auto") throw new Error("expected a login");
+    product.config.authentication.password = "wrong-password";
+    const error = await withBrowser(product, { workDir: join(outputDir, "b3"), log }, async () => "unreachable").catch((e) => e);
+    expect(isDemoForgeError(error) && error.code).toBe("AUTH_FAILED");
   });
 
-  it("discovery explores read-only and cannot type or submit", async () => {
+  it("read-only mode cannot type or submit", async () => {
     const product = await loadProduct(productsDir, "example");
-    const provider = new ScriptedProvider(
-      [
-        { name: "click", input: { target: T({ role: "link", name: "Team" }) } },
-        { name: "note", input: { area: "Team", observation: "Lists team members." } },
-        { name: "navigate", input: { url: "/projects/new" } },
-        { name: "click", input: { target: T({ role: "button", name: "Create project" }) } },
-        { name: "finish_discovery", input: { summary: "A project tracker." } },
-      ],
-      {
-        discovery_report: {
-          overview: "A project tracker.",
-          navigation: [{ label: "Team", path: "/team" }],
-          features: [],
-          journeys: [],
-          proposed_scenarios: [{ id: "create-project", title: "Create a project", objective: "Create a project", audience: "New users", estimated_duration_s: 60 }],
-          missing_information: [],
-          recommended_test_data: [],
-        },
-      },
-    );
-    const result = await discoverProduct({ product, outputDir, logLevel: "silent", providers: { createAI: () => provider } });
-    expect(result.metadata.status).toBe("success");
-    expect(result.report?.proposed_scenarios).toHaveLength(1);
-    const results = provider.received.flatMap((r) => (r.type === "tool_results" ? r.results : []));
-    const submit = results[3];
-    expect(submit?.isError).toBe(true);
-    expect(submit?.content).toMatch(/POLICY_VIOLATION/);
-    const md = await readFile(result.reportFile!, "utf8");
-    expect(md).toContain("--save-scenario");
+    await withBrowser(product, { workDir: join(outputDir, "b4"), log, mode: "read_only" }, async (session) => {
+      const c = session.controller;
+      await c.navigate("/projects/new");
+      const typed = await c.fill({ label: "Project name" }, "Should not be typed").catch((e) => e);
+      expect(isDemoForgeError(typed) && typed.code).toBe("POLICY_VIOLATION");
+      const submitted = await c.click({ role: "button", name: "Create project" }).catch((e) => e);
+      expect(isDemoForgeError(submitted) && submitted.code).toBe("POLICY_VIOLATION");
+    });
   });
 });

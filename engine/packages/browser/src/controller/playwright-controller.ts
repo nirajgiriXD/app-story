@@ -70,7 +70,7 @@ export class PlaywrightController implements BrowserController {
     const url = resolveUrl(this.options.baseUrl, urlOrPath);
     if (!isAllowedUrl(url, this.options.allowedDomains)) {
       throw new DemoForgeError("POLICY_VIOLATION", `Navigation to ${url} is outside the allowed domains.`, {
-        hint: "Add the host to browser.allowed_domains in product.yaml if it is safe.",
+        hint: "DemoForge only visits the site in the product file's url, to keep demos on the product.",
       });
     }
     try {

@@ -1,5 +1,5 @@
-# Hand-written, approved scenario (Mode B). Every step has narration, so no AI call is
-# needed for the script; only text-to-speech is used.
+# Test fixture: a hand-written click-plan for the practice app. Every step has narration,
+# so no AI call is needed for the script; only text-to-speech is used.
 workflow_version: 1
 id: create-project
 title: Creating a new project

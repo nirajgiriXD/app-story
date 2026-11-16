@@ -1,114 +1,175 @@
-import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProductConfigSchema, WorkflowSchema } from "@demoforge/contracts";
-import { applyOverrides, listProducts, loadProduct, readProductConfig, scaffoldProduct } from "@demoforge/products";
-import { DemoForgeError } from "@demoforge/shared";
+import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@demoforge/products";
+import { DemoForgeError, redactSecrets, resolveCredential } from "@demoforge/shared";
 
-const minimal = {
-  version: 1,
-  product: { id: "acme", name: "Acme", description: "Test app", base_url: "https://demo.acme.test" },
-  providers: { ai: { provider: "anthropic" }, tts: { provider: "openai" } },
+const KEYS = [
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "OPENAI_API_KEY",
+  "DEMOFORGE_AI_PROVIDER",
+  "DEMOFORGE_AI_MODEL",
+  "DEMOFORGE_TTS_PROVIDER",
+];
+let savedEnv: Record<string, string | undefined> = {};
+beforeEach(() => {
+  savedEnv = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
+  for (const k of KEYS) delete process.env[k];
+});
+afterEach(() => {
+  for (const [k, v] of Object.entries(savedEnv)) {
+    if (v === undefined) delete process.env[k];
+    else process.env[k] = v;
+  }
+});
+
+const file = (settings: string, body = "# Acme\n\nAcme is a billing tool for small shops.\n") => `---\n${settings}\n---\n\n${body}`;
+const parse = (text: string) => parseProductFile(text, "acme.md", "acme");
+const errorOf = (fn: () => unknown): DemoForgeError => {
+  try {
+    fn();
+  } catch (error) {
+    return error as DemoForgeError;
+  }
+  throw new Error("expected an error");
 };
 
-describe("product configuration", () => {
+describe("product file", () => {
+  it("needs only a url; everything else has a sensible default", () => {
+    const { config, brief } = parse(file("url: https://staging.acme.test/app?tab=1"));
+    expect(config.product).toMatchObject({ id: "acme", name: "Acme", description: "Acme is a billing tool for small shops.", base_url: "https://staging.acme.test", start_path: "/app?tab=1" });
+    expect(config.browser).toMatchObject({ viewport: { width: 1600, height: 900 }, device_scale_factor: 1.2, allowed_domains: ["staging.acme.test"] });
+    expect(config.authentication).toEqual({ strategy: "none" });
+    expect(config.providers.tts.provider).toBe("kokoro");
+    expect(config.demo.default_duration).toBe(90);
+    expect(config.safety.allow).toMatchObject({ delete: false, payments: false, emails: false });
+    expect(brief).toBe("# Acme\n\nAcme is a billing tool for small shops.");
+  });
+
+  it("keeps the settings block and <!-- notes --> away from the AI", () => {
+    const { brief } = parse(file("url: https://acme.test\nlogin: me@acme.test / hunter22", "# Acme\n<!-- private note -->\nRelease notes here.\n"));
+    expect(brief).toBe("# Acme\nRelease notes here.");
+    expect(brief).not.toContain("hunter22");
+  });
+
+  it("reads the login, written directly or as env:NAME", () => {
+    const direct = parse(file("url: https://acme.test\nlogin: me@acme.test / p@ss / word\nlogin page: /signin")).config.authentication;
+    expect(direct).toEqual({ strategy: "auto", username: "me@acme.test", password: "p@ss / word", login_path: "/signin" });
+    const fromEnv = parse(file("url: https://acme.test\nlogin: env:ACME_USER / env:ACME_PASSWORD")).config.authentication;
+    expect(fromEnv).toMatchObject({ username: "env:ACME_USER", password: "env:ACME_PASSWORD" });
+  });
+
+  it("maps the optional settings", () => {
+    const { config } = parse(file('url: https://acme.test\nai: openai\nmodel: gpt-5\nvoice: none\nlength: 45\nlanguage: de\nlogo: acme.png\ncolor: "#112233"\nallow: delete, invite users'));
+    expect(config.providers.ai).toMatchObject({ provider: "openai", model: "gpt-5" });
+    expect(config.providers.tts.provider).toBe("none");
+    expect(config.demo).toMatchObject({ default_duration: 45, default_language: "de" });
+    expect(config.branding).toMatchObject({ logo: "acme.png", primary_color: "#112233" });
+    expect(config.safety.allow).toMatchObject({ delete: true, invite_users: true, payments: false });
+  });
+
+  it("explains every mistake clearly", () => {
+    expect(errorOf(() => parse("# Acme\nno settings")).message).toMatch(/no settings block/);
+    const invalid = errorOf(() => parse(file("url: not a url\ncolour: red")));
+    expect(invalid.message).toContain("url");
+    expect(invalid.message).toContain("colour");
+    expect(invalid.hint).toContain("Allowed settings");
+    expect(errorOf(() => parse(file("url: https://acme.test\ncolor: #112233"))).message).toMatch(/quotes/);
+    expect(errorOf(() => parse(file("url: https://acme.test\nlogin: just-a-user"))).message).toMatch(/user \/ password/);
+    expect(errorOf(() => parse(file("url: https://acme.test\nallow: everything"))).message).toMatch(/Unknown entry 'everything'/);
+  });
+
+  it("picks the AI you have a key for, and the other one as backup", () => {
+    expect(parse(file("url: https://acme.test")).config.providers).toMatchObject({ ai: { provider: "anthropic" }, ai_fallback: undefined });
+    process.env.OPENAI_API_KEY = "sk-test";
+    expect(parse(file("url: https://acme.test")).config.providers).toMatchObject({ ai: { provider: "openai" }, ai_fallback: undefined });
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    expect(parse(file("url: https://acme.test")).config.providers).toMatchObject({ ai: { provider: "anthropic" }, ai_fallback: { provider: "openai" } });
+  });
+
+  it("lets .env overrides switch the AI, dropping the old model and a backup that is now the main one", () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    process.env.OPENAI_API_KEY = "sk-test";
+    const { config } = parse(file("url: https://acme.test\nmodel: claude-opus-5-5"));
+    const switched = applyOverrides(config, { aiProvider: "openai" });
+    expect(switched.providers.ai).toMatchObject({ provider: "openai", model: undefined });
+    expect(switched.providers.ai_fallback).toBeUndefined();
+    expect(config.providers.ai.model).toBe("claude-opus-5-5"); // original untouched
+  });
+});
+
+describe("products folder", () => {
+  it("lists product files, skipping README.md and _drafts, and flags bad names", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "df-"));
+    await writeFile(join(dir, "acme.md"), file("url: https://acme.test"));
+    await writeFile(join(dir, "broken.md"), "no settings");
+    await writeFile(join(dir, "README.md"), "# Products");
+    await writeFile(join(dir, "_draft.md"), file("url: https://draft.test"));
+    await writeFile(join(dir, "My App.md"), file("url: https://x.test"));
+    const listed = await listProducts(dir);
+    expect(listed.map((p) => [p.id, p.valid])).toEqual([
+      ["acme", true],
+      ["broken", false],
+      ["My App", false],
+    ]);
+  });
+
+  it("creates a new product file that loads back, and never overwrites one", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "df-"));
+    const path = await newProductFile(dir, { id: "shop-front", url: "https://shop.test" });
+    const product = await loadProduct(dir, "shop-front");
+    expect(product.file).toBe(path);
+    expect(product.config.product).toMatchObject({ name: "Shop Front", base_url: "https://shop.test" });
+    expect(product.config.authentication.strategy).toBe("none"); // the login line starts commented out
+    expect(product.brief).not.toContain("<!--");
+    await expect(newProductFile(dir, { id: "shop-front", url: "https://x.test" })).rejects.toThrow(/already exists/);
+    await expect(newProductFile(dir, { id: "Bad Name", url: "https://x.test" })).rejects.toThrow(/not a valid product name/);
+  });
+
+  it("loads the bundled example product", async () => {
+    const product = await loadProduct("products", "example");
+    expect(product.config.authentication).toMatchObject({ strategy: "auto", username: "demo@example.com" });
+    expect(product.config.product.start_path).toBe("/projects");
+    expect(product.brief).toContain("## Release notes");
+  });
+
+  it("keeps the product file examples in README.md valid", async () => {
+    const readme = await readFile("README.md", "utf8");
+    const examples = [...readme.matchAll(/```markdown\r?\n(---[\s\S]*?)```/g)].map((m) => m[1] as string);
+    expect(examples.length).toBeGreaterThanOrEqual(2);
+    for (const example of examples) expect(() => parse(example)).not.toThrow();
+  });
+});
+
+describe("credentials", () => {
+  it("reads env:NAME, hides passwords from logs, and leaves usernames readable", () => {
+    process.env.DF_TEST_SECRET = "s3cret-value";
+    try {
+      expect(resolveCredential("env:DF_TEST_SECRET", { secret: true })).toBe("s3cret-value");
+      expect(resolveCredential("admin-user", { secret: false })).toBe("admin-user");
+      expect(redactSecrets("log s3cret-value as admin-user")).toBe("log *** as admin-user");
+      expect(() => resolveCredential("env:DF_TEST_MISSING", { secret: true })).toThrow(/DF_TEST_MISSING is not set/);
+    } finally {
+      delete process.env.DF_TEST_SECRET;
+    }
+  });
+});
+
+describe("engine configuration", () => {
   it("fills safe defaults", () => {
-    const config = ProductConfigSchema.parse(minimal);
-    expect(config.browser.viewport).toEqual({ width: 1920, height: 1080 });
+    const config = ProductConfigSchema.parse({
+      version: 1,
+      product: { id: "acme", name: "Acme", description: "Test app", base_url: "https://demo.acme.test" },
+      providers: { ai: { provider: "anthropic" } },
+    });
     expect(config.safety.allow.delete).toBe(false);
     expect(config.safety.allow.payments).toBe(false);
     expect(config.recording.engine).toBe("cdp");
     expect(config.demo.default_resolution).toBe("1080p");
     expect(config.providers.ai.max_iterations).toBe(30);
-  });
-
-  it("defaults allowed domains to the base URL host", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "df-"));
-    const file = join(dir, "product.yaml");
-    await writeFile(file, JSON.stringify(minimal));
-    const config = await readProductConfig(file);
-    expect(config.browser.allowed_domains).toEqual(["demo.acme.test"]);
-  });
-
-  it("reports every invalid field with its path", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "df-"));
-    const file = join(dir, "product.yaml");
-    await writeFile(file, JSON.stringify({ ...minimal, product: { ...minimal.product, base_url: "not a url", id: "Bad Id" } }));
-    const error = await readProductConfig(file).catch((e) => e);
-    expect(error).toBeInstanceOf(DemoForgeError);
-    expect(error.message).toContain("product.base_url");
-    expect(error.message).toContain("product.id");
-  });
-
-  it("switching provider on the CLI drops the other provider's model", () => {
-    const config = ProductConfigSchema.parse({ ...minimal, providers: { ...minimal.providers, ai: { provider: "anthropic", model: "claude-opus-5-5" } } });
-    const switched = applyOverrides(config, { aiProvider: "openai" });
-    expect(switched.providers.ai.provider).toBe("openai");
-    expect(switched.providers.ai.model).toBeUndefined();
-    expect(config.providers.ai.model).toBe("claude-opus-5-5"); // original untouched
-    expect(applyOverrides(config, { aiProvider: "openai", aiModel: "gpt-5" }).providers.ai.model).toBe("gpt-5");
-  });
-
-  it("scaffolds a product that loads back and is listed", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "df-"));
-    await scaffoldProduct(dir, { id: "shop", name: "Shop", baseUrl: "http://localhost:3000", description: "A shop", aiProvider: "openai", ttsProvider: "elevenlabs" });
-    const product = await loadProduct(dir, "shop");
-    expect(product.config.providers.ai.provider).toBe("openai");
-    expect(product.knowledge.map((k) => k.file)).toEqual(["overview.md"]);
-    // Folders starting with `_` are not products.
-    await mkdir(join(dir, "_drafts"));
-    await writeFile(join(dir, "_drafts", "product.yaml"), JSON.stringify(minimal));
-    const listed = await listProducts(dir);
-    expect(listed).toEqual([expect.objectContaining({ id: "shop", valid: true })]);
-    await expect(scaffoldProduct(dir, { id: "shop", name: "x", baseUrl: "http://x.test", description: "x", aiProvider: "openai", ttsProvider: "openai" })).rejects.toThrow(/already exists/);
-  });
-
-  it("loads the product's own .env without overriding values already set", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "df-"));
-    await mkdir(join(dir, "acme"));
-    await writeFile(join(dir, "acme", "product.yaml"), JSON.stringify(minimal));
-    await writeFile(join(dir, "acme", ".env"), "DF_TEST_USER=from-product\nDF_TEST_PASS='p@ss word'\n");
-    process.env.DF_TEST_USER = "from-shell";
-    delete process.env.DF_TEST_PASS;
-    try {
-      await loadProduct(dir, "acme");
-      expect(process.env.DF_TEST_USER).toBe("from-shell");
-      expect(process.env.DF_TEST_PASS).toBe("p@ss word");
-    } finally {
-      delete process.env.DF_TEST_USER;
-      delete process.env.DF_TEST_PASS;
-    }
-  });
-
-  it("requires the folder name to match product.id", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "df-"));
-    await mkdir(join(dir, "other"));
-    await writeFile(join(dir, "other", "product.yaml"), JSON.stringify(minimal));
-    await expect(loadProduct(dir, "other")).rejects.toThrow(/must match/);
-  });
-
-  it("keeps the examples in products/README.md valid", async () => {
-    const { readFile } = await import("node:fs/promises");
-    const { parse } = await import("yaml");
-    const { parseWorkflow } = await import("@demoforge/products");
-    const readme = await readFile("products/README.md", "utf8");
-    const blocks = [...readme.matchAll(/```(yaml)\r?\n([\s\S]*?)```/g)].map((m) => ({ lang: m[1], text: m[2] as string }));
-    const product = blocks.find((b) => b.text.startsWith("version: 1"));
-    const scenario = blocks.find((b) => b.text.startsWith("workflow_version: 1"));
-
-    const config = ProductConfigSchema.safeParse(parse(product!.text));
-    expect(config.success, config.error?.message).toBe(true);
-    // The reference claims to list the defaults, so it must match a minimal config's defaults.
-    const bare = ProductConfigSchema.parse({ ...minimal, providers: { ai: { provider: "anthropic" } } });
-    expect({ ...config.data!, product: null }).toEqual({ ...bare, product: null });
-    expect(parseWorkflow(scenario!.text).steps).toHaveLength(5);
-  });
-
-  it("loads the bundled example product with its adapter and scenario", async () => {
-    const product = await loadProduct("products", "example");
-    expect(product.scenarios).toContain("create-project");
-    expect(typeof product.adapter.setup).toBe("function");
   });
 });
 
@@ -134,9 +195,9 @@ describe("workflow contract", () => {
     expect(result.success).toBe(false);
   });
 
-  it("defaults scenarios to unapproved", () => {
+  it("defaults setup and cleanup to empty", () => {
     const w = WorkflowSchema.parse({ ...base, steps: [{ id: "a", description: "x", action: "navigate", url: "/" }] });
-    expect(w.approved).toBe(false);
     expect(w.setup).toEqual([]);
+    expect(w.cleanup).toEqual([]);
   });
 });

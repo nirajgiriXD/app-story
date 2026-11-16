@@ -17,7 +17,7 @@ export interface JobPaths {
   root: string;
   metadata: string;
   plan: string;
-  scenarioDraft: string;
+  planYaml: string;
   quality: string;
   recordingDir: string;
   rawRecording: string;
@@ -55,7 +55,7 @@ export function jobPaths(root: string): JobPaths {
     root,
     metadata: p("metadata.json"),
     plan: p("plan.json"),
-    scenarioDraft: p("scenario.yaml"),
+    planYaml: p("plan.yaml"),
     quality: p("quality.json"),
     recordingDir: p("recording"),
     rawRecording: p("recording", "raw.mp4"),
@@ -83,7 +83,7 @@ export function jobPaths(root: string): JobPaths {
 export interface CreateJobInput {
   outputDir: string;
   productId: string;
-  /** Folder name grouping jobs of the same demo (scenario id or objective slug). */
+  /** Short name of the demo; the job folder is `<output>/<product>/<job-id>-<name>/`. */
   name: string;
   mode: JobMetadata["mode"];
   objective: string | null;
@@ -93,7 +93,7 @@ export interface CreateJobInput {
 
 export async function createJob(input: CreateJobInput): Promise<Job> {
   const id = createJobId();
-  const root = join(input.outputDir, input.productId, slugify(input.name), id);
+  const root = join(input.outputDir, input.productId, `${id}-${slugify(input.name)}`);
   const paths = jobPaths(root);
   await ensureDir(paths.logsDir);
   const log = createLogger({ level: input.logLevel, file: paths.runLog }).child({ job: id });
@@ -160,21 +160,20 @@ export interface HistoryEntry {
   cost_usd: number | null;
 }
 
-/** Folders one level down, or none when `dir` does not exist. */
+/** Folders one level down, without hidden ones (such as `.plans`), or none when `dir` does not exist. */
 async function subdirs(dir: string): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  return entries.filter((e) => e.isDirectory()).map((e) => join(dir, e.name));
+  return entries.filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => join(dir, e.name));
 }
 
 /**
  * Finished jobs, newest first. Read from each job's own metadata.json
- * (`<output>/<product>/<demo>/<job-id>/`), so there is no separate index to keep in
+ * (`<output>/<product>/<job-id>-<name>/`), so there is no separate index to keep in
  * sync: deleting a job folder also removes it from the history.
  */
 export async function readHistory(outputDir: string, options: { limit?: number; productId?: string } = {}): Promise<HistoryEntry[]> {
   const products = options.productId ? [join(outputDir, options.productId)] : await subdirs(outputDir);
-  const jobDirs = (await Promise.all(products.map(subdirs))).flat();
-  const jobs = (await Promise.all(jobDirs.map(subdirs))).flat();
+  const jobs = (await Promise.all(products.map(subdirs))).flat();
   const entries: HistoryEntry[] = [];
   await Promise.all(
     jobs.map(async (dir) => {

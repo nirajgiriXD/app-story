@@ -1,30 +1,31 @@
 import type { JobMetadata, JobStatus, Workflow } from "@demoforge/contracts";
 import { WORKFLOW_VERSION } from "@demoforge/contracts";
-import { loadScenario, saveScenario, type LoadedProduct } from "@demoforge/products";
+import type { LoadedProduct } from "@demoforge/products";
 import { validateWorkflow } from "@demoforge/workflow";
-import { DemoForgeError, probeMedia, slugify, writeJson } from "@demoforge/shared";
+import { DemoForgeError, isDemoForgeError, probeMedia, slugify, writeJson } from "@demoforge/shared";
 import { createJob, finishJob, recordError, saveMetadata, type Job } from "../job-manager/job";
 import type { ProviderOverrides } from "../pipeline/providers";
 import { rehearseWorkflow } from "../pipeline/rehearse";
 import { prepareNarration } from "../pipeline/narrate";
-import { recordWorkflow } from "../pipeline/record";
+import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
 import { composeVideo } from "../pipeline/compose";
+import { forgetPlan, loadSavedPlan, savePlan, savedPlanFile } from "../pipeline/plans";
 import { statusForError } from "../pipeline/status";
 import { runQualityChecks } from "../qa/quality";
 
 export interface GenerateRequest {
   product: LoadedProduct;
   outputDir: string;
-  /** Mode A: natural-language objective. */
-  objective?: string;
-  /** Mode B: saved scenario id. */
-  scenarioId?: string;
-  /** Job folder name; defaults to the scenario id or a slug of the objective. */
+  /** What to demonstrate, in plain language. */
+  objective: string;
+  /** Short name for the job folder and the saved plan. Default: a slug of the objective. */
   name?: string;
-  allowUnapproved?: boolean;
-  /** Save the AI-planned workflow as an (unapproved) scenario in the product folder. */
-  saveScenario?: boolean;
-  audience?: string;
+  /** Replay this plan instead of planning (used by tests). */
+  plan?: Workflow;
+  /** Reuse and save verified plans in <output>/.plans/ (default: true). */
+  reusePlans?: boolean;
+  /** Ignore a saved plan and plan again. */
+  fresh?: boolean;
   durationS?: number;
   templateName?: string;
   headless?: boolean;
@@ -33,60 +34,54 @@ export interface GenerateRequest {
   onJobCreated?: (job: Job) => void;
 }
 
+/** Recording failures that mean "the steps no longer match the app", not "the app is down". */
+const STALE_PLAN_CODES = new Set(["WORKFLOW_FAILED", "VERIFICATION_FAILED"]);
+
 /**
  * The end-to-end pipeline:
- * workflow (scenario or AI rehearsal) → narration → paced recording → captions →
- * render → quality checks → report. A video is only produced from a fully verified run.
+ * plan (saved, or AI rehearsal) → narration → paced recording → captions → render →
+ * quality checks → report. A video is only produced from a fully verified run.
  */
 export async function generateDemo(request: GenerateRequest): Promise<JobMetadata> {
   const { product } = request;
-  if (!request.objective === !request.scenarioId) {
-    throw new DemoForgeError("CONFIG_INVALID", "Provide either an objective or a scenario, not both.");
-  }
+  const name = request.name ?? slugify(request.objective);
   const job = await createJob({
     outputDir: request.outputDir,
     productId: product.id,
-    name: request.name ?? request.scenarioId ?? slugify(request.objective as string),
-    mode: request.scenarioId ? "scenario" : "guided",
-    objective: request.objective ?? null,
-    scenarioId: request.scenarioId ?? null,
+    name,
+    mode: "guided",
+    objective: request.objective,
+    scenarioId: null,
     logLevel: request.logLevel,
   });
   request.onJobCreated?.(job);
   const overrides = request.providers ?? {};
   const config = product.config;
   const durationS = request.durationS ?? config.demo.default_duration;
-  let phase = "workflow";
+  const reuse = request.reusePlans !== false && !request.plan;
+  const planFile = savedPlanFile(request.outputDir, product.id, name);
+  let phase = "plan";
 
-  try {
-    // 1. Workflow
-    const workflow = request.scenarioId
-      ? await loadApprovedScenario(job, product, request.scenarioId, request.allowUnapproved ?? false)
-      : await rehearseWorkflow(job, product, { objective: request.objective as string, audience: request.audience, durationS, headless: request.headless }, overrides);
+  const planWithAI = () => rehearseWorkflow(job, product, { objective: request.objective, durationS, headless: request.headless }, overrides);
+
+  const check = async (workflow: Workflow) => {
     job.metadata.workflow_version = WORKFLOW_VERSION;
     const validation = validateWorkflow(workflow, config);
     job.metadata.warnings.push(...validation.warnings);
     if (validation.errors.length > 0) {
-      throw new DemoForgeError("UNSUPPORTED_WORKFLOW", `The workflow is not safe or not verifiable:\n- ${validation.errors.join("\n- ")}`);
+      throw new DemoForgeError("UNSUPPORTED_WORKFLOW", `The plan is not safe or not verifiable:\n- ${validation.errors.join("\n- ")}`);
     }
-    if (!request.scenarioId) {
-      if (request.saveScenario) {
-        const file = await saveScenario(product, { ...workflow, id: uniqueId(product, workflow.id) });
-        job.log.info({ file }, "saved scenario draft (unapproved) to the product folder");
-      }
-    } else {
-      await writeJson(job.paths.plan, workflow);
-    }
+    await writeJson(job.paths.plan, workflow);
     await saveMetadata(job);
+  };
 
-    // 2. Narration (script + speech), before recording so the take can be paced to it
+  // Narration first (script + speech), so the recording can be paced to it.
+  const narrateAndRecord = async (workflow: Workflow) => {
     phase = "narration";
-    const { clips, silent } = await prepareNarration(job, product, workflow, { durationS, audience: request.audience }, overrides);
+    const narration = await prepareNarration(job, product, workflow, { durationS }, overrides);
     await saveMetadata(job);
-
-    // 3. Recording
     phase = "recording";
-    const recorded = await recordWorkflow(job, product, workflow, clips, { headless: request.headless });
+    const recorded = await recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless });
     job.metadata.recording = {
       path: recorded.recording.path,
       duration_s: round(recorded.recording.durationMs / 1000),
@@ -94,15 +89,44 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       height: recorded.recording.height,
       engine: config.recording.engine,
     };
-    if (!recorded.report.ok) {
-      const failed = recorded.report.steps.find((s) => s.status === "failed");
-      throw new DemoForgeError(
-        failed?.error_code === "APP_UNAVAILABLE" ? "APP_UNAVAILABLE" : failed?.error_code === "POLICY_VIOLATION" ? "POLICY_VIOLATION" : "WORKFLOW_FAILED",
-        `Step ${failed?.step_id} failed during recording: ${failed?.error}. No video was produced.`,
-        { hint: failed?.screenshot ? `See ${failed.screenshot} and logs/trace.zip (open with \`npx playwright show-trace\`).` : undefined },
-      );
-    }
+    failIfIncomplete(recorded);
     await saveMetadata(job);
+    return { ...narration, recorded };
+  };
+
+  try {
+    // 1. Plan: given, saved from an earlier video, or worked out by the AI in the real app.
+    let workflow = request.plan;
+    let fromSavedPlan = false;
+    if (!workflow && reuse && !request.fresh) {
+      workflow = await loadSavedPlan(planFile, request.objective);
+      if (workflow) {
+        fromSavedPlan = true;
+        job.metadata.mode = "scenario";
+        job.log.info({ file: planFile }, "replaying the saved plan (no AI planning needed)");
+      }
+    }
+    workflow ??= await planWithAI();
+    await check(workflow);
+
+    // 2–3. Narration and recording. A saved plan that no longer matches the app is
+    // dropped and the demo is planned again, once, in the same job.
+    let take: Awaited<ReturnType<typeof narrateAndRecord>>;
+    try {
+      take = await narrateAndRecord(workflow);
+    } catch (error) {
+      if (!fromSavedPlan || !(isDemoForgeError(error) && STALE_PLAN_CODES.has(error.code))) throw error;
+      job.log.warn({ error: (error as Error).message }, "the saved plan no longer works (did the app change?); planning again");
+      job.metadata.warnings.push("The saved plan no longer matched the app, so the demo was planned again.");
+      await forgetPlan(planFile);
+      fromSavedPlan = false;
+      job.metadata.mode = "guided";
+      phase = "plan";
+      workflow = await planWithAI();
+      await check(workflow);
+      take = await narrateAndRecord(workflow);
+    }
+    const { clips, silent, recorded } = take;
 
     // 4. Captions + render
     phase = "render";
@@ -135,6 +159,8 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       status = "failed";
     } else {
       status = job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
+      // Keep the verified plan so the next video of this feature replays it.
+      if (reuse && !fromSavedPlan) await savePlan(planFile, workflow);
     }
     return await finishJob(job, status);
   } catch (error) {
@@ -144,24 +170,14 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   }
 }
 
-async function loadApprovedScenario(job: Job, product: LoadedProduct, id: string, allowUnapproved: boolean): Promise<Workflow> {
-  const workflow = await loadScenario(product, id);
-  if (!workflow.approved) {
-    if (!allowUnapproved) {
-      throw new DemoForgeError("SCENARIO_NOT_APPROVED", `Scenario '${id}' has not been approved.`, {
-        hint: "Review the steps, then set `approved: true` in the scenario file (or pass --allow-unapproved for a test run).",
-      });
-    }
-    job.metadata.warnings.push(`Scenario '${id}' is not approved; this video is for review only.`);
-  }
-  return workflow;
-}
-
-function uniqueId(product: LoadedProduct, id: string): string {
-  if (!product.scenarios.includes(id)) return id;
-  let n = 2;
-  while (product.scenarios.includes(`${id}-${n}`)) n++;
-  return `${id}-${n}`;
+function failIfIncomplete(recorded: RecordingOutcome): void {
+  if (recorded.report.ok) return;
+  const failed = recorded.report.steps.find((s) => s.status === "failed");
+  throw new DemoForgeError(
+    failed?.error_code === "APP_UNAVAILABLE" ? "APP_UNAVAILABLE" : failed?.error_code === "POLICY_VIOLATION" ? "POLICY_VIOLATION" : "WORKFLOW_FAILED",
+    `Step ${failed?.step_id} failed during recording: ${failed?.error}. No video was produced.`,
+    { hint: failed?.screenshot ? `See ${failed.screenshot} and logs/trace.zip (open with \`npx playwright show-trace\`).` : undefined },
+  );
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;

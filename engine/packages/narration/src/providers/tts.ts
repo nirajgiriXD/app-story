@@ -124,7 +124,7 @@ export type TTSFactory = (config: TtsConfig) => TTSProvider;
 function openaiTTS(config: TtsConfig): TTSProvider {
   if (!process.env.OPENAI_API_KEY) {
     throw new DemoForgeError("PROVIDER_AUTH", "OPENAI_API_KEY is not set (needed for OpenAI text-to-speech).", {
-      hint: "Add it to .env, or use the free local voice: `providers.tts.provider: kokoro` (or --tts-provider kokoro).",
+      hint: "Add it to .env, or use the free local voice: `voice: kokoro` in the product file.",
     });
   }
   return new OpenAITTS(config);
@@ -137,7 +137,7 @@ const factories = new Map<string, TTSFactory>([
       const key = process.env.ELEVENLABS_API_KEY;
       if (!key) {
         throw new DemoForgeError("PROVIDER_AUTH", "ELEVENLABS_API_KEY is not set.", {
-          hint: "Add it to .env, or use the free local voice: `providers.tts.provider: kokoro` (or --tts-provider kokoro).",
+          hint: "Add it to .env, or use the free local voice: `voice: kokoro` in the product file.",
         });
       }
       registerSecret(key);

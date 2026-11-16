@@ -1,24 +1,22 @@
-import { isAbsolute, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import type { BrowserIssue, ProductConfig } from "@demoforge/contracts";
-import { DemoForgeError, ensureDir, fileExists, requireEnv, type Logger } from "@demoforge/shared";
+import { DemoForgeError, ensureDir, resolveCredential, type Logger } from "@demoforge/shared";
 import { PlaywrightController } from "../controller/playwright-controller";
 import { ActionGuard } from "../security/action-guard";
-import { isAllowedUrl, resolveUrl } from "../security/url-guard";
+import { isAllowedUrl } from "../security/url-guard";
 import { CdpScreencastRecorder, type Recorder, type RecorderResult } from "../recording/cdp-recorder";
 import { PlaywrightVideoRecorder } from "../recording/playwright-recorder";
 
 export interface BrowserSessionOptions {
   config: ProductConfig;
-  /** Product folder, used to resolve relative paths such as the storage state file. */
-  productDir: string;
   /** Scratch folder for recordings and traces. */
   workDir: string;
   log: Logger;
   record?: boolean;
   fps?: number;
   headless?: boolean;
-  /** `read_only` is used for discovery and production environments. */
+  /** `read_only` blocks typing, selecting and button clicks (production environments). */
   mode?: "normal" | "read_only";
   traceFile?: string;
   initBrowser?: (page: Page, context: BrowserContext) => Promise<void>;
@@ -46,17 +44,6 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
   const fps = options.fps ?? config.demo.fps;
   await ensureDir(options.workDir);
 
-  let storageState: string | undefined;
-  if (config.authentication.strategy === "storage_state") {
-    const path = config.authentication.storage_state_path;
-    storageState = isAbsolute(path) ? path : resolve(options.productDir, path);
-    if (!(await fileExists(storageState))) {
-      throw new DemoForgeError("AUTH_FAILED", `Saved login state not found at ${storageState}.`, {
-        hint: `Run \`demoforge browser inspect --product ${config.product.id} --save-auth\` and log in once.`,
-      });
-    }
-  }
-
   const browser: Browser = await chromium.launch({
     headless: options.headless ?? config.browser.headless,
     args: ["--hide-scrollbars", "--disable-features=Translate", "--force-color-profile=srgb"],
@@ -69,7 +56,6 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
     locale: config.browser.locale,
     timezoneId: config.browser.timezone,
     colorScheme: config.browser.color_scheme,
-    storageState,
     acceptDownloads: false,
     serviceWorkers: "block",
     recordVideo: recordWithPlaywright ? { dir: join(options.workDir, "pw-video"), size: viewport } : undefined,
@@ -129,9 +115,7 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
 
   try {
     let controller = makeController(page);
-    if (config.authentication.strategy === "form") {
-      await formLogin(controller, page, config);
-    }
+    await autoLogin(controller, page, config);
     await controller.navigate(config.product.start_path);
 
     if (recordWithPlaywright) {
@@ -186,25 +170,65 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
   }
 }
 
-async function formLogin(controller: PlaywrightController, page: Page, config: ProductConfig): Promise<void> {
+/** Paths tried, in order, when the start page shows no login form and none is configured. */
+const COMMON_LOGIN_PATHS = ["/login", "/signin", "/sign-in", "/users/sign_in", "/auth/login", "/account/login"];
+
+/** Text-like inputs that can hold a username or email. */
+const USERNAME_FIELD = [
+  'input[type="email"]',
+  'input[autocomplete="username"]',
+  'input[autocomplete="email"]',
+  'input[name*="user" i]',
+  'input[name*="email" i]',
+  'input[name*="login" i]',
+  'input[type="text"]',
+  "input:not([type])",
+].map((s) => `${s}:visible`);
+
+/**
+ * Log in through the app's own form, without being told its field names: find the page
+ * with a password field (the start page, the configured login page, or a common path),
+ * fill the username and password, submit with Enter, and wait for the form to go away.
+ */
+async function autoLogin(controller: PlaywrightController, page: Page, config: ProductConfig): Promise<void> {
   const auth = config.authentication;
-  if (auth.strategy !== "form") return;
-  const username = requireEnv(auth.username_env);
-  const password = requireEnv(auth.password_env);
-  await controller.navigate(auth.login_path);
+  if (auth.strategy !== "auto") return;
+  const where = `the login in products/${config.product.id}.md`;
+  const username = resolveCredential(auth.username, { secret: false, hint: `It is used by ${where}.` });
+  const password = resolveCredential(auth.password, { secret: true, hint: `It is used by ${where}.` });
+  const passwordField = page.locator('input[type="password"]:visible').first();
+  const formVisible = (timeout: number) =>
+    passwordField
+      .waitFor({ state: "visible", timeout })
+      .then(() => true)
+      .catch(() => false);
+
+  const candidates = auth.login_path ? [auth.login_path] : [config.product.start_path, ...COMMON_LOGIN_PATHS];
+  let found = false;
+  for (const [i, path] of candidates.entries()) {
+    const opened = await controller.navigate(path).then(() => true, () => false);
+    // The start page usually redirects to the login form; give it time to appear.
+    if (opened && (await formVisible(i === 0 ? 5_000 : 2_000))) {
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    throw new DemoForgeError("AUTH_FAILED", `Could not find a login form for ${config.product.name}.`, {
+      hint: `Add the page that shows it, e.g. "login page: /login", to products/${config.product.id}.md.`,
+    });
+  }
+
   try {
-    await page.getByLabel(auth.username_label).first().fill(username);
-    await page.getByLabel(auth.password_label).first().fill(password);
-    await page.getByRole("button", { name: auth.submit_text }).first().click();
-    const loginUrl = resolveUrl(config.product.base_url, auth.login_path);
-    await page.waitForURL(
-      (url) => (auth.success_url_contains ? url.toString().includes(auth.success_url_contains) : url.toString() !== loginUrl),
-      { timeout: config.browser.navigation_timeout_ms },
-    );
+    const usernameField = page.locator(USERNAME_FIELD.join(", ")).first();
+    if (await usernameField.count()) await usernameField.fill(username);
+    await passwordField.fill(password);
+    await passwordField.press("Enter");
+    await passwordField.waitFor({ state: "hidden", timeout: config.browser.navigation_timeout_ms });
   } catch (error) {
-    throw new DemoForgeError("AUTH_FAILED", `Login at ${auth.login_path} did not succeed.`, {
+    throw new DemoForgeError("AUTH_FAILED", `Logging in to ${config.product.name} did not work.`, {
       cause: error,
-      hint: `Check ${auth.username_env}/${auth.password_env} in products/${config.product.id}/.env and the field labels in product.yaml.`,
+      hint: `Check ${where}. Two-step logins (email first, password on a second page) are not supported yet.`,
     });
   }
 }

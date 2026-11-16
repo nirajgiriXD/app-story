@@ -136,6 +136,10 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST") {
       const body = await readBody(req);
       if (body.email === USER && body.password === PASSWORD) {
+        // Every login starts from the same demo data, so the AI's practice run and the
+        // recorded take see the same app.
+        projects = seed();
+        nextId = 4;
         const token = randomBytes(16).toString("hex");
         sessions.add(token);
         return redirect(res, "/projects", { "set-cookie": `session=${token}; HttpOnly; Path=/; SameSite=Lax` });

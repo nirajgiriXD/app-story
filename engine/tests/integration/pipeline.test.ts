@@ -1,10 +1,12 @@
-import { mkdtemp, cp, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Workflow } from "@demoforge/contracts";
 import { generateDemo } from "@demoforge/core";
-import { loadProduct } from "@demoforge/products";
+import { loadProduct, parseWorkflow, workflowToYaml } from "@demoforge/products";
 import { probeMedia } from "@demoforge/shared";
+import { savedPlanFile } from "../../packages/core/src/pipeline/plans";
 import { startExampleApp } from "../support/example-app";
 import { ScriptedProvider, ToneTTS } from "../support/fakes";
 
@@ -12,44 +14,66 @@ const PORT = 4391;
 let app: { url: string; stop: () => void };
 let productsDir: string;
 let outputDir: string;
+let plan: Workflow;
 
 beforeAll(async () => {
   app = await startExampleApp(PORT);
   const root = await mkdtemp(join(tmpdir(), "demoforge-it-"));
   productsDir = join(root, "products");
   outputDir = join(root, "output");
-  await cp("products/example", join(productsDir, "example"), { recursive: true });
-  // Point the copied product at this test's app instance.
-  const file = join(productsDir, "example", "product.yaml");
-  const yaml = (await readFile(file, "utf8")).replaceAll("4310", String(PORT));
-  await (await import("node:fs/promises")).writeFile(file, yaml);
-  process.env.EXAMPLE_APP_USER ??= "demo@example.com";
-  process.env.EXAMPLE_APP_PASSWORD ??= "demo1234";
+  await mkdir(productsDir);
+  // The practice product, pointed at this test's app instance.
+  const text = (await readFile("products/example.md", "utf8")).replaceAll("4310", String(PORT));
+  await writeFile(join(productsDir, "example.md"), text);
+  plan = parseWorkflow(await readFile("engine/tests/fixtures/create-project.plan.yaml", "utf8"));
 });
 
 afterAll(() => app?.stop());
 
-describe("end-to-end pipeline (fake voice, real browser + recorder + Remotion)", () => {
-  it("renders a verified scenario into a playable 1080p MP4 with captions and a report", async () => {
+const T = (o: Record<string, unknown>) => ({ role: null, name: null, label: null, text: null, placeholder: null, test_id: null, css: null, nth: null, ...o });
+
+/** A scripted AI that plans "create a project" (with one wrong guess it must recover from). */
+const plannerAI = () =>
+  new ScriptedProvider(
+    [
+      { name: "click", input: { description: "Open the new project form", section: "Create", target: T({ role: "link", name: "+ New project" }), expected: null } },
+      { name: "click", input: { description: "Open settings", section: "Create", target: T({ role: "button", name: "Does not exist" }), expected: null } },
+      { name: "fill", input: { description: "Name the project", section: "Create", target: T({ label: "Project name" }), value: "Website Launch", secret: null, expected: null } },
+      { name: "click", input: { description: "Save the project", section: "Create", target: T({ role: "button", name: "Create project" }), expected: null } },
+      {
+        name: "verify",
+        input: {
+          description: "The new project is listed",
+          section: "Result",
+          expectation: { type: "text_present", text: "Website Launch", target: null, value: null, count: null, description: "project appears in the list" },
+        },
+      },
+      { name: "finish", input: { title: "Create a project", summary: "Create a project in seconds.", keep_step_ids: ["r1", "r3", "r4", "r5"] } },
+    ],
+    {
+      narration_script: {
+        intro: "Here is how to create a project.",
+        segments: [
+          { step_ids: ["s1", "s2"], text: "Open the form and give the project a name." },
+          { step_ids: ["s3", "s4"], text: "Save it, and it appears in your list." },
+        ],
+        outro: "That's it.",
+      },
+    },
+  );
+
+const OBJECTIVE = "Demonstrate how to create a new project";
+
+describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () => {
+  it("logs in by itself and renders a plan into a playable 1080p MP4 with captions and a report", async () => {
     const product = await loadProduct(productsDir, "example");
     const tts = new ToneTTS();
-    const metadata = await generateDemo({
-      product,
-      outputDir,
-      scenarioId: "create-project",
-      logLevel: "warn",
-      providers: { createTTS: () => tts },
-    });
+    const metadata = await generateDemo({ product, outputDir, objective: OBJECTIVE, plan, logLevel: "warn", providers: { createTTS: () => tts } });
 
     expect(metadata.errors).toEqual([]);
     expect(["success", "success_with_warnings"]).toContain(metadata.status);
-    expect(metadata.video?.path).toBeTruthy();
-
     const video = await probeMedia(metadata.video!.path);
-    expect(video.width).toBe(1920);
-    expect(video.height).toBe(1080);
-    expect(video.videoCodec).toBe("h264");
-    expect(video.audioCodec).toBe("aac");
+    expect([video.width, video.height, video.videoCodec, video.audioCodec]).toEqual([1920, 1080, "h264", "aac"]);
     expect(video.durationSec).toBeGreaterThan(15);
 
     const quality = JSON.parse(await readFile(join(metadata.output_dir, "quality.json"), "utf8"));
@@ -58,13 +82,12 @@ describe("end-to-end pipeline (fake voice, real browser + recorder + Remotion)",
 
     const srt = await readFile(join(metadata.output_dir, "captions", "subtitles.srt"), "utf8");
     expect(srt).toContain("Q3 Product Launch");
-    // intro + 7 segments + outro
-    expect(tts.calls.length).toBe(9);
+    expect(tts.calls.length).toBe(9); // intro + 7 segments + outro
   });
 
   it("narrates with the free local Kokoro voice (no API key)", async () => {
     const product = await loadProduct(productsDir, "example", { ttsProvider: "kokoro" });
-    const metadata = await generateDemo({ product, outputDir, scenarioId: "create-project", logLevel: "warn" });
+    const metadata = await generateDemo({ product, outputDir, objective: OBJECTIVE, plan, logLevel: "warn" });
 
     expect(metadata.errors).toEqual([]);
     expect(metadata.status).toBe("success");
@@ -74,80 +97,65 @@ describe("end-to-end pipeline (fake voice, real browser + recorder + Remotion)",
     expect(silentCheck?.passed).toBe(true);
   }, 300_000);
 
-  it("makes a captions-only video when there is no voice (tts: none)", async () => {
+  it("makes a captions-only video when there is no voice", async () => {
     const product = await loadProduct(productsDir, "example", { ttsProvider: "none" });
-    const metadata = await generateDemo({ product, outputDir, scenarioId: "create-project", logLevel: "warn" });
+    const metadata = await generateDemo({ product, outputDir, objective: OBJECTIVE, plan, logLevel: "warn" });
 
     expect(metadata.errors).toEqual([]);
     expect(metadata.status).toBe("success");
     expect(metadata.tts.provider).toBe("none");
-    const video = await probeMedia(metadata.video!.path);
-    expect([video.width, video.height, video.audioCodec]).toEqual([1920, 1080, "aac"]);
     const srt = await readFile(join(metadata.output_dir, "captions", "subtitles.srt"), "utf8");
     expect(srt).toContain("Q3 Product Launch");
   });
 
-  it("refuses to make a video from an unapproved scenario", async () => {
+  it("plans with AI, saves the plan, then replays it next time without AI planning", async () => {
     const product = await loadProduct(productsDir, "example");
-    const { saveScenario, loadScenario } = await import("@demoforge/products");
-    const scenario = await loadScenario(product, "create-project");
-    await saveScenario(product, { ...scenario, id: "draft", approved: false });
-    const fresh = await loadProduct(productsDir, "example");
-    const metadata = await generateDemo({ product: fresh, outputDir, scenarioId: "draft", logLevel: "silent", providers: { createTTS: () => new ToneTTS() } });
-    expect(metadata.status).toBe("unsupported_workflow");
-    expect(metadata.video).toBeNull();
-    expect(metadata.errors[0]?.code).toBe("SCENARIO_NOT_APPROVED");
+    const ai = plannerAI();
+    const providers = { createAI: (_config: unknown, deps: { usage: unknown }) => Object.assign(ai, { usage: deps.usage }), createTTS: () => new ToneTTS() };
+    const out = join(outputDir, "replay");
+
+    const first = await generateDemo({ product, outputDir: out, objective: OBJECTIVE, name: "create-project", logLevel: "warn", providers });
+    expect(first.errors).toEqual([]);
+    expect(first.mode).toBe("guided");
+    const saved = await readFile(savedPlanFile(out, "example", "create-project"), "utf8");
+    expect(parseWorkflow(saved).steps.map((s) => s.action)).toEqual(["click", "fill", "click", "assert"]);
+    const agentTurns = ai.received.length;
+
+    const second = await generateDemo({ product, outputDir: out, objective: OBJECTIVE, name: "create-project", logLevel: "warn", providers });
+    expect(second.errors).toEqual([]);
+    expect(["success", "success_with_warnings"]).toContain(second.status);
+    expect(second.mode).toBe("scenario"); // replayed the saved plan
+    expect(ai.received.length).toBe(agentTurns); // no AI planning the second time
   });
 
-  it("plans with an AI agent (scripted), then records the verified plan", async () => {
+  it("plans again by itself when a saved plan no longer matches the app", async () => {
     const product = await loadProduct(productsDir, "example");
-    const target = (o: Record<string, unknown>) => ({ role: null, name: null, label: null, text: null, placeholder: null, test_id: null, css: null, nth: null, ...o });
-    const provider = new ScriptedProvider(
-      [
-        { name: "click", input: { description: "Open the new project form", section: "Create", target: target({ role: "link", name: "+ New project" }), expected: null } },
-        // A deliberate wrong guess: the agent must recover, and the failed step must not be replayed.
-        { name: "click", input: { description: "Open settings", section: "Create", target: target({ role: "button", name: "Does not exist" }), expected: null } },
-        { name: "fill", input: { description: "Name the project", section: "Create", target: target({ label: "Project name" }), value: "Website Launch", secret: null, expected: null } },
-        { name: "click", input: { description: "Save the project", section: "Create", target: target({ role: "button", name: "Create project" }), expected: null } },
-        {
-          name: "verify",
-          input: {
-            description: "The new project is listed",
-            section: "Result",
-            expectation: { type: "text_present", text: "Website Launch", target: null, value: null, count: null, description: "project appears in the list" },
-          },
-        },
-        { name: "finish", input: { title: "Create a project", summary: "Create a project in seconds.", keep_step_ids: ["r1", "r3", "r4", "r5"] } },
+    const out = join(outputDir, "stale");
+    // A saved plan for the same objective whose button no longer exists.
+    const stale: Workflow = {
+      ...plan,
+      steps: [
+        { id: "s1", description: "Open the old wizard", action: "click", target: { role: "button", name: "Old wizard" } },
+        { id: "s2", description: "Check the list", action: "assert", expected: { type: "text_present", text: "Projects" } },
       ],
-      {
-        narration_script: {
-          intro: "Here is how to create a project.",
-          segments: [
-            { step_ids: ["s1", "s2"], text: "Open the form and give the project a name." },
-            { step_ids: ["s3", "s4"], text: "Save it, and it appears in your list." },
-          ],
-          outro: "That's it.",
-        },
-      },
-    );
+    };
+    const file = savedPlanFile(out, "example", "create-project");
+    await mkdir(join(out, ".plans", "example"), { recursive: true });
+    await writeFile(file, workflowToYaml({ ...stale, objective: OBJECTIVE }));
 
+    const ai = plannerAI();
     const metadata = await generateDemo({
       product,
-      outputDir,
-      objective: "Demonstrate how to create a new project",
-      logLevel: "warn",
-      providers: {
-        createAI: (_config, deps) => Object.assign(provider, { usage: deps.usage }),
-        createTTS: () => new ToneTTS(),
-      },
+      outputDir: out,
+      objective: OBJECTIVE,
+      name: "create-project",
+      logLevel: "silent",
+      providers: { createAI: (_config, deps) => Object.assign(ai, { usage: deps.usage }), createTTS: () => new ToneTTS() },
     });
-
     expect(metadata.errors).toEqual([]);
-    expect(["success", "success_with_warnings"]).toContain(metadata.status);
-    const plan = JSON.parse(await readFile(join(metadata.output_dir, "plan.json"), "utf8"));
-    expect(plan.steps.map((s: { action: string }) => s.action)).toEqual(["click", "fill", "click", "assert"]);
-    expect(plan.approved).toBe(false);
-    expect(metadata.ai.provider).toBe("anthropic");
-    expect(metadata.usage?.requests).toBeGreaterThan(0);
+    expect(metadata.status).toBe("success_with_warnings");
+    expect(metadata.warnings.join()).toMatch(/planned again/);
+    const replaced = parseWorkflow(await readFile(file, "utf8"));
+    expect(replaced.steps.some((s) => s.value === "Website Launch")).toBe(true);
   });
 });

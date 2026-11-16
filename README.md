@@ -10,16 +10,159 @@ The goal is to make product demo creation repeatable and largely automated. Inst
 
 ```text
 demo-forge/
-├── products/     👉 your products: one folder each (every option explained in products/README.md)
-├── output/       👉 finished videos and reports
-├── .env          👉 your API keys (copy from .env.example); logins go in products/<id>/.env
+├── products/     👉 your products: one file each, e.g. products/acme.md (see "Product files")
+├── output/       👉 finished videos and reports (see "Output")
+├── .env          👉 your AI key, and passwords read with env:NAME
 ├── docs/         guides: start with docs/getting-started.md
-└── engine/       DemoForge itself — no need to touch it to make videos
+└── engine/       DemoForge itself — no need to touch it to make videos (see "Engine")
 ```
 
 Quick start: `npm install`, `npm run browsers:install`, add a key to `.env`, then
-`npx demoforge init` and `npx demoforge generate --product <id> --features`.
+`npx demoforge new acme`, fill in `products/acme.md`, and `npx demoforge acme`.
 See [docs/getting-started.md](docs/getting-started.md).
+
+## Product files
+
+Each product is a single Markdown file: `products/<name>.md`. That is all DemoForge
+needs. It never needs your product's source code: it opens the running app in a browser.
+
+```bash
+npx demoforge new acme          # creates products/acme.md
+npx demoforge check acme        # checks it
+npx demoforge acme              # one video of what's new in its release notes
+```
+
+`products/example.md` is a working product for the practice app (`npm run example-app`).
+
+### What goes in the file
+
+A small settings block at the top, read by DemoForge and **never sent to the AI**. Then
+plain English for the AI: what the app is, tips, and your release notes, as they are.
+
+```markdown
+---
+url: https://staging.acme.com
+login: demo@acme.com / env:ACME_PASSWORD
+---
+
+# Acme
+
+Acme is a billing tool for small shops. Most users are shop owners
+who are not technical. Videos should be friendly and short.
+
+## Tips for the demo
+- The app opens on the Dashboard. Use the left menu to move around.
+- Use made-up customers like "Bob's Bakery". Never use real names.
+- Invoices live under Billing → Invoices.
+
+## Release notes
+### Added
+- Bulk export: export many invoices at once as CSV (Reports page).
+- Dark mode for the whole app.
+### Fixed
+- Crash when saving an empty report.
+```
+
+The headings are only a suggestion: the AI reads all of it. From the release notes it
+picks the new features a viewer can see and skips fixes and internal changes. You
+never write click-by-click steps. Text inside `<!-- -->` is ignored.
+
+### Settings
+
+Only `url` is required. Everything else has a sensible default.
+
+```markdown
+---
+url: https://staging.acme.com              # required: the running app (and the page to start on)
+login: demo@acme.com / env:ACME_PASSWORD   # user / password; either part may be env:NAME
+login page: /login                         # default: found automatically
+start page: /dashboard                     # default: the page in url
+ai: anthropic                              # anthropic | openai (default: whichever key you have)
+model: claude-opus-5-5                     # default: the provider's default model
+voice: kokoro                              # kokoro (free) | openai | elevenlabs | none
+length: 60                                 # seconds per video (default: 90)
+language: en                               # Kokoro speaks English only
+logo: acme-logo.png                        # next to this file
+color: "#4F46E5"                           # in quotes
+allow: delete, emails                      # risky actions are blocked unless listed here
+---
+```
+
+- **login**: `env:ACME_PASSWORD` reads the password from `.env`, so it never sits in a
+  file you might share. Writing the password directly works too. DemoForge finds the
+  login form on its own; if it cannot, add `login page:`. Logins with two steps (email
+  first, password on the next page) and single sign-on are not supported yet.
+- **allow**: by default DemoForge never deletes, pays, sends emails, publishes, changes
+  account settings or invites users. List any of `delete, payments, emails, publishing,
+  account settings, invite users, production data` to allow them.
+- **ai**: with keys for both providers, the other one is used as a backup if the first fails.
+
+Files whose name starts with `_` (for example `_draft.md`) are not treated as products.
+
+### What DemoForge handles by itself
+
+- Picks the features from the release notes.
+- Logs in, plans the clicks in the real app, proves each feature works, then records it.
+- Saves each working plan in `output/.plans/` and replays it next time: no AI cost, same
+  video. If you edit the feature in the release notes, or the app changed and the plan
+  stops working, it plans again. Use `--fresh` to force a new plan.
+
+## Output
+
+Every video gets one folder:
+
+```text
+output/<product>/<date-time>-<name>/
+├── video/final.mp4        the demo video
+├── video/thumbnail.png    a cover image
+├── captions/              subtitles (.srt and .vtt)
+├── narration/             the script and voice clips
+├── metadata.json          status, AI provider, cost estimate, errors
+├── quality.json           automatic checks on the video
+└── logs/                  details for troubleshooting
+```
+
+`output/.plans/` (hidden) keeps each working click-plan, so the next video of the same
+feature replays it without AI planning. DemoForge manages it; deleting it only means the
+next videos are planned again.
+
+`npx demoforge history` lists recent videos, read from each folder's `metadata.json`.
+The whole `output/` folder is ignored by git, so it is safe to delete old folders; they
+drop out of `history` too.
+
+## Engine
+
+`engine/` is DemoForge itself. You do not need to change anything there to make videos:
+your work happens in `products/`, and the videos land in `output/`.
+
+```text
+engine/
+├── cli/            the `demoforge` command (npx demoforge ...)
+├── packages/       the building blocks
+│   ├── core/         runs every step of a job, in order
+│   ├── ai/           talks to Anthropic or OpenAI; plans the clicks
+│   ├── browser/      drives a real Chromium browser and records the screen
+│   ├── workflow/     checks and replays click-plans
+│   ├── narration/    writes the script and speaks it (Kokoro, OpenAI, ElevenLabs)
+│   ├── captions/     subtitles
+│   ├── video/        renders the final MP4 (Remotion)
+│   ├── products/     reads the product files in products/
+│   ├── contracts/    the shape of every config and result file
+│   └── shared/       small helpers used everywhere
+├── example-app/    a tiny fake app to practise on (npm run example-app)
+├── tests/          unit, integration (real browser) and e2e (real AI) tests, fixtures
+├── scripts/        helper that starts the tests
+├── tsconfig*.json  TypeScript settings
+└── vitest.config.ts
+```
+
+How the parts fit together: [docs/architecture.md](docs/architecture.md).
+
+---
+
+> Sections 1 to 18 below are the original design brief. Where it describes product
+> folders, `product.yaml`, scenarios or other commands, sections 5 to 9 have been
+> updated to the current one-file design.
 
 ---
 
@@ -207,24 +350,11 @@ Loads and validates product configuration, environment variables, demo requireme
 
 Use Zod schemas for all configuration and AI-generated data.
 
-## 4.2 Product Adapter
+## 4.2 Product File
 
-A product adapter provides application-specific context without introducing application-specific logic into the core engine.
-
-It should support:
-
-- Product metadata.
-- Base URL and allowed domains.
-- Authentication configuration.
-- Application description.
-- Navigation hints.
-- Available feature descriptions.
-- Optional application documentation.
-- Optional custom browser initialization.
-- Optional setup and cleanup hooks.
-- Optional custom verification functions.
-
-The core engine should work with a generic adapter. Product-specific adapters should be optional extensions.
+All product-specific context lives in one Markdown file per product, outside the engine:
+its address and login (in a settings block read by code), and a plain-English description,
+tips and release notes (read by the AI). The engine contains no product-specific logic.
 
 ## 4.3 AI Agent
 
@@ -336,24 +466,13 @@ OPENAI_API_KEY=
 
 Never store API keys in product YAML files or commit them to Git.
 
-### CLI provider override
+### Provider override
 
-Allow users to override the configured provider for an individual generation job.
-
-```bash
-demoforge generate \
-  --product easydash \
-  --objective "Demonstrate website creation" \
-  --ai-provider anthropic
-```
-
-Or:
+The product file picks the provider (`ai: openai`); without it, DemoForge uses the one
+that has a key. For a single run, override it from the environment:
 
 ```bash
-demoforge generate \
-  --product easydash \
-  --objective "Demonstrate website creation" \
-  --ai-provider openai
+DEMOFORGE_AI_PROVIDER=openai demoforge easydash
 ```
 
 ### Important implementation requirements
@@ -365,7 +484,8 @@ demoforge generate \
 - Handle provider-specific API errors, rate limits, retries, and token usage.
 - Track the provider and model used for every generation job.
 - Never silently switch providers if the configured provider fails.
-- Any fallback provider must be explicitly configured.
+- A fallback is used only when keys for both providers are present, only after a
+  provider error, and every switch is recorded in the job metadata and shown to the user.
 - Allow different models to be selected without modifying source code.
 - Test both providers independently against the same agent workflow contracts.
 - Do not make the rest of the application depend on provider-specific message formats.
@@ -528,233 +648,94 @@ Subtitles should be readable and must not obstruct important application UI elem
 
 # 5. Product Configuration
 
-Every product should have its own configuration directory.
+Every product is one file, `products/<id>.md`. The full format is in
+["Product files"](#product-files) at the top of this README.
 
-Example:
+```markdown
+---
+url: https://demo.example.com
+login: demo@example.com / env:EASYDASH_PASSWORD
+---
 
-```text
-products/
-  easydash/
-    product.yaml
-    instructions.md
-    knowledge/
-      overview.md
-      features.md
-    auth/
-      README.md
-    scenarios/
-      backups.yaml
-      website-management.yaml
+# EasyDash
 
-  another-product/
-    product.yaml
-    instructions.md
-    knowledge/
-      overview.md
-    scenarios/
-      onboarding.yaml
+WordPress hosting management platform for agencies.
+
+## Tips for the demo
+- Backups live under Sites → Backups.
+
+## Release notes
+### Added
+- One-click restore from any backup.
 ```
 
-Example `product.yaml`:
+Only `url` is required. Optional settings: `login`, `login page`, `start page`, `ai`,
+`model`, `voice`, `length`, `language`, `logo`, `color`, `allow`. Everything else (browser,
+recording, captions, safety) has defaults in the engine.
 
-```yaml
-version: 1
-
-product:
-  id: easydash
-  name: EasyDash
-  description: WordPress hosting management platform
-  base_url: https://demo.example.com
-
-browser:
-  viewport:
-    width: 1920
-    height: 1080
-
-  allowed_domains:
-    - demo.example.com
-
-  locale: en-US
-  timezone: Asia/Kathmandu
-
-authentication:
-  strategy: storage_state
-  storage_state_path: .secrets/easydash-state.json
-
-demo:
-  default_language: en
-  default_duration: 90
-  default_resolution: 1080p
-
-branding:
-  logo: assets/logo.png
-  primary_color: "#2563EB"
-  accent_color: "#0F172A"
-  font: Inter
-
-providers:
-  ai:
-    provider: anthropic
-    model: claude-sonnet-latest
-
-  tts:
-    provider: elevenlabs
-```
-
-Secrets must never be committed to the repository.
-
-Use environment variables or secure local secret storage.
-
-Provide a `.env.example` file.
+Secrets must never be committed: `env:NAME` reads a value from the git-ignored `.env`.
 
 ---
 
 # 6. Demo Generation Modes
 
-Support three primary modes.
-
-## Mode A: Guided Demo
-
-The user describes what they want to demonstrate.
-
-The configured AI provider plans the workflow, executes it, and generates the video.
-
-Example:
+## From release notes (default)
 
 ```bash
-demoforge generate \
-  --product easydash \
-  --objective "Demonstrate how to create and restore a website backup"
+demoforge easydash            # one video of everything new
+demoforge easydash --each     # one video per new feature
 ```
 
-This should be the primary user experience.
+The AI picks the new user-visible features from the release notes, then plans, verifies,
+records and narrates each one.
 
-## Mode B: Scenario-Based Demo
-
-The user provides an existing scenario.
+## From a plain-language goal
 
 ```bash
-demoforge generate \
-  --product easydash \
-  --scenario backups
+demoforge easydash "Demonstrate how to create and restore a website backup"
 ```
 
-This mode should provide repeatability and deterministic execution.
+## Repeatable runs
 
-Existing scenarios should be version-controlled and reusable.
-
-## Mode C: Application Discovery
-
-The AI agent explores an application in a restricted discovery environment and generates suggestions for possible demos.
-
-```bash
-demoforge discover --product easydash
-```
-
-Discovery should produce:
-
-- Application structure overview.
-- Identified navigation items.
-- Potential features to demonstrate.
-- Suggested user journeys.
-- Proposed scenarios.
-- Missing information.
-- Recommended test data.
-
-Discovery must not perform destructive actions.
-
-Generated scenarios must be reviewed and approved before they are used in automated video production.
+Each verified plan is saved in `output/.plans/` and replayed by the next video of the same
+feature, without AI planning. It is re-planned automatically when the feature text changes
+or the app no longer matches it, or on `--fresh`.
 
 ---
 
 # 7. CLI Interface
 
-Implement a clean CLI.
-
-Expected commands:
-
 ```bash
-# Initialize a new product
-demoforge init
-
-# List configured products
-demoforge products list
-
-# Inspect a product
-demoforge products inspect easydash
-
-# Discover application features
-demoforge discover --product easydash
-
-# Generate a demo from a natural-language objective
-demoforge generate \
-  --product easydash \
-  --objective "Demonstrate website creation"
-
-# Choose an AI provider for this generation
-demoforge generate \
-  --product easydash \
-  --objective "Demonstrate website creation" \
-  --ai-provider openai
-
-# Generate a demo from a saved scenario
-demoforge generate \
-  --product easydash \
-  --scenario website-creation
-
-# Generate videos for multiple scenarios
-demoforge generate \
-  --product easydash \
-  --all
-
-# Browser-only inspection
-demoforge browser inspect --product easydash
-
-# Preview a workflow without producing a final video
-demoforge run \
-  --product easydash \
-  --scenario backups \
-  --dry-run
-
-# View generation history
-demoforge history
-
-# Validate product configuration
-demoforge validate --product easydash
+demoforge <product> [goal]      # make videos (--each, --fresh, --headed)
+demoforge new <name>            # create products/<name>.md
+demoforge check <product>       # settings, keys, login, the app, local tools
+demoforge list                  # list products
+demoforge history [product]     # recent videos
 ```
-
-Commands and flags may be adjusted as the implementation evolves, but keep the CLI predictable and well documented.
 
 ---
 
 # 8. Project Structure
 
-Use an npm workspaces monorepo.
-
-Structure: what users touch stays at the top level; everything else lives in `engine/`.
+Use an npm workspaces monorepo. What users touch stays at the top level; everything else
+lives in `engine/`.
 
 ```text
 demoforge/
-├── products/                 user-owned: one folder per product
-│   ├── README.md             product.yaml, features.md and scenario references
-│   └── example/              sample product for the practice app
+├── products/                 user-owned: one file per product
+│   └── example.md            the practice app
 │
-├── output/                   generated jobs and videos (git-ignored)
+├── output/                   videos, and saved plans in .plans/ (git-ignored)
 ├── docs/
 │
 ├── engine/                   DemoForge itself
-│   ├── cli/
-│   │   └── src/
-│   │       ├── commands/
-│   │       ├── index.ts
-│   │       └── program.ts
-│   │
+│   ├── cli/                  the demoforge command
 │   ├── packages/
-│   │   ├── core/             orchestrator, pipeline, job-manager
+│   │   ├── core/             orchestrator, pipeline, plans, job-manager
 │   │   ├── ai/               providers, agents, prompts, tools, factory
-│   │   ├── browser/          playwright, controller, selectors, recording, security
-│   │   ├── workflow/         planner, executor, validators
-│   │   ├── products/         adapter, loader, registry, features
+│   │   ├── browser/          playwright, auto login, controller, recording, security
+│   │   ├── workflow/         executor, validators
+│   │   ├── products/         product file reader
 │   │   ├── narration/        generator, providers, synchronization
 │   │   ├── video/            remotion, compositions, templates
 │   │   ├── captions/
@@ -762,7 +743,7 @@ demoforge/
 │   │   └── shared/
 │   │
 │   ├── example-app/          tiny fake app for practice and tests
-│   ├── tests/                unit/, integration/, e2e/, support/
+│   ├── tests/                unit/, integration/, e2e/, support/, fixtures/
 │   ├── scripts/
 │   ├── tsconfig.json, tsconfig.base.json
 │   └── vitest.config.ts
@@ -779,55 +760,25 @@ Keep modules independently testable. Avoid circular dependencies and unnecessary
 
 # 9. Output Structure
 
-Every generation job should produce its own output directory.
-
-Example:
+Every video gets its own folder, `output/<product>/<date-time>-<name>/`:
 
 ```text
 output/
+  .plans/easydash/website-backup.yaml     the saved plan, replayed next time
   easydash/
-    website-backup/
+    20261116-134205-a1b2c3-website-backup/
       metadata.json
       plan.json
-
-      recording/
-        raw.webm
-        screenshots/
-
-      narration/
-        script.md
-        audio.mp3
-
-      captions/
-        subtitles.srt
-        subtitles.vtt
-
-      video/
-        final.mp4
-        thumbnail.png
-
-      logs/
-        execution.json
-        browser.json
-        errors.json
+      recording/   raw.mp4, screenshots/
+      narration/   script.md, audio.mp3
+      captions/    subtitles.srt, subtitles.vtt
+      video/       final.mp4, thumbnail.png
+      logs/        execution.json, browser.json, errors.json, run.log, trace.zip
 ```
 
-The metadata file should contain:
-
-- Product identifier.
-- Scenario identifier.
-- Generation timestamp.
-- AI provider used.
-- AI model used.
-- TTS provider.
-- Workflow version.
-- Execution status.
-- Recording duration.
-- Final video path.
-- Token usage and estimated AI cost, when available.
-- Error details, if any.
-
-Use unique job IDs and preserve intermediate assets for debugging.
+The metadata file contains the product, objective, timestamps, AI provider and model,
+voice, workflow version, status, recording duration, video path, token usage and
+estimated AI cost, and any errors.
 
 ---
 
@@ -1176,9 +1127,7 @@ Use a simple test web application with synthetic data.
 The program should accept:
 
 ```bash
-demoforge generate \
-  --product example \
-  --objective "Demonstrate how to create a new project"
+demoforge example "Demonstrate how to create a new project"
 ```
 
 It must then:

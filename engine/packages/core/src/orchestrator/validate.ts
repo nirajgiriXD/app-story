@@ -1,8 +1,8 @@
+import { readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { chromium } from "playwright";
-import { loadScenario, resolveProductPath, type LoadedProduct } from "@demoforge/products";
-import { validateWorkflow } from "@demoforge/workflow";
-import { getTemplate } from "@demoforge/video";
-import { fileExists, hasBinary, isDemoForgeError } from "@demoforge/shared";
+import { resolveProductPath, type LoadedProduct } from "@demoforge/products";
+import { credentialEnvName, fileExists, hasBinary } from "@demoforge/shared";
 
 export interface ValidationItem {
   level: "ok" | "warning" | "error";
@@ -15,72 +15,67 @@ const API_KEYS: Record<string, string> = {
   elevenlabs: "ELEVENLABS_API_KEY",
 };
 
-/** Check configuration, scenarios, credentials and local tools without opening the app. */
-export async function validateProduct(product: LoadedProduct): Promise<ValidationItem[]> {
+/** Check a product file, keys, login, the app and local tools. Opens no browser. */
+export async function validateProduct(product: LoadedProduct, options: { outputDir?: string } = {}): Promise<ValidationItem[]> {
   const items: ValidationItem[] = [];
   const ok = (message: string) => items.push({ level: "ok", message });
   const warn = (message: string) => items.push({ level: "warning", message });
   const error = (message: string) => items.push({ level: "error", message });
   const config = product.config;
+  const startUrl = new URL(config.product.start_path, config.product.base_url).toString();
 
-  ok(`product.yaml is valid (${config.product.name}, ${config.product.base_url})`);
-  ok(`allowed domains: ${config.browser.allowed_domains.join(", ")}`);
-  if (product.adapterPath) ok(`custom adapter loaded from ${product.adapterPath}`);
-  if (product.features) ok(`release notes found: ${product.features.file}`);
+  ok(`${product.file} is valid (${config.product.name})`);
+  if (!product.brief.trim()) warn("the file has nothing below its settings block; describe the app and add release notes");
 
-  try {
-    getTemplate(config.demo.template);
-    ok(`video template: ${config.demo.template}`);
-  } catch (e) {
-    error((e as Error).message);
-  }
+  const reachable = await fetch(startUrl, { redirect: "manual", signal: AbortSignal.timeout(5_000) }).then(
+    (res) => res.status < 500,
+    () => false,
+  );
+  if (reachable) ok(`the app answers at ${startUrl}`);
+  else warn(`the app does not answer at ${startUrl}; is it running?`);
 
-  const providers = [config.providers.ai, config.providers.ai_fallback].filter(Boolean);
-  for (const ai of providers) {
-    const env = API_KEYS[ai!.provider] as string;
-    if (process.env[env]) ok(`${ai!.provider} credentials found (${env})`);
-    else error(`${env} is not set (needed for the ${ai!.provider} AI provider)`);
-  }
+  const ai = config.providers.ai;
+  const aiKey = API_KEYS[ai.provider] as string;
+  if (process.env[aiKey] || (ai.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN)) ok(`AI: ${ai.provider}${ai.model ? ` / ${ai.model}` : ""} (${aiKey} found)`);
+  else error(`${aiKey} is not set; add it to .env (or set "ai:" to the provider you have a key for)`);
+  if (config.providers.ai_fallback) ok(`backup AI: ${config.providers.ai_fallback.provider}, used if ${ai.provider} fails`);
+
   const tts = config.providers.tts.provider;
   if (tts === "none") {
-    ok("voice-over off (tts: none); videos get captions only");
+    ok("voice: off; videos get captions only");
   } else if (tts === "kokoro") {
-    ok("voice-over: free local Kokoro voice, no key needed (first run downloads ~90 MB)");
+    ok("voice: free local Kokoro voice, no key needed (first run downloads ~90 MB)");
     if (!config.demo.default_language.toLowerCase().startsWith("en")) {
-      warn(`Kokoro voices speak English only, but demo.default_language is '${config.demo.default_language}'`);
+      warn(`Kokoro voices speak English only, but language is '${config.demo.default_language}'`);
     }
   } else {
-    const ttsEnv = API_KEYS[tts] as string;
-    if (process.env[ttsEnv]) ok(`${tts} text-to-speech credentials found (${ttsEnv})`);
-    else error(`${ttsEnv} is not set (needed for ${tts} text-to-speech)`);
+    const ttsKey = API_KEYS[tts] as string;
+    if (process.env[ttsKey]) ok(`voice: ${tts} (${ttsKey} found)`);
+    else error(`${ttsKey} is not set (needed for the ${tts} voice)`);
   }
 
   const auth = config.authentication;
-  if (auth.strategy === "storage_state") {
-    const path = resolveProductPath(product, auth.storage_state_path);
-    if (await fileExists(path)) ok(`saved login state found at ${path}`);
-    else error(`saved login state missing at ${path}; run \`demoforge browser inspect --product ${product.id} --save-auth\``);
-  } else if (auth.strategy === "form") {
-    for (const env of [auth.username_env, auth.password_env]) {
-      if (process.env[env]) ok(`login variable ${env} is set`);
-      else error(`login variable ${env} is not set; add it to products/${product.id}/.env`);
+  if (auth.strategy === "auto") {
+    const missing = [auth.username, auth.password].map(credentialEnvName).filter((name) => name && !process.env[name]);
+    for (const name of missing) error(`${name} is not set; add it to .env (it is used by "login:")`);
+    if (missing.length === 0) {
+      const passwordFrom = credentialEnvName(auth.password);
+      ok(`login: ${credentialEnvName(auth.username) ? `from ${credentialEnvName(auth.username)}` : auth.username}, password ${passwordFrom ? `from ${passwordFrom}` : "written in the file"}`);
     }
+  } else {
+    ok("login: none");
   }
+
+  const allowed = Object.entries(config.safety.allow).filter(([, on]) => on).map(([name]) => name.replace(/_/g, " "));
+  ok(`blocked actions: ${allowed.length ? `all except ${allowed.join(", ")}` : "delete, payments, emails, publishing, account settings, invites"}`);
 
   for (const path of [config.branding.logo, config.branding.background_music]) {
-    if (path && !(await fileExists(resolveProductPath(product, path)))) warn(`branding file not found: ${path}`);
+    if (path && !(await fileExists(resolveProductPath(product, path)))) warn(`file not found: ${path}`);
   }
 
-  for (const id of product.scenarios) {
-    try {
-      const workflow = await loadScenario(product, id);
-      const result = validateWorkflow(workflow, config);
-      result.errors.forEach((e) => error(`scenario ${id}: ${e}`));
-      result.warnings.forEach((w) => warn(`scenario ${id}: ${w}`));
-      if (!result.errors.length) ok(`scenario ${id}: valid${workflow.approved ? " (approved)" : " (not approved yet)"}`);
-    } catch (e) {
-      error(isDemoForgeError(e) ? e.message : String(e));
-    }
+  if (options.outputDir) {
+    const plans = await readdir(join(options.outputDir, ".plans", product.id)).catch(() => []);
+    if (plans.length) ok(`${plans.length} saved plan(s) will be replayed without AI planning`);
   }
 
   if (await hasBinary("ffmpeg")) ok("ffmpeg found");

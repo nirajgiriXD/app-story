@@ -1,35 +1,41 @@
-import { readFile, readdir } from "node:fs/promises";
-import { isAbsolute, join, resolve, extname, basename } from "node:path";
-import { pathToFileURL } from "node:url";
-import { parseEnv } from "node:util";
+import { readFile, readdir, writeFile } from "node:fs/promises";
+import { isAbsolute, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { z } from "zod";
 import {
+  AI_PROVIDERS,
   ProductConfigSchema,
+  TTS_PROVIDERS,
   formatZodError,
   type AiProviderName,
   type ProductConfig,
+  type SafetyConfig,
   type TtsProviderName,
 } from "@demoforge/contracts";
-import { DemoForgeError, fileExists } from "@demoforge/shared";
-import { genericAdapter, type ProductAdapter } from "./adapter";
-import { defaultFeaturesPath, readReleaseNotesFile, type ReleaseNotes } from "./features";
+import { DemoForgeError, fileExists, isDemoForgeError } from "@demoforge/shared";
 
-export interface KnowledgeDoc {
-  file: string;
-  content: string;
-}
-
+/**
+ * A product is one Markdown file, `products/<id>.md`:
+ *
+ *   ---
+ *   url: https://staging.acme.com
+ *   login: demo@acme.com / env:ACME_PASSWORD
+ *   ---
+ *   # Acme
+ *   Plain English for the AI: what the app is, tips, release notes.
+ *
+ * The settings block is read by code and never sent to the AI. Everything else has a
+ * sensible default, so most files only need `url` (and `login` if the app has one).
+ */
 export interface LoadedProduct {
   id: string;
+  /** The product file. */
+  file: string;
+  /** The products folder; relative paths in the file (e.g. `logo`) start here. */
   dir: string;
   config: ProductConfig;
-  instructions: string | undefined;
-  knowledge: KnowledgeDoc[];
-  /** Release notes: `features.md` in the product folder (or a file chosen with `generate --features <file>`). */
-  features: ReleaseNotes | undefined;
-  scenarios: string[];
-  adapter: ProductAdapter;
-  adapterPath: string | undefined;
+  /** Everything below the settings block, without `<!-- -->` notes: what the AI reads. */
+  brief: string;
 }
 
 export interface ProviderOverrides {
@@ -38,27 +44,165 @@ export interface ProviderOverrides {
   ttsProvider?: TtsProviderName;
 }
 
-export async function readProductConfig(file: string): Promise<ProductConfig> {
-  let raw: unknown;
+const ALLOW_NAMES = {
+  delete: "delete",
+  payments: "payments",
+  emails: "emails",
+  publishing: "publishing",
+  "account settings": "account_settings",
+  "invite users": "invite_users",
+  "production data": "production_data",
+} as const satisfies Record<string, keyof SafetyConfig["allow"]>;
+
+const SettingsSchema = z
+  .object({
+    url: z.url({ error: "url must be a full address, e.g. https://staging.my-app.com" }),
+    login: z.string({ error: 'login must look like "user / password" (either part may be env:NAME)' }).optional(),
+    "login page": z.string().optional(),
+    "start page": z.string().optional(),
+    ai: z.enum(AI_PROVIDERS).optional(),
+    model: z.string().optional(),
+    voice: z.enum(TTS_PROVIDERS).optional(),
+    length: z.number({ error: "length is the video length in seconds, e.g. 60" }).int().min(10).max(600).optional(),
+    language: z.string().optional(),
+    logo: z.string().optional(),
+    color: z
+      .string({ error: 'put the color in quotes, e.g. color: "#4F46E5"' })
+      .regex(/^#[0-9a-fA-F]{6}$/, 'use a 6-digit hex color in quotes, e.g. color: "#4F46E5"')
+      .optional(),
+    allow: z.union([z.string(), z.array(z.string())]).optional(),
+  })
+  .strict();
+type Settings = z.infer<typeof SettingsSchema>;
+
+/** Settings a product file may use, for help and error messages. */
+export const PRODUCT_SETTINGS = Object.keys(SettingsSchema.shape);
+
+const ID = /^[a-z0-9][a-z0-9-]*$/;
+
+export function productFilePath(productsDir: string, id: string): string {
+  return join(productsDir, `${id}.md`);
+}
+
+/** Split a product file into its settings block and the Markdown the AI reads. */
+export function splitProductFile(text: string, file: string): { settings: unknown; brief: string } {
+  const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+  const match = /^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(normalized);
+  if (!match) {
+    throw new DemoForgeError("CONFIG_INVALID", `${file} has no settings block at the top.`, {
+      hint: "Start the file with:\n---\nurl: https://your-app.example.com\n---",
+    });
+  }
+  let settings: unknown;
   try {
-    raw = parseYaml(await readFile(file, "utf8"));
+    settings = parseYaml(match[1] as string) ?? {};
   } catch (error) {
-    throw new DemoForgeError("CONFIG_INVALID", `Could not read ${file}: ${(error as Error).message}`, { cause: error });
+    throw new DemoForgeError("CONFIG_INVALID", `The settings block in ${file} could not be read: ${(error as Error).message}`);
   }
-  const parsed = ProductConfigSchema.safeParse(raw);
+  const brief = normalized
+    .slice(match[0].length)
+    .replace(/<!--[\s\S]*?-->\n?/g, "")
+    .trim();
+  return { settings, brief };
+}
+
+function parseLogin(login: string, file: string): { username: string; password: string } {
+  const at = login.indexOf(" / ");
+  const username = login.slice(0, at).trim();
+  const password = login.slice(at + 3).trim();
+  if (at < 0 || !username || !password) {
+    throw new DemoForgeError("CONFIG_INVALID", `login in ${file} must look like "user / password".`, {
+      hint: "For example: login: demo@acme.com / env:ACME_PASSWORD  (the password then comes from .env)",
+    });
+  }
+  return { username, password };
+}
+
+function parseAllow(allow: Settings["allow"], file: string): Partial<SafetyConfig["allow"]> {
+  const items = (Array.isArray(allow) ? allow : (allow ?? "").split(","))
+    .map((s) => s.trim().toLowerCase().replace(/[_-]+/g, " "))
+    .filter(Boolean);
+  const out: Partial<SafetyConfig["allow"]> = {};
+  for (const item of items) {
+    const key = ALLOW_NAMES[item as keyof typeof ALLOW_NAMES];
+    if (!key) {
+      throw new DemoForgeError("CONFIG_INVALID", `Unknown entry '${item}' in allow: in ${file}.`, {
+        hint: `Use any of: ${Object.keys(ALLOW_NAMES).join(", ")}.`,
+      });
+    }
+    out[key] = true;
+  }
+  return out;
+}
+
+/** The first `# Heading`, and the first plain paragraph under it. */
+function describe(brief: string, id: string): { name: string; description: string } {
+  const lines = brief.split("\n");
+  const titleAt = lines.findIndex((l) => /^#\s+\S/.test(l));
+  const name = titleAt >= 0 ? (lines[titleAt] as string).replace(/^#\s+/, "").trim() : id;
+  const paragraph: string[] = [];
+  for (const line of lines.slice(titleAt + 1)) {
+    const text = line.trim();
+    if (!text) {
+      if (paragraph.length) break;
+      continue;
+    }
+    if (/^(#|[-*+]\s|\d+\.\s|>|```)/.test(text)) {
+      if (paragraph.length) break;
+      continue;
+    }
+    paragraph.push(text);
+  }
+  return { name, description: paragraph.join(" ") || `${name} web application` };
+}
+
+function hasKey(provider: AiProviderName): boolean {
+  const env = process.env;
+  return provider === "anthropic" ? Boolean(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN) : Boolean(env.OPENAI_API_KEY);
+}
+
+/** Turn a product file's text into the engine's full configuration. */
+export function parseProductFile(text: string, file: string, id: string): { config: ProductConfig; brief: string } {
+  const { settings: raw, brief } = splitProductFile(text, file);
+  const parsed = SettingsSchema.safeParse(raw);
   if (!parsed.success) {
-    throw new DemoForgeError("CONFIG_INVALID", `Invalid product configuration in ${file}:\n${formatZodError(parsed.error)}`);
+    throw new DemoForgeError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(parsed.error)}`, {
+      hint: `Allowed settings: ${PRODUCT_SETTINGS.join(", ")}. See "Product files" in README.md.`,
+    });
   }
-  const config = parsed.data;
-  if (config.browser.allowed_domains.length === 0) {
-    config.browser.allowed_domains = [new URL(config.product.base_url).host];
+  const s = parsed.data;
+  const url = new URL(s.url);
+  const login = s.login ? parseLogin(s.login, file) : undefined;
+  const { name, description } = describe(brief, id);
+
+  // Default AI: the one with a key. The other one, if it also has a key, is the fallback.
+  const ai: AiProviderName = s.ai ?? (hasKey("anthropic") ? "anthropic" : hasKey("openai") ? "openai" : "anthropic");
+  const other: AiProviderName = ai === "anthropic" ? "openai" : "anthropic";
+
+  const config = ProductConfigSchema.safeParse({
+    version: 1,
+    product: { id, name, description, base_url: url.origin, start_path: s["start page"] ?? `${url.pathname}${url.search}` },
+    // A 16:9 viewport rendered at 1.2x: a sharp 1920x1080 recording with comfortably large UI.
+    browser: { viewport: { width: 1600, height: 900 }, device_scale_factor: 1.2, allowed_domains: [url.host] },
+    authentication: login ? { strategy: "auto", ...login, login_path: s["login page"] } : { strategy: "none" },
+    demo: { default_language: s.language, default_duration: s.length },
+    branding: { logo: s.logo, primary_color: s.color },
+    providers: {
+      ai: { provider: ai, model: s.model },
+      ai_fallback: hasKey(other) ? { provider: other } : undefined,
+      tts: { provider: s.voice },
+    },
+    safety: { allow: parseAllow(s.allow, file) },
+  });
+  if (!config.success) {
+    throw new DemoForgeError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(config.error)}`);
   }
-  return config;
+  return { config: config.data, brief };
 }
 
 /**
- * Precedence: CLI flags > environment variables > product.yaml.
- * A provider switch here is the user's explicit choice, not a silent fallback.
+ * Environment overrides (DEMOFORGE_AI_PROVIDER, DEMOFORGE_AI_MODEL, DEMOFORGE_TTS_PROVIDER)
+ * and explicit ones from code win over the product file.
  */
 export function applyOverrides(config: ProductConfig, overrides: ProviderOverrides = {}): ProductConfig {
   const env = process.env;
@@ -67,103 +211,99 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
   const ttsProvider = overrides.ttsProvider ?? (env.DEMOFORGE_TTS_PROVIDER as TtsProviderName | undefined);
   const next = structuredClone(config);
   if (aiProvider && aiProvider !== next.providers.ai.provider) {
-    if (!["anthropic", "openai"].includes(aiProvider)) {
+    if (!(AI_PROVIDERS as readonly string[]).includes(aiProvider)) {
       throw new DemoForgeError("CONFIG_INVALID", `Unknown AI provider '${aiProvider}'. Use anthropic or openai.`);
     }
     // The configured model belongs to the old provider, so drop it unless one was given.
     next.providers.ai = { ...next.providers.ai, provider: aiProvider, model: undefined, pricing: undefined };
+    if (next.providers.ai_fallback?.provider === aiProvider) next.providers.ai_fallback = undefined;
   }
   if (aiModel) next.providers.ai.model = aiModel;
   if (ttsProvider && ttsProvider !== next.providers.tts.provider) {
+    if (!(TTS_PROVIDERS as readonly string[]).includes(ttsProvider)) {
+      throw new DemoForgeError("CONFIG_INVALID", `Unknown voice '${ttsProvider}'. Use ${TTS_PROVIDERS.join(", ")}.`);
+    }
     next.providers.tts = { ...next.providers.tts, provider: ttsProvider, voice: undefined, model: undefined };
   }
   return next;
 }
 
-async function readOptional(file: string): Promise<string | undefined> {
-  return (await fileExists(file)) ? readFile(file, "utf8") : undefined;
-}
-
-async function listFiles(dir: string, extensions: string[]): Promise<string[]> {
-  if (!(await fileExists(dir))) return [];
-  const entries = await readdir(dir, { withFileTypes: true });
-  return entries
-    .filter((e) => e.isFile() && extensions.includes(extname(e.name).toLowerCase()))
-    .map((e) => e.name)
-    .sort();
-}
-
-async function loadAdapter(dir: string): Promise<{ adapter: ProductAdapter; path: string | undefined }> {
-  for (const name of ["adapter.ts", "adapter.mts", "adapter.mjs", "adapter.js"]) {
-    const file = join(dir, name);
-    if (await fileExists(file)) {
-      const mod = (await import(pathToFileURL(file).href)) as { default?: ProductAdapter; adapter?: ProductAdapter };
-      const adapter = mod.default ?? mod.adapter;
-      if (!adapter || typeof adapter !== "object") {
-        throw new DemoForgeError("CONFIG_INVALID", `${file} must export a default adapter object.`);
-      }
-      return { adapter, path: file };
-    }
-  }
-  return { adapter: genericAdapter, path: undefined };
-}
-
-/**
- * Load `products/<id>/.env` (logins and other values that belong to one product).
- * A variable that is already set, by the shell or the root `.env`, is kept as is.
- */
-export async function loadProductEnv(dir: string): Promise<void> {
-  const file = join(dir, ".env");
-  if (!(await fileExists(file))) return;
-  let values: Record<string, string>;
-  try {
-    values = parseEnv(await readFile(file, "utf8")) as Record<string, string>;
-  } catch (error) {
-    throw new DemoForgeError("CONFIG_INVALID", `Could not read ${file}: ${(error as Error).message}`, { cause: error });
-  }
-  for (const [name, value] of Object.entries(values)) {
-    if (process.env[name] === undefined) process.env[name] = value;
-  }
-}
-
 export async function loadProduct(productsDir: string, id: string, overrides?: ProviderOverrides): Promise<LoadedProduct> {
-  const dir = join(productsDir, id);
-  const file = join(dir, "product.yaml");
-  if (!(await fileExists(file))) {
+  const file = productFilePath(productsDir, id);
+  if (!ID.test(id) || !(await fileExists(file))) {
     throw new DemoForgeError("PRODUCT_NOT_FOUND", `Product '${id}' was not found (looked for ${file}).`, {
-      hint: "Run `demoforge products list` to see configured products, or `demoforge init` to create one.",
+      hint: "Run `npx demoforge list` to see your products, or `npx demoforge new <name>` to create one.",
     });
   }
-  await loadProductEnv(dir);
-  const config = applyOverrides(await readProductConfig(file), overrides);
-  if (config.product.id !== id) {
-    throw new DemoForgeError(
-      "CONFIG_INVALID",
-      `product.id '${config.product.id}' in ${file} must match its folder name '${id}'.`,
-    );
-  }
-  const knowledgeDir = join(dir, "knowledge");
-  const knowledge: KnowledgeDoc[] = [];
-  for (const name of await listFiles(knowledgeDir, [".md", ".txt"])) {
-    knowledge.push({ file: name, content: await readFile(join(knowledgeDir, name), "utf8") });
-  }
-  const scenarios = (await listFiles(join(dir, "scenarios"), [".yaml", ".yml"])).map((f) => basename(f, extname(f)));
-  const { adapter, path: adapterPath } = await loadAdapter(dir);
-
-  return {
-    id,
-    dir,
-    config,
-    instructions: await readOptional(join(dir, "instructions.md")),
-    knowledge,
-    features: await readReleaseNotesFile(defaultFeaturesPath({ dir })),
-    scenarios,
-    adapter,
-    adapterPath,
-  };
+  const { config, brief } = parseProductFile(await readFile(file, "utf8"), file, id);
+  return { id, file, dir: productsDir, config: applyOverrides(config, overrides), brief };
 }
 
-/** Resolve a path from product.yaml (logo, storage state, music) relative to the product folder. */
+export interface ProductListing {
+  id: string;
+  name?: string;
+  base_url?: string;
+  valid: boolean;
+  error?: string;
+}
+
+/** Every `products/<id>.md`, except a README.md and files starting with `_` or `.`. */
+export async function listProducts(productsDir: string): Promise<ProductListing[]> {
+  if (!(await fileExists(productsDir))) return [];
+  const entries = await readdir(productsDir, { withFileTypes: true });
+  const listings: ProductListing[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".md") || /^[_.]/.test(entry.name) || entry.name.toLowerCase() === "readme.md") continue;
+    const id = entry.name.slice(0, -3);
+    if (!ID.test(id)) {
+      listings.push({ id, valid: false, error: "file name must be lowercase letters, numbers and dashes, e.g. my-app.md" });
+      continue;
+    }
+    try {
+      const { config } = await loadProduct(productsDir, id);
+      listings.push({ id, name: config.product.name, base_url: `${config.product.base_url}${config.product.start_path}`, valid: true });
+    } catch (error) {
+      listings.push({ id, valid: false, error: isDemoForgeError(error) ? error.message : String(error) });
+    }
+  }
+  return listings.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/** Create `products/<id>.md` from a short template. Never overwrites a file. */
+export async function newProductFile(productsDir: string, options: { id: string; url: string; name?: string }): Promise<string> {
+  if (!ID.test(options.id)) {
+    throw new DemoForgeError("CONFIG_INVALID", `'${options.id}' is not a valid product name.`, {
+      hint: "Use lowercase letters, numbers and dashes, e.g. my-app.",
+    });
+  }
+  const file = productFilePath(productsDir, options.id);
+  if (await fileExists(file)) throw new DemoForgeError("CONFIG_INVALID", `${file} already exists.`);
+  const name = options.name ?? options.id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const text = [
+    "---",
+    `url: ${options.url}`,
+    `# login: demo@example.com / env:${options.id.toUpperCase().replace(/-/g, "_")}_PASSWORD`,
+    "---",
+    "",
+    `# ${name}`,
+    "",
+    "<!-- One or two sentences: what the app is and who uses it. -->",
+    "",
+    "## Tips for the demo",
+    "",
+    "<!-- Where things are, what test data to use, what to avoid. -->",
+    "",
+    "## Release notes",
+    "",
+    "<!-- Paste your release notes here, in any format. -->",
+    "",
+  ].join("\n");
+  parseProductFile(text, file, options.id); // never write a file we could not load back
+  await writeFile(file, text, "utf8");
+  return file;
+}
+
+/** Resolve a path from the product file (e.g. logo) relative to the products folder. */
 export function resolveProductPath(product: Pick<LoadedProduct, "dir">, path: string): string {
   return isAbsolute(path) ? path : resolve(product.dir, path);
 }

@@ -1,20 +1,16 @@
-import { createAIProvider, readReleaseNotes, UsageTracker } from "@demoforge/ai";
+import { createAIProvider, pickFeatures, UsageTracker } from "@demoforge/ai";
 import type { AiProviderConfig, FeaturePlan } from "@demoforge/contracts";
-import { defaultFeaturesPath, loadReleaseNotes, type LoadedProduct, type ReleaseNotes } from "@demoforge/products";
+import type { LoadedProduct } from "@demoforge/products";
 import { DemoForgeError, createLogger, isDemoForgeError } from "@demoforge/shared";
 import type { ProviderOverrides } from "../pipeline/providers";
-import { productContext } from "../pipeline/rehearse";
 
-export interface ReleaseNotesRequest {
+export interface PickFeaturesRequest {
   product: LoadedProduct;
-  /** Defaults to products/<id>/features.md. */
-  file?: string;
   logLevel?: string;
   providers?: ProviderOverrides;
 }
 
-export interface ReleaseNotesResult {
-  notes: ReleaseNotes;
+export interface PickFeaturesResult {
   plan: FeaturePlan;
   provider: string;
   model: string;
@@ -22,39 +18,43 @@ export interface ReleaseNotesResult {
 }
 
 /**
- * Turn release notes in any format into the list of features to demo. The AI keeps
- * user-visible features and skips bug fixes, internal work and section headings.
+ * Read the product file and pick the new features worth demoing from its release notes.
+ * The AI keeps user-visible features and skips bug fixes, internal work and headings.
  */
-export async function planFromReleaseNotes(request: ReleaseNotesRequest): Promise<ReleaseNotesResult> {
+export async function planFeatures(request: PickFeaturesRequest): Promise<PickFeaturesResult> {
   const { product } = request;
-  const notes = await loadReleaseNotes(request.file ?? defaultFeaturesPath(product));
+  if (!product.brief.trim()) {
+    throw new DemoForgeError("CONFIG_INVALID", `${product.file} has nothing below its settings block.`, {
+      hint: `Describe the app and paste your release notes into it, or say what to show: npx demoforge ${product.id} "..."`,
+    });
+  }
   const usage = new UsageTracker();
   const log = createLogger({ level: request.logLevel });
-  // The notes are passed on their own, so leave them out of the product context.
-  const context = productContext({ ...product, features: undefined });
+  const { config } = product;
+  const context = { name: config.product.name, description: config.product.description, baseUrl: config.product.base_url };
 
-  const read = async (config: AiProviderConfig) => {
+  const read = async (ai: AiProviderConfig) => {
     const deps = { usage, log };
-    const provider = request.providers?.createAI ? request.providers.createAI(config, deps) : createAIProvider(config, deps);
-    return { provider, plan: await readReleaseNotes({ provider, product: context, notes: notes.content }) };
+    const provider = request.providers?.createAI ? request.providers.createAI(ai, deps) : createAIProvider(ai, deps);
+    return { provider, plan: await pickFeatures({ provider, product: context, productFile: product.brief }) };
   };
 
   let result: Awaited<ReturnType<typeof read>>;
   try {
-    result = await read(product.config.providers.ai);
+    result = await read(config.providers.ai);
   } catch (error) {
-    const fallback = product.config.providers.ai_fallback;
+    const fallback = config.providers.ai_fallback;
     if (!fallback || !(isDemoForgeError(error) && error.code.startsWith("PROVIDER_"))) throw error;
-    log.warn({ to: fallback.provider, reason: (error as Error).message }, "reading release notes failed; trying the fallback provider");
+    log.warn({ to: fallback.provider, reason: (error as Error).message }, "picking features failed; trying the fallback provider");
     result = await read(fallback);
   }
 
   const { plan, provider } = result;
   if (plan.features.length === 0) {
     const skipped = plan.skipped.map((s) => `\n- ${s.item} (${s.reason})`).join("");
-    throw new DemoForgeError("UNSUPPORTED_WORKFLOW", `Nothing to demo in ${notes.file}: no user-visible features found.${skipped}`, {
-      hint: "Release notes with only bug fixes or internal changes have nothing to show on screen.",
+    throw new DemoForgeError("UNSUPPORTED_WORKFLOW", `Nothing new to demo in ${product.file}.${skipped}`, {
+      hint: `Add release notes with user-visible features, or say what to show: npx demoforge ${product.id} "..."`,
     });
   }
-  return { notes, plan, provider: provider.name, model: provider.model, costUsd: usage.summary().estimated_cost_usd };
+  return { plan, provider: provider.name, model: provider.model, costUsd: usage.summary().estimated_cost_usd };
 }

@@ -52,6 +52,28 @@ export function resolveEnvTemplate(value: string, env: NodeJS.ProcessEnv = proce
   });
 }
 
+/**
+ * A login value from a product file: `env:NAME` reads the environment, anything else is
+ * the value itself. Secrets (passwords) are registered so they never reach logs or prompts;
+ * usernames are not, since masking a common word like "admin" everywhere would garble pages.
+ */
+export function resolveCredential(value: string, options: { secret: boolean; hint?: string }): string {
+  const match = /^env:([A-Za-z_][A-Za-z0-9_]*)$/.exec(value.trim());
+  const resolved = match ? (process.env[match[1] as string] ?? "") : value;
+  if (!resolved) {
+    throw new DemoForgeError("CONFIG_INVALID", `Environment variable ${match?.[1]} is not set.`, {
+      hint: options.hint ?? `Add ${match?.[1]}=... to your .env file.`,
+    });
+  }
+  if (options.secret) registerSecret(resolved);
+  return resolved;
+}
+
+/** The `NAME` of an `env:NAME` reference, or undefined for a literal value. */
+export function credentialEnvName(value: string): string | undefined {
+  return /^env:([A-Za-z_][A-Za-z0-9_]*)$/.exec(value.trim())?.[1];
+}
+
 export function requireEnv(name: string, hint?: string): string {
   const value = process.env[name];
   if (!value) {

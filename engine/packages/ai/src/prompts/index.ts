@@ -8,9 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const PROMPT_VERSIONS = {
   rehearsal: "v1",
   narration: "v1",
-  discovery: "v1",
-  "discovery-report": "v1",
-  "release-notes": "v1",
+  "release-notes": "v2",
 } as const;
 
 export type PromptName = keyof typeof PROMPT_VERSIONS;

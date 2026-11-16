@@ -88,7 +88,7 @@ start page: /dashboard                     # default: the page in url
 ai: anthropic                              # anthropic | openai (default: whichever key you have)
 model: claude-opus-5-5                     # default: the provider's default model
 voice: kokoro                              # kokoro (free) | openai | elevenlabs | none
-length: 60                                 # seconds per video (default: 90)
+length: 60                                 # longest video, in seconds (default: 90)
 template: product-update                   # the video's look (default: picked per video, see below)
 language: en                               # Kokoro speaks English only
 logo: acme-logo.png                        # next to this file
@@ -126,6 +126,11 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
 - Saves each working plan in its database and replays it next time: no AI cost, same
   video. If you edit the feature in the release notes, or the app changed and the plan
   stops working, it plans again. Use `--fresh` to force a new plan.
+- Reuses what has not changed: the feature list of an unchanged product file, the
+  narration of a replayed plan, and every line already spoken in the same voice.
+- Fits the narration to the clicks: each line is about as long as its steps take on
+  screen, so the video never stands still waiting for the voice. `length` is the
+  longest a video may be; a short flow makes a short video.
 
 ## Voice
 
@@ -166,6 +171,7 @@ git):
 | `jobs` | one row per video: product, goal, status, AI and model, voice, cost, video path, full metadata |
 | `job_records` | per video: the product settings used (passwords hidden), the click-plan, the AI's practice run, narration script, captions (SRT and WebVTT), recording and browser reports, quality checks, the log, and the thumbnail |
 | `plans` | the working click-plan of each feature, replayed by the next video without AI planning |
+| `cache` | AI answers and spoken lines that are identical for identical inputs (unused entries are deleted after 30 days) |
 
 While a video is being made, its raw recording and voice clips sit in
 `engine/data/work/<job>/`. That folder is deleted when the video succeeds, and kept when it
@@ -729,7 +735,7 @@ Secrets must never be committed: `env:NAME` reads a value from the git-ignored `
 
 ```bash
 showrun easydash            # one video of everything new
-showrun easydash --each     # one video per new feature
+showrun easydash --each     # one video per new feature (two are made at a time)
 ```
 
 The AI picks the new user-visible features from the release notes, then plans, verifies,
@@ -744,8 +750,9 @@ showrun easydash "Demonstrate how to create and restore a website backup"
 ## Repeatable runs
 
 Each verified plan is saved in the database and replayed by the next video of the same
-feature, without AI planning. It is re-planned automatically when the feature text changes
-or the app no longer matches it, or on `--fresh`.
+feature, without AI planning. Its narration and voice clips are reused too. It is
+re-planned automatically when the feature text changes or the app no longer matches it, or
+on `--fresh`.
 
 ---
 

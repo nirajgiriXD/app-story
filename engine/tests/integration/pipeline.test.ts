@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@app-story/contracts";
-import { generateDemo, planFile, savePlan, storeFor } from "@app-story/core";
+import { generateDemo, listTakes, planFile, redoVideo, savePlan, storeFor } from "@app-story/core";
 import { loadProduct, parseWorkflow } from "@app-story/products";
 import { probeMedia } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
@@ -112,6 +112,23 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(metadata.video!.path).toBe(join(outputDir, "example", `${metadata.job_id}-${"demonstrate-how-to-create-a-new-project"}.mp4`));
     expect((await readdir(join(outputDir, "example"))).every((f) => f.endsWith(".mp4"))).toBe(true);
     expect(existsSync(metadata.output_dir)).toBe(false);
+  });
+
+  it("makes a video again from its kept recording, in another look, without the app", async () => {
+    const product = await loadProduct(productsDir, "example");
+    const [newest] = await listTakes(storeFor(outputDir).dataDir, "example");
+    expect(newest).toBeDefined();
+    // Pointed at an address where nothing runs: a redo never opens the app.
+    const offline = { ...product, config: { ...product.config, product: { ...product.config.product, base_url: "http://127.0.0.1:9" } } };
+    const metadata = await redoVideo({ product: offline, outputDir, template: "minimal", logLevel: "warn" });
+
+    expect(metadata.errors).toEqual([]);
+    expect(metadata.status).toBe("success");
+    expect(metadata.mode).toBe("redo");
+    expect(metadata.redo_of).toBe(newest?.jobId);
+    const video = await probeMedia(metadata.video!.path);
+    expect([video.width, video.height, video.videoCodec, video.audioCodec]).toEqual([1920, 1080, "h264", "aac"]);
+    expect(storeFor(outputDir).getRecordJson(metadata.job_id, "config")).toMatchObject({ config: { demo: { template: "minimal" } } });
   });
 
   it("narrates with the free local Kokoro voice (no API key)", async () => {

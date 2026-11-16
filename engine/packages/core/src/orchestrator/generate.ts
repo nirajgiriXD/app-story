@@ -11,6 +11,7 @@ import { prepareNarration } from "../pipeline/narrate";
 import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
 import { composeVideo } from "../pipeline/compose";
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
+import { keepTake, type Take } from "../pipeline/takes";
 import { statusForError } from "../pipeline/status";
 import { exclusive } from "../pipeline/exclusive";
 import { runQualityChecks } from "../qa/quality";
@@ -44,6 +45,7 @@ const STALE_PLAN_CODES = new Set(["WORKFLOW_FAILED", "VERIFICATION_FAILED"]);
  * The end-to-end pipeline:
  * plan (saved, or AI rehearsal) → narration → paced recording → captions → render →
  * quality checks → report. A video is only produced from a fully verified run.
+ * The recording is kept as a take, so the video can be made again with `redo`.
  */
 export async function generateDemo(request: GenerateRequest): Promise<JobMetadata> {
   const { product } = request;
@@ -142,49 +144,72 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       take = await narrateAndRecord(workflow);
     }
     const { clips, silent, recorded } = take;
-
-    // 4. Captions + render
-    phase = "render";
-    const composed = await exclusive(() => composeVideo(job, product, workflow, clips, recorded, { kind: request.kind }));
-    const final = await probeMedia(job.paths.finalVideo);
-    job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
-
-    // 5. Quality
-    phase = "quality";
-    const quality = await runQualityChecks({
-      jobId: job.id,
-      paths: job.paths,
-      config,
+    const kept: Take = {
+      job_id: job.id,
+      product_id: product.id,
+      name,
+      objective: request.objective,
+      kind: request.kind ?? null,
       workflow,
-      recorded,
       clips,
-      cues: composed.cues,
-      plan: composed.plan,
-      silentNarration: silent,
-    });
-    saveRecord(job, "quality", quality);
-    const errors = quality.checks.filter((c) => !c.passed && c.severity === "error");
-    const warnings = quality.checks.filter((c) => !c.passed && c.severity === "warning");
-    job.metadata.quality = { passed: quality.passed, errors: errors.length, warnings: warnings.length };
-    job.metadata.warnings.push(...warnings.map((w) => `quality: ${w.name}${w.detail ? ` (${w.detail})` : ""}`));
+      recorded,
+      silent,
+    };
 
-    let status: JobStatus;
-    if (errors.length > 0) {
-      for (const e of errors)
-        recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
-      status = "failed";
-    } else {
-      status = job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
-      // The video is the only file in output/; keep the verified plan for the next video.
-      await deliverVideo(job);
-      if (reuse && !fromSavedPlan) await savePlan(product, name, workflow);
-    }
+    // 4–5. Captions, render and quality checks.
+    phase = "render";
+    const status = await renderTake(job, product, kept, { onPhase: (p) => (phase = p) });
+    if (status !== "failed" && reuse && !fromSavedPlan) await savePlan(product, name, workflow);
     return await finishJob(job, status);
   } catch (error) {
     recordError(job, error, phase);
     job.log.error({ phase, error: (error as Error).message }, "job failed");
     return finishJob(job, statusForError(error));
   }
+}
+
+/**
+ * From a recording to a delivered video: captions, render, quality checks, then the video
+ * goes to `output/` and the take is kept for `redo`. Used by new videos and by redos.
+ */
+export async function renderTake(job: Job, product: LoadedProduct, take: Take, options: { onPhase?: (phase: string) => void } = {}): Promise<JobStatus> {
+  const { workflow, clips, recorded, silent } = take;
+  const config = product.config;
+  const kind = take.kind ?? undefined;
+  // Kept before rendering, so a video whose render failed can be made again with `redo`.
+  await keepTake(job, take).catch((error: Error) => job.log.warn({ error: error.message }, "could not keep the recording for redo"));
+
+  options.onPhase?.("render");
+  const composed = await exclusive(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
+  const final = await probeMedia(job.paths.finalVideo);
+  job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
+
+  options.onPhase?.("quality");
+  const quality = await runQualityChecks({
+    jobId: job.id,
+    paths: job.paths,
+    config,
+    workflow,
+    recorded,
+    clips,
+    cues: composed.cues,
+    plan: composed.plan,
+    silentNarration: silent,
+  });
+  saveRecord(job, "quality", quality);
+  const errors = quality.checks.filter((c) => !c.passed && c.severity === "error");
+  const warnings = quality.checks.filter((c) => !c.passed && c.severity === "warning");
+  job.metadata.quality = { passed: quality.passed, errors: errors.length, warnings: warnings.length };
+  job.metadata.warnings.push(...warnings.map((w) => `quality: ${w.name}${w.detail ? ` (${w.detail})` : ""}`));
+
+  if (errors.length > 0) {
+    for (const e of errors)
+      recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
+    return "failed";
+  }
+  // The video is the only file in output/.
+  await deliverVideo(job);
+  return job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
 }
 
 function failIfIncomplete(recorded: RecordingOutcome): void {

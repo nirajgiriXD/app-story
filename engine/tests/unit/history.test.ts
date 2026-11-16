@@ -5,8 +5,12 @@ import { dirname, join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DatabaseSync } from "node:sqlite";
 import {
+  TAKES_PER_PRODUCT,
   countPlans,
   createJob,
+  keepTake,
+  listTakes,
+  loadTake,
   deliverVideo,
   finishJob,
   forgetPlan,
@@ -141,4 +145,48 @@ describe("saved plans", () => {
     expect(existsSync(planFile(product, "create-a-project"))).toBe(true);
     expect(store.takeLegacyPlan("example", "create-a-project")).toBeUndefined();
   });
+});
+
+describe("kept recordings (takes)", () => {
+  it("keeps the recording and clips of the newest videos of each product, for redo", async () => {
+    const out = await workspace();
+    const plan = parseWorkflow(await readFile("engine/tests/fixtures/create-project.plan.yaml", "utf8"));
+    const keep = async (productId: string) => {
+      const j = await job(out, productId, "checkout");
+      await mkdir(j.paths.recordingDir, { recursive: true });
+      await mkdir(j.paths.narrationDir, { recursive: true });
+      await writeFile(j.paths.rawRecording, `video of ${j.id}`);
+      const clip = { id: "c1", kind: "segment" as const, text: "Hi", step_ids: ["s1"], path: join(j.paths.narrationDir, "c1.wav"), duration_ms: 900 };
+      await writeFile(clip.path, "audio");
+      const recording = { path: j.paths.rawRecording, durationMs: 5000, frames: 150, width: 1920, height: 1080 };
+      const report = { ok: true, steps: [], cursor: [], issues: [] } as never;
+      await keepTake(j, {
+        job_id: j.id,
+        product_id: productId,
+        name: "checkout",
+        objective: "show checkout",
+        kind: "feature",
+        workflow: plan,
+        clips: [clip],
+        recorded: { report, recording, placed: [{ ...clip, start_ms: 100 }], startUrl: "http://localhost/" },
+        silent: false,
+      });
+      await new Promise((r) => setTimeout(r, 1100)); // job ids carry the time to the second
+      return j.id;
+    };
+
+    const ids: string[] = [];
+    for (let i = 0; i <= TAKES_PER_PRODUCT; i++) ids.push(await keep("shop"));
+    await keep("crm");
+
+    const dataDir = storeFor(out).dataDir;
+    expect((await listTakes(dataDir, "shop")).map((t) => t.jobId)).toEqual(ids.slice(1).reverse()); // the oldest is gone
+    expect(await listTakes(dataDir, "crm")).toHaveLength(1);
+
+    const take = await loadTake(dataDir, ids[TAKES_PER_PRODUCT] as string);
+    expect(await readFile(take.recorded.recording.path, "utf8")).toBe(`video of ${ids[TAKES_PER_PRODUCT]}`);
+    expect(await readFile(take.clips[0]?.path as string, "utf8")).toBe("audio");
+    expect(take.recorded.placed[0]?.path).toBe(take.clips[0]?.path);
+    await expect(loadTake(dataDir, ids[0] as string)).rejects.toThrow(/no kept recording/);
+  }, 30_000);
 });

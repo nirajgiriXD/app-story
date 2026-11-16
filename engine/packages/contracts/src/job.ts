@@ -59,8 +59,11 @@ export const JobMetadataSchema = z.object({
   job_id: z.string(),
   product_id: z.string(),
   scenario_id: z.string().nullable(),
-  mode: z.enum(["guided", "scenario", "discovery", "dry_run"]),
+  /** guided: planned by the AI; scenario: replayed a saved plan; redo: made again from a kept recording. */
+  mode: z.enum(["guided", "scenario", "discovery", "dry_run", "redo"]),
   objective: z.string().nullable(),
+  /** For a redo: the video whose recording was used. */
+  redo_of: z.string().nullable().optional(),
   status: JobStatusSchema,
   created_at: z.string(),
   finished_at: z.string().nullable(),

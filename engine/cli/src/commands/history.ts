@@ -24,9 +24,9 @@ export function historyCommand(): Command {
         const icon = e.status === "success" ? green("✔") : e.status === "success_with_warnings" ? yellow("✔") : red("✖");
         const firstLine = (e.objective ?? e.mode).split("\n")[0] ?? "";
         const what = firstLine.length > 80 ? `${firstLine.slice(0, 77)}...` : firstLine;
-        const how = e.mode === "scenario" ? "replayed saved plan" : "planned by AI";
+        const how = e.mode === "scenario" ? "replayed saved plan" : e.mode === "redo" ? "made again from a kept recording" : "planned by AI";
         const cost = e.cost_usd ? ` · $${e.cost_usd.toFixed(3)}` : "";
-        console.log(`${icon} ${new Date(e.created_at).toLocaleString()}  ${e.product_id}  ${what}`);
+        console.log(`${icon} ${new Date(e.created_at).toLocaleString()}  ${e.product_id}  ${what}  ${dim(e.job_id)}`);
         console.log(dim(`    ${e.status.replace(/_/g, " ")} · ${how}${e.ai ? ` · ${e.ai}` : ""}${cost}`));
         console.log(dim(`    ${e.video ?? e.output_dir}`));
       }

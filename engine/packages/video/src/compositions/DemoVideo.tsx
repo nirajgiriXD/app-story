@@ -41,10 +41,19 @@ const Music: React.FC<{ p: RenderProps }> = ({ p }) => {
       loop
       volume={(frame) => {
         const ms = (frame / fps) * 1000;
-        const speaking = p.audio.some((a) => ms >= a.startMs - 200 && ms <= a.startMs + a.durationMs + 200);
+        // Duck under the voice with short fades, so the music never jumps in volume.
+        const duck = Math.max(
+          0,
+          ...p.audio.map((a) =>
+            interpolate(ms, [a.startMs - 350, a.startMs, a.startMs + a.durationMs, a.startMs + a.durationMs + 500], [0, 1, 1, 0], {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+            }),
+          ),
+        );
         const fadeIn = interpolate(frame, [0, fps], [0, 1], { extrapolateRight: "clamp" });
         const fadeOut = interpolate(frame, [durationInFrames - 2 * fps, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
-        return music.volume * (speaking ? 0.4 : 1) * fadeIn * fadeOut;
+        return music.volume * (1 - 0.6 * duck) * fadeIn * fadeOut;
       }}
     />
   );

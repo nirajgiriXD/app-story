@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RenderProps } from "../props";
 import { asset, backdrop, fontStack, px, textColor } from "./theme";

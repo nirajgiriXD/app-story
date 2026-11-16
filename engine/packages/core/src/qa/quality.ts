@@ -38,14 +38,26 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
     const r = results.get(s.id);
     return !r || r.status === "failed";
   });
-  add("workflow", "all required steps executed", missing.length === 0, "error", missing.length ? `missing/failed: ${missing.map((s) => s.id).join(", ")}` : undefined);
+  add(
+    "workflow",
+    "all required steps executed",
+    missing.length === 0,
+    "error",
+    missing.length ? `missing/failed: ${missing.map((s) => s.id).join(", ")}` : undefined,
+  );
 
   const verifySteps = input.workflow.steps.filter((s) => s.action === "assert" || s.expected);
   const verifiedOk = verifySteps.filter((s) => {
     const r = results.get(s.id);
     return r?.status === "passed" && r.verified;
   });
-  add("workflow", "expected outcomes verified", verifySteps.length > 0 && verifiedOk.length === verifySteps.length, "error", `${verifiedOk.length}/${verifySteps.length} verifications passed`);
+  add(
+    "workflow",
+    "expected outcomes verified",
+    verifySteps.length > 0 && verifiedOk.length === verifySteps.length,
+    "error",
+    `${verifiedOk.length}/${verifySteps.length} verifications passed`,
+  );
 
   const lastStep = input.workflow.steps[input.workflow.steps.length - 1];
   add("workflow", "stopped at the intended endpoint", Boolean(lastStep && results.get(lastStep.id)?.status === "passed"), "error");
@@ -60,7 +72,13 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
     .slice(2)
     .map((s, i) => ({ id: s.step_id, ms: s.started_ms - (ran[i + 1] as (typeof ran)[number]).ended_ms }))
     .filter((g) => g.ms > LONG_PAUSE_MS);
-  add("recording", "no long still screens", stills.length === 0, "warning", stills.length ? stills.map((g) => `${(g.ms / 1000).toFixed(1)}s before ${g.id}`).join(", ") : undefined);
+  add(
+    "recording",
+    "no long still screens",
+    stills.length === 0,
+    "warning",
+    stills.length ? stills.map((g) => `${(g.ms / 1000).toFixed(1)}s before ${g.id}`).join(", ") : undefined,
+  );
 
   const voice = [...input.recorded.placed].sort((a, b) => a.start_ms - b.start_ms);
   const silences = voice
@@ -70,27 +88,57 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
       return { id: c.id, ms: c.start_ms - (prev.start_ms + prev.duration_ms) };
     })
     .filter((g) => g.ms > LONG_PAUSE_MS);
-  add("audio", "no long silences", silences.length === 0, "warning", silences.length ? silences.map((g) => `${(g.ms / 1000).toFixed(1)}s before ${g.id}`).join(", ") : undefined);
+  add(
+    "audio",
+    "no long silences",
+    silences.length === 0,
+    "warning",
+    silences.length ? silences.map((g) => `${(g.ms / 1000).toFixed(1)}s before ${g.id}`).join(", ") : undefined,
+  );
 
   const blocked = report.issues.filter((i) => i.kind === "blocked_navigation");
   add("workflow", "no unexpected navigation", blocked.length === 0, "warning", blocked.map((b) => b.url).join(", ") || undefined);
   const browserErrors = report.issues.filter((i) => i.kind !== "blocked_navigation");
-  add("workflow", "no browser errors", browserErrors.length === 0, "warning", browserErrors.length ? `${browserErrors.length} console/network issue(s), see logs/browser.json` : undefined);
+  add(
+    "workflow",
+    "no browser errors",
+    browserErrors.length === 0,
+    "warning",
+    browserErrors.length ? `${browserErrors.length} console/network issue(s), see logs/browser.json` : undefined,
+  );
 
   // --- recording
   const rawProbe = await safeProbe(input.paths.rawRecording);
   add("recording", "recording present and playable", Boolean(rawProbe && rawProbe.durationSec > 0), "error");
   if (rawProbe) {
     const minSec = Math.max(3, report.steps.length * 0.5);
-    add("recording", "duration is reasonable", rawProbe.durationSec >= minSec && rawProbe.durationSec < 20 * 60, "error", `${rawProbe.durationSec.toFixed(1)}s`);
+    add(
+      "recording",
+      "duration is reasonable",
+      rawProbe.durationSec >= minSec && rawProbe.durationSec < 20 * 60,
+      "error",
+      `${rawProbe.durationSec.toFixed(1)}s`,
+    );
     const vp = input.config.browser.viewport;
     const dsf = input.config.browser.device_scale_factor;
     const engine = input.config.recording.engine;
     const want = engine === "cdp" ? [vp.width * dsf, vp.height * dsf] : [vp.width, vp.height];
-    add("recording", "viewport matches configuration", rawProbe.width === want[0] && rawProbe.height === want[1], "error", `${rawProbe.width}x${rawProbe.height}`);
+    add(
+      "recording",
+      "viewport matches configuration",
+      rawProbe.width === want[0] && rawProbe.height === want[1],
+      "error",
+      `${rawProbe.width}x${rawProbe.height}`,
+    );
     // A blank (single-colour) frame at the end means the app UI was not on screen.
     const contrast = await frameContrast(input.paths.rawRecording, Math.max(0, rawProbe.durationSec - 1.5)).catch(() => undefined);
-    add("recording", "application UI visible", contrast === undefined || contrast > 12, "error", contrast === undefined ? "not measured" : `luma range ${contrast}`);
+    add(
+      "recording",
+      "application UI visible",
+      contrast === undefined || contrast > 12,
+      "error",
+      contrast === undefined ? "not measured" : `luma range ${contrast}`,
+    );
   }
 
   // --- audio
@@ -116,7 +164,13 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
 
   // --- final video
   const final = await safeProbe(input.paths.finalVideo);
-  add("video", "final MP4 valid", Boolean(final && final.videoCodec === "h264" && final.audioCodec === "aac"), "error", final ? `${final.videoCodec}/${final.audioCodec}` : "missing");
+  add(
+    "video",
+    "final MP4 valid",
+    Boolean(final && final.videoCodec === "h264" && final.audioCodec === "aac"),
+    "error",
+    final ? `${final.videoCodec}/${final.audioCodec}` : "missing",
+  );
   if (final) {
     const [w, h] = RESOLUTIONS[input.config.demo.default_resolution];
     add("video", "resolution correct", final.width === w && final.height === h, "error", `${final.width}x${final.height}`);
@@ -124,11 +178,23 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
     add("video", "duration matches timeline (audio in sync)", drift < 1000, "error", `drift ${Math.round(drift)}ms`);
     // The length is a maximum: a short, tight video is fine; title cards add a few seconds.
     const target = input.config.demo.default_duration;
-    add("video", "within the requested length", final.durationSec <= target * 1.25 + 8, "warning", `${final.durationSec.toFixed(1)}s, at most ~${target}s requested`);
+    add(
+      "video",
+      "within the requested length",
+      final.durationSec <= target * 1.25 + 8,
+      "warning",
+      `${final.durationSec.toFixed(1)}s, at most ~${target}s requested`,
+    );
   }
   const maxLine = Math.max(0, ...input.cues.flatMap((c) => c.text.split("\n").map((l) => l.length)));
   const tooFast = input.cues.filter((c) => c.end_ms - c.start_ms < 700);
-  add("video", "captions readable", maxLine <= input.config.captions.max_chars_per_line + 8 && tooFast.length === 0, "warning", `longest line ${maxLine} chars`);
+  add(
+    "video",
+    "captions readable",
+    maxLine <= input.config.captions.max_chars_per_line + 8 && tooFast.length === 0,
+    "warning",
+    `longest line ${maxLine} chars`,
+  );
   add("video", "thumbnail generated", await fileExists(input.paths.thumbnail), "warning");
 
   return {

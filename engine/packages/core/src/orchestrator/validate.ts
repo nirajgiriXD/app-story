@@ -36,7 +36,8 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
 
   const ai = config.providers.ai;
   const aiKey = API_KEYS[ai.provider] as string;
-  if (process.env[aiKey] || (ai.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN)) ok(`AI: ${ai.provider}${ai.model ? ` / ${ai.model}` : ""} (${aiKey} found)`);
+  if (process.env[aiKey] || (ai.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN))
+    ok(`AI: ${ai.provider}${ai.model ? ` / ${ai.model}` : ""} (${aiKey} found)`);
   else error(`${aiKey} is not set; add it to .env (or set "ai:" to the provider you have a key for)`);
   if (config.providers.ai_fallback) ok(`backup AI: ${config.providers.ai_fallback.provider}, used if ${ai.provider} fails`);
 
@@ -54,7 +55,8 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
     if (voice.style) warn("APP_STORY_VOICE_TONE is ignored: Kokoro has no tone control (only the OpenAI voice does)");
   } else {
     const ttsKey = API_KEYS[tts] as string;
-    if (process.env[ttsKey]) ok(`voice: ${tts}${voice.voice ? ` ${voice.voice}` : ""}${speed}${voice.style && tts === "openai" ? `, tone "${voice.style}"` : ""} (${ttsKey} found)`);
+    if (process.env[ttsKey])
+      ok(`voice: ${tts}${voice.voice ? ` ${voice.voice}` : ""}${speed}${voice.style && tts === "openai" ? `, tone "${voice.style}"` : ""} (${ttsKey} found)`);
     else error(`${ttsKey} is not set (needed for the ${tts} voice)`);
     if (voice.accent) warn("APP_STORY_VOICE_ACCENT is ignored: it only picks among the free Kokoro voices");
     if (voice.style && tts !== "openai") warn(`APP_STORY_VOICE_TONE is ignored: only the OpenAI voice follows a tone`);
@@ -66,7 +68,9 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
     for (const name of missing) error(`${name} is not set; add it to .env (it is used by "login:")`);
     if (missing.length === 0) {
       const passwordFrom = credentialEnvName(auth.password);
-      ok(`login: ${credentialEnvName(auth.username) ? `from ${credentialEnvName(auth.username)}` : auth.username}, password ${passwordFrom ? `from ${passwordFrom}` : "written in the file"}`);
+      ok(
+        `login: ${credentialEnvName(auth.username) ? `from ${credentialEnvName(auth.username)}` : auth.username}, password ${passwordFrom ? `from ${passwordFrom}` : "written in the file"}`,
+      );
     }
   } else {
     ok("login: none");
@@ -78,7 +82,9 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
       : `video look: picked per video (${pickTemplate(undefined, "whats-new")} for what's new, ${pickTemplate(undefined, "feature")} with --each, ${pickTemplate(undefined, "how-to")} for a goal)`,
   );
 
-  const allowed = Object.entries(config.safety.allow).filter(([, on]) => on).map(([name]) => name.replace(/_/g, " "));
+  const allowed = Object.entries(config.safety.allow)
+    .filter(([, on]) => on)
+    .map(([name]) => name.replace(/_/g, " "));
   ok(`blocked actions: ${allowed.length ? `all except ${allowed.join(", ")}` : "delete, payments, emails, publishing, account settings, invites"}`);
 
   for (const path of [config.branding.logo, config.branding.background_music]) {

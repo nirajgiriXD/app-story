@@ -1,15 +1,11 @@
 import { AppStoryError } from "./errors";
 
-export const sleep = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
+export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, Math.max(0, ms)));
 
 export async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new AppStoryError("TIMEOUT", `${label} timed out after ${Math.round(ms / 1000)}s.`)),
-      ms,
-    );
+    timer = setTimeout(() => reject(new AppStoryError("TIMEOUT", `${label} timed out after ${Math.round(ms / 1000)}s.`)), ms);
   });
   try {
     return await Promise.race([promise, timeout]);
@@ -41,11 +37,7 @@ export async function retry<T>(fn: (attempt: number) => Promise<T>, options: Ret
 }
 
 /** Run tasks with at most `limit` in flight. Results keep input order. */
-export async function mapWithConcurrency<T, R>(
-  items: readonly T[],
-  limit: number,
-  fn: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
+export async function mapWithConcurrency<T, R>(items: readonly T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
   const workers = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {

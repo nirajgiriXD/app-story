@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import type React from "react";
+import { useMemo } from "react";
 import { AbsoluteFill, OffthreadVideo, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RenderProps } from "../props";
 import { cameraAt, cameraTransform, cursorAt, latestAt, mergeFocusWindows } from "../timeline";
@@ -91,7 +92,9 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
 
 const WindowBar: React.FC<{ p: RenderProps; url: string; height: number }> = ({ p, url, height }) => {
   const dark = isDark(p);
-  const dot = (color: string) => <span style={{ width: height * 0.26, height: height * 0.26, borderRadius: "50%", background: color, display: "inline-block" }} />;
+  const dot = (color: string) => (
+    <span style={{ width: height * 0.26, height: height * 0.26, borderRadius: "50%", background: color, display: "inline-block" }} />
+  );
   let display = url;
   try {
     const u = new URL(url);
@@ -169,7 +172,13 @@ const Cursor: React.FC<{ p: RenderProps; x: number; y: number; sinceClickMs: num
           }}
         />
       ) : null}
-      <svg width={size} height={size} viewBox="0 0 24 24" style={{ position: "absolute", left: -size * 0.12, top: -size * 0.06, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}>
+      <svg
+        aria-hidden="true"
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        style={{ position: "absolute", left: -size * 0.12, top: -size * 0.06, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}
+      >
         <path d="M4 2 L4 20 L9 15.5 L12.5 22.5 L15.5 21 L12 14 L19 14 Z" fill="#0F172A" stroke="#FFFFFF" strokeWidth="1.6" strokeLinejoin="round" />
       </svg>
     </div>

@@ -37,9 +37,22 @@ const T = (o: Record<string, unknown>) => ({ role: null, name: null, label: null
 const plannerAI = () =>
   new ScriptedProvider(
     [
-      { name: "click", input: { description: "Open the new project form", section: "Create", target: T({ role: "link", name: "+ New project" }), expected: null } },
+      {
+        name: "click",
+        input: { description: "Open the new project form", section: "Create", target: T({ role: "link", name: "+ New project" }), expected: null },
+      },
       { name: "click", input: { description: "Open settings", section: "Create", target: T({ role: "button", name: "Does not exist" }), expected: null } },
-      { name: "fill", input: { description: "Name the project", section: "Create", target: T({ label: "Project name" }), value: "Website Launch", secret: null, expected: null } },
+      {
+        name: "fill",
+        input: {
+          description: "Name the project",
+          section: "Create",
+          target: T({ label: "Project name" }),
+          value: "Website Launch",
+          secret: null,
+          expected: null,
+        },
+      },
       { name: "click", input: { description: "Save the project", section: "Create", target: T({ role: "button", name: "Create project" }), expected: null } },
       {
         name: "verify",

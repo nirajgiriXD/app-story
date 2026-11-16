@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { Composition, type CalculateMetadataFunction } from "remotion";
 import { DemoVideo } from "../compositions/DemoVideo";
 import type { RenderProps } from "../props";

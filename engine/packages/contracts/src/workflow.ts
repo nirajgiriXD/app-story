@@ -57,20 +57,7 @@ export const ConditionSchema = z.object({
 });
 export type Condition = z.infer<typeof ConditionSchema>;
 
-export const STEP_ACTIONS = [
-  "navigate",
-  "click",
-  "fill",
-  "select",
-  "check",
-  "uncheck",
-  "hover",
-  "scroll",
-  "press",
-  "wait",
-  "screenshot",
-  "assert",
-] as const;
+export const STEP_ACTIONS = ["navigate", "click", "fill", "select", "check", "uncheck", "hover", "scroll", "press", "wait", "screenshot", "assert"] as const;
 export const StepActionSchema = z.enum(STEP_ACTIONS);
 export type StepAction = z.infer<typeof StepActionSchema>;
 

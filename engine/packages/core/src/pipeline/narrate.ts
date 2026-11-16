@@ -61,7 +61,11 @@ export async function prepareNarration(
   job.metadata.tts = { provider: tts.name, voice: tts.voice, model: tts.model };
   const cache = tts.silent ? undefined : speechCache(job, tts, config.providers.tts);
   const clips = await exclusive(() => synthesizeNarration(script, tts, job.paths.narrationDir, job.log, cache));
-  saveRecord(job, "narration_clips", clips.map(({ path: _path, ...clip }) => clip));
+  saveRecord(
+    job,
+    "narration_clips",
+    clips.map(({ path: _path, ...clip }) => clip),
+  );
   if (tts.silent) {
     if (!config.captions.enabled) {
       job.metadata.warnings.push("Captions are disabled too, so the video has no narration at all.");

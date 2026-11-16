@@ -27,9 +27,22 @@ export interface Recorder {
  */
 export function intermediateVideoArgs(width: number, height: number, fps: number): string[] {
   return [
-    "-vf", `scale=${width}:${height}:flags=lanczos:out_color_matrix=bt709:out_range=tv,fps=${fps},format=yuv444p`,
-    "-c:v", "libx264", "-preset", "ultrafast", "-qp", "0",
-    "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
+    "-vf",
+    `scale=${width}:${height}:flags=lanczos:out_color_matrix=bt709:out_range=tv,fps=${fps},format=yuv444p`,
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-qp",
+    "0",
+    "-colorspace",
+    "bt709",
+    "-color_primaries",
+    "bt709",
+    "-color_trc",
+    "bt709",
+    "-color_range",
+    "tv",
   ];
 }
 

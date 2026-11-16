@@ -57,10 +57,13 @@ export async function recordWorkflow(
       controller.setPresentationMode(true);
       await controller.wait(LEAD_IN_MS);
 
-      const pacer = new NarrationPacer(clips.filter((c) => c.kind === "segment"), {
-        now: () => controller.now(),
-        wait: (ms) => controller.wait(ms),
-      });
+      const pacer = new NarrationPacer(
+        clips.filter((c) => c.kind === "segment"),
+        {
+          now: () => controller.now(),
+          wait: (ms) => controller.wait(ms),
+        },
+      );
       const report = await runSteps(controller, workflow.steps, {
         phase: "recording",
         log: job.log,
@@ -80,10 +83,14 @@ export async function recordWorkflow(
   saveRecord(job, "browser_issues", outcome.report.issues);
 
   if (workflow.cleanup.length > 0) {
-    await withBrowser(product, { workDir: join(job.paths.logsDir, "cleanup"), log: job.log, headless: options.headless, loginState: job.loginState }, async (s) => {
-      const cleanup = await runSteps(s.controller, workflow.cleanup, { phase: "recording", log: job.log, retries: 1 });
-      if (!cleanup.ok) job.metadata.warnings.push("A cleanup step failed; demo data may need manual cleanup.");
-    });
+    await withBrowser(
+      product,
+      { workDir: join(job.paths.logsDir, "cleanup"), log: job.log, headless: options.headless, loginState: job.loginState },
+      async (s) => {
+        const cleanup = await runSteps(s.controller, workflow.cleanup, { phase: "recording", log: job.log, retries: 1 });
+        if (!cleanup.ok) job.metadata.warnings.push("A cleanup step failed; demo data may need manual cleanup.");
+      },
+    );
   }
   return outcome;
 }

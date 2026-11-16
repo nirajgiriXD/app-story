@@ -52,7 +52,13 @@ describe("workflow validation", () => {
 });
 
 describe("step execution", () => {
-  const click: Step = { id: "s1", description: "create", action: "click", target: { role: "button", name: "Create project" }, expected: { type: "text_present", text: "Project created" } };
+  const click: Step = {
+    id: "s1",
+    description: "create",
+    action: "click",
+    target: { role: "button", name: "Create project" },
+    expected: { type: "text_present", text: "Project created" },
+  };
 
   it("passes only when the expected outcome is verified", async () => {
     const result = await executeStep(new FakeController(), click, { retries: 0, log });

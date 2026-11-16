@@ -23,7 +23,14 @@ describe("rehearsal agent", () => {
       { name: "click", input: { description: "Open form", section: "Create", target: T({ name: "New project" }), expected: null } },
       { name: "click", input: { description: "Wrong", section: null, target: T({ name: "Nope" }), expected: null } },
       { name: "click", input: { description: "Create", section: null, target: T({ name: "Create project" }), expected: null } },
-      { name: "verify", input: { description: "Created", section: "Done", expectation: { type: "text_present", text: "Project created", target: null, value: null, count: null, description: "toast" } } },
+      {
+        name: "verify",
+        input: {
+          description: "Created",
+          section: "Done",
+          expectation: { type: "text_present", text: "Project created", target: null, value: null, count: null, description: "toast" },
+        },
+      },
       { name: "finish", input: { title: "Create a project", summary: "s", keep_step_ids: ["r1", "r3", "r4"] } },
     ]);
     const outcome = await rehearse(provider);
@@ -95,7 +102,10 @@ describe("narration", () => {
       },
       ["s1", "s2", "s3", "s4"],
     );
-    expect(script.segments.map((s) => s.step_ids)).toEqual([["s1", "s2"], ["s3", "s4"]]);
+    expect(script.segments.map((s) => s.step_ids)).toEqual([
+      ["s1", "s2"],
+      ["s3", "s4"],
+    ]);
     expect(script.segments[0]!.text).toBe("First. Again.");
     expect(script.intro).toBe("Hi");
   });
@@ -107,8 +117,14 @@ describe("narration", () => {
       language: "en",
       targetDurationS: 30,
       workflow: {
-        workflow_version: 1, id: "w", title: "Create a project", objective: "o", approved: true, created_by: "human",
-        setup: [], cleanup: [],
+        workflow_version: 1,
+        id: "w",
+        title: "Create a project",
+        objective: "o",
+        approved: true,
+        created_by: "human",
+        setup: [],
+        cleanup: [],
         steps: [{ id: "s1", description: "d", action: "navigate", url: "/", narration: "Start here." }],
       },
     });
@@ -118,8 +134,20 @@ describe("narration", () => {
 
   it("paces steps so each line finishes before the next begins", async () => {
     let now = 0;
-    const clock = { now: () => now, wait: async (ms: number) => void (now += ms) };
-    const clip = (id: string, steps: string[], duration: number): AudioClip => ({ id, kind: "segment", text: id, step_ids: steps, path: `${id}.mp3`, duration_ms: duration });
+    const clock = {
+      now: () => now,
+      wait: async (ms: number) => {
+        now += ms;
+      },
+    };
+    const clip = (id: string, steps: string[], duration: number): AudioClip => ({
+      id,
+      kind: "segment",
+      text: id,
+      step_ids: steps,
+      path: `${id}.mp3`,
+      duration_ms: duration,
+    });
     const pacer = new NarrationPacer([clip("a", ["s1", "s2"], 3000), clip("b", ["s3"], 1000)], clock, 300);
     await pacer.beforeStep({ id: "s1" });
     now += 500; // s1 runs
@@ -130,7 +158,10 @@ describe("narration", () => {
     expect(now).toBe(3300);
     await pacer.finish(1000);
     expect(now).toBe(3300 + 1000 + 300 + 1000);
-    expect(pacer.placed.map((p) => [p.id, p.start_ms])).toEqual([["a", 0], ["b", 3300]]);
+    expect(pacer.placed.map((p) => [p.id, p.start_ms])).toEqual([
+      ["a", 0],
+      ["b", 3300],
+    ]);
   });
 });
 
@@ -143,7 +174,15 @@ describe("provider fallback", () => {
 
   it("switches only on provider failures and records every attempt", async () => {
     const { withProviderFallback } = await import("../../packages/core/src/pipeline/providers");
-    const job = await createJob({ outputDir: await mkdtemp(join(tmpdir(), "df-")), productId: "app", name: "t", mode: "guided", objective: "o", scenarioId: null, logLevel: "silent" });
+    const job = await createJob({
+      outputDir: await mkdtemp(join(tmpdir(), "df-")),
+      productId: "app",
+      name: "t",
+      mode: "guided",
+      objective: "o",
+      scenarioId: null,
+      logLevel: "silent",
+    });
     const failing = { name: "anthropic", model: "m1" } as AIProvider;
     const working = { name: "openai", model: "m2" } as AIProvider;
     const result = await withProviderFallback(job, "rehearsal", config, { createAI: (c) => (c.provider === "anthropic" ? failing : working) }, async (p) => {
@@ -161,7 +200,15 @@ describe("provider fallback", () => {
 
   it("does not switch providers for workflow failures", async () => {
     const { withProviderFallback } = await import("../../packages/core/src/pipeline/providers");
-    const job = await createJob({ outputDir: await mkdtemp(join(tmpdir(), "df-")), productId: "app", name: "t", mode: "guided", objective: "o", scenarioId: null, logLevel: "silent" });
+    const job = await createJob({
+      outputDir: await mkdtemp(join(tmpdir(), "df-")),
+      productId: "app",
+      name: "t",
+      mode: "guided",
+      objective: "o",
+      scenarioId: null,
+      logLevel: "silent",
+    });
     const p = { name: "anthropic", model: "m1" } as AIProvider;
     await expect(
       withProviderFallback(job, "rehearsal", config, { createAI: () => p }, async () => {

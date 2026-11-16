@@ -155,7 +155,10 @@ describe("voice settings from .env", () => {
   });
 
   it("reads speed and tone", () => {
-    const tts = applyVoiceSettings({ provider: "openai", speed: 1 }, { APP_STORY_VOICE: "cedar", APP_STORY_VOICE_SPEED: "1.15", APP_STORY_VOICE_TONE: "warm and upbeat" });
+    const tts = applyVoiceSettings(
+      { provider: "openai", speed: 1 },
+      { APP_STORY_VOICE: "cedar", APP_STORY_VOICE_SPEED: "1.15", APP_STORY_VOICE_TONE: "warm and upbeat" },
+    );
     expect(tts).toMatchObject({ voice: "cedar", speed: 1.15, style: "warm and upbeat" });
   });
 

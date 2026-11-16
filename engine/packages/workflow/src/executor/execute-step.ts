@@ -54,11 +54,7 @@ async function performAction(controller: BrowserController, step: Step): Promise
  * Execute one step and verify its expected outcome. A step only passes when the
  * browser confirms it; nothing is assumed.
  */
-export async function executeStep(
-  controller: BrowserController,
-  step: Step,
-  options: StepExecutionOptions,
-): Promise<StepResult> {
+export async function executeStep(controller: BrowserController, step: Step, options: StepExecutionOptions): Promise<StepResult> {
   const started = controller.now();
   const base = { step_id: step.id, action: step.action, description: step.description, section: step.section };
 
@@ -111,9 +107,7 @@ export async function executeStep(
   const code = (lastError as { code?: string } | undefined)?.code === "VERIFICATION_FAILED" ? "VERIFICATION_FAILED" : err.code;
   let screenshot: string | undefined;
   if (options.screenshotDir) {
-    screenshot = await controller
-      .screenshot(join(options.screenshotDir, `failure-${step.id}.png`))
-      .catch(() => undefined);
+    screenshot = await controller.screenshot(join(options.screenshotDir, `failure-${step.id}.png`)).catch(() => undefined);
   }
   return {
     ...base,

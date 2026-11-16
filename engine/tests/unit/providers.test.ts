@@ -24,7 +24,13 @@ interface Harness {
 }
 
 const usageA = { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 4, cache_creation_input_tokens: 0 };
-const usageO = { input_tokens: 14, output_tokens: 5, total_tokens: 19, input_tokens_details: { cached_tokens: 4 }, output_tokens_details: { reasoning_tokens: 0 } };
+const usageO = {
+  input_tokens: 14,
+  output_tokens: 5,
+  total_tokens: 19,
+  input_tokens_details: { cached_tokens: 4 },
+  output_tokens_details: { reasoning_tokens: 0 },
+};
 
 const anthropic: Harness = {
   name: "anthropic",

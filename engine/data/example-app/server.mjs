@@ -50,13 +50,20 @@ input:focus,textarea:focus,select:focus{outline:2px solid #c7d2fe;border-color:#
 dl{display:grid;grid-template-columns:160px 1fr;gap:12px 24px;padding:28px;margin:0}dt{color:#64748b}dd{margin:0;font-weight:500}
 `;
 
-const page = (title, body) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)} · Projectly</title><style>${CSS}</style></head><body>${body}</body></html>`;
+const page = (title, body) =>
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${esc(title)} · Projectly</title><style>${CSS}</style></head><body>${body}</body></html>`;
 
 const shell = (active, content) =>
   page(
     active,
     `<div class="app"><aside class="side"><div class="brand"><div class="logo"></div>Projectly</div><nav class="nav" aria-label="Main">
-${[["Projects", "/projects"], ["Team", "/team"], ["Settings", "/settings"]].map(([l, h]) => `<a href="${h}" class="${l === active ? "active" : ""}">${l}</a>`).join("")}
+${[
+  ["Projects", "/projects"],
+  ["Team", "/team"],
+  ["Settings", "/settings"],
+]
+  .map(([l, h]) => `<a href="${h}" class="${l === active ? "active" : ""}">${l}</a>`)
+  .join("")}
 </nav></aside><main>${content}</main></div>`,
   );
 
@@ -150,7 +157,7 @@ const server = createServer(async (req, res) => {
   }
   if (!authed) return redirect(res, "/login");
 
-  if (url.pathname === "/" ) return redirect(res, "/projects");
+  if (url.pathname === "/") return redirect(res, "/projects");
   if (url.pathname === "/projects" && req.method === "GET") return send(res, 200, projectsPage(Number(url.searchParams.get("created"))));
   if (url.pathname === "/projects/new") return send(res, 200, newProjectPage());
   if (url.pathname === "/projects" && req.method === "POST") {
@@ -174,10 +181,24 @@ const server = createServer(async (req, res) => {
     return project ? send(res, 200, projectPage(project)) : send(res, 404, shell("Projects", "<h1>Not found</h1>"));
   }
   if (url.pathname === "/team") {
-    return send(res, 200, shell("Team", `<div class="top"><h1>Team</h1><button class="btn">Invite member</button></div><div class="card"><table><tbody>${TEAM.map((t) => `<tr><td>${t}</td><td>Member</td></tr>`).join("")}</tbody></table></div>`));
+    return send(
+      res,
+      200,
+      shell(
+        "Team",
+        `<div class="top"><h1>Team</h1><button class="btn">Invite member</button></div><div class="card"><table><tbody>${TEAM.map((t) => `<tr><td>${t}</td><td>Member</td></tr>`).join("")}</tbody></table></div>`,
+      ),
+    );
   }
   if (url.pathname === "/settings") {
-    return send(res, 200, shell("Settings", `<div class="top"><h1>Settings</h1></div><div class="card" style="padding:28px"><p>Workspace: Acme Inc.</p><button class="btn danger">Delete workspace</button></div>`));
+    return send(
+      res,
+      200,
+      shell(
+        "Settings",
+        `<div class="top"><h1>Settings</h1></div><div class="card" style="padding:28px"><p>Workspace: Acme Inc.</p><button class="btn danger">Delete workspace</button></div>`,
+      ),
+    );
   }
   send(res, 404, shell("Projects", "<h1>Not found</h1>"));
 });

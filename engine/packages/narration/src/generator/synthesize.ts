@@ -18,13 +18,7 @@ const LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11";
  * and measure each clip's real duration so the recording can be paced to it. Clips stay
  * uncompressed (WAV) until the final render, which encodes the audio once.
  */
-export async function synthesizeNarration(
-  script: NarrationScript,
-  tts: TTSProvider,
-  dir: string,
-  log: Logger,
-  cache?: SpeechCache,
-): Promise<AudioClip[]> {
+export async function synthesizeNarration(script: NarrationScript, tts: TTSProvider, dir: string, log: Logger, cache?: SpeechCache): Promise<AudioClip[]> {
   await ensureDir(dir);
   type Item = Omit<AudioClip, "path" | "duration_ms">;
   const all: Item[] = [

@@ -11,9 +11,7 @@ export const FeaturePlanSchema = z.object({
       z.object({
         // No .min(1): not every provider's strict mode accepts minLength. Empty titles are dropped after parsing.
         title: z.string().describe("Short feature name, in the notes' own words."),
-        details: z
-          .string()
-          .describe("Everything the notes say about this feature: what it does, where it is, how to use it. Never invent UI details."),
+        details: z.string().describe("Everything the notes say about this feature: what it does, where it is, how to use it. Never invent UI details."),
       }),
     )
     .describe("User-visible features worth showing on screen, in the order the notes list them."),

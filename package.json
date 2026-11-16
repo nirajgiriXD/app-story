@@ -13,6 +13,9 @@
   "scripts": {
     "app-story": "tsx engine/cli/src/index.ts",
     "typecheck": "tsc -p engine/tsconfig.json --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "test": "node engine/scripts/vitest.mjs run --project unit",
     "test:integration": "node engine/scripts/vitest.mjs run --project integration",
     "test:e2e": "node engine/scripts/vitest.mjs run --project e2e",
@@ -33,6 +36,7 @@
     "@app-story/shared": "*",
     "@app-story/video": "*",
     "@app-story/workflow": "*",
+    "@biomejs/biome": "2.6.8",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "dotenv": "^18.0.10",

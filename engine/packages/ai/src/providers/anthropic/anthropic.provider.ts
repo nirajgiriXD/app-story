@@ -138,13 +138,7 @@ export class AnthropicProvider implements AIProvider {
         .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
         .map((b) => ({ id: b.id, name: b.name, input: b.input }));
       const stop =
-        message.stop_reason === "refusal"
-          ? "refusal"
-          : message.stop_reason === "max_tokens"
-            ? "max_tokens"
-            : toolCalls.length > 0
-              ? "tool_calls"
-              : "end";
+        message.stop_reason === "refusal" ? "refusal" : message.stop_reason === "max_tokens" ? "max_tokens" : toolCalls.length > 0 ? "tool_calls" : "end";
       return { text: textOf(message.content), toolCalls, stop, usage: usageOf(message.usage) };
     };
     return { send };
@@ -194,7 +188,8 @@ function assertNotRefused(message: Anthropic.Message): void {
 }
 
 export function mapAnthropicError(error: unknown, model: string): unknown {
-  if (error instanceof AppStoryError) return error;  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
+  if (error instanceof AppStoryError) return error;
+  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
     return new AppStoryError("PROVIDER_AUTH", "Anthropic rejected the API key.", {
       cause: error,
       hint: "Check ANTHROPIC_API_KEY in your .env file.",

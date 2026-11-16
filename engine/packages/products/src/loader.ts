@@ -128,9 +128,7 @@ function parseLogin(login: string, file: string): { username: string; password: 
 }
 
 function parseAllow(allow: Settings["allow"], file: string): Partial<SafetyConfig["allow"]> {
-  const items = (Array.isArray(allow) ? allow : (allow ?? "").split(","))
-    .map((s) => s.trim().toLowerCase().replace(/[_-]+/g, " "))
-    .filter(Boolean);
+  const items = (Array.isArray(allow) ? allow : (allow ?? "").split(",")).map((s) => s.trim().toLowerCase().replace(/[_-]+/g, " ")).filter(Boolean);
   const out: Partial<SafetyConfig["allow"]> = {};
   for (const item of items) {
     const key = ALLOW_NAMES[item as keyof typeof ALLOW_NAMES];
@@ -279,7 +277,10 @@ export function applyVoiceSettings(tts: TtsConfig, env: NodeJS.ProcessEnv = proc
   if (tone) next.style = tone;
 
   if (next.provider === "kokoro" && !resolveKokoroVoice(next.voice, next.accent)) {
-    const names = (gender: string) => KOKORO_VOICES.filter((v) => v.gender === gender).map((v) => v.id).join(", ");
+    const names = (gender: string) =>
+      KOKORO_VOICES.filter((v) => v.gender === gender)
+        .map((v) => v.id)
+        .join(", ");
     throw new AppStoryError("CONFIG_INVALID", `Unknown voice '${next.voice}' in APP_STORY_VOICE.`, {
       hint: `Use female, male, or one of the Kokoro voices.\n  female: ${names("female")}\n  male:   ${names("male")}`,
     });

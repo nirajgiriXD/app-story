@@ -111,8 +111,14 @@ export function toolCallToStep(name: RehearsalToolName, raw: unknown, id: string
     case "fill": {
       const i = RehearsalToolInputs.fill.parse(raw);
       return {
-        id, description: i.description, section, action: "fill", target: toTarget(i.target), value: i.value,
-        secret: i.secret ?? undefined, expected: toExpectation(i.expected),
+        id,
+        description: i.description,
+        section,
+        action: "fill",
+        target: toTarget(i.target),
+        value: i.value,
+        secret: i.secret ?? undefined,
+        expected: toExpectation(i.expected),
       };
     }
     case "select_option": {
@@ -121,7 +127,14 @@ export function toolCallToStep(name: RehearsalToolName, raw: unknown, id: string
     }
     case "set_checkbox": {
       const i = RehearsalToolInputs.set_checkbox.parse(raw);
-      return { id, description: i.description, section, action: i.checked ? "check" : "uncheck", target: toTarget(i.target), expected: toExpectation(i.expected) };
+      return {
+        id,
+        description: i.description,
+        section,
+        action: i.checked ? "check" : "uncheck",
+        target: toTarget(i.target),
+        expected: toExpectation(i.expected),
+      };
     }
     case "hover": {
       const i = RehearsalToolInputs.hover.parse(raw);
@@ -130,8 +143,13 @@ export function toolCallToStep(name: RehearsalToolName, raw: unknown, id: string
     case "scroll": {
       const i = RehearsalToolInputs.scroll.parse(raw);
       return {
-        id, description: i.description, section, action: "scroll",
-        target: i.target ? toTarget(i.target) : undefined, direction: i.direction ?? undefined, amount: i.amount ?? undefined,
+        id,
+        description: i.description,
+        section,
+        action: "scroll",
+        target: i.target ? toTarget(i.target) : undefined,
+        direction: i.direction ?? undefined,
+        amount: i.amount ?? undefined,
       };
     }
     case "press_key": {

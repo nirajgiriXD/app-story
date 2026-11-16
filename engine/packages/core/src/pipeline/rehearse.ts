@@ -37,12 +37,7 @@ const GIVE_UP_CODES: Record<Extract<RehearsalOutcome, { status: "gave_up" }>["ca
  * Practice run: the AI explores and verifies the flow in an unrecorded browser and
  * returns a clean workflow (a click-plan). The practice run is kept in the database.
  */
-export async function rehearseWorkflow(
-  job: Job,
-  product: LoadedProduct,
-  options: RehearseOptions,
-  overrides: ProviderOverrides,
-): Promise<Workflow> {
+export async function rehearseWorkflow(job: Job, product: LoadedProduct, options: RehearseOptions, overrides: ProviderOverrides): Promise<Workflow> {
   const config = product.config;
   const outcome = await withProviderFallback(job, "rehearsal", config, overrides, (provider) =>
     withBrowser(

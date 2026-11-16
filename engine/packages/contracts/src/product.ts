@@ -34,9 +34,7 @@ export function pickTemplate(chosen: TemplateName | undefined, kind: VideoKind |
 
 export const EffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"]);
 
-const slug = z
-  .string()
-  .regex(/^[a-z0-9][a-z0-9-]*$/, "use lowercase letters, numbers and dashes");
+const slug = z.string().regex(/^[a-z0-9][a-z0-9-]*$/, "use lowercase letters, numbers and dashes");
 
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "use a 6-digit hex color like #2563EB");
 
@@ -87,10 +85,7 @@ const AutoAuthSchema = z.object({
   /** Page with the login form. Default: the start page, then common paths such as /login. */
   login_path: z.string().optional(),
 });
-export const AuthConfigSchema = z.discriminatedUnion("strategy", [
-  NoAuthSchema,
-  AutoAuthSchema,
-]);
+export const AuthConfigSchema = z.discriminatedUnion("strategy", [NoAuthSchema, AutoAuthSchema]);
 export type AuthConfig = z.infer<typeof AuthConfigSchema>;
 
 export const SafetyConfigSchema = z
@@ -128,9 +123,7 @@ export const ProductConfigSchema = z.object({
   }),
   browser: z
     .object({
-      viewport: z
-        .object({ width: z.number().int().min(320).default(1920), height: z.number().int().min(320).default(1080) })
-        .prefault({}),
+      viewport: z.object({ width: z.number().int().min(320).default(1920), height: z.number().int().min(320).default(1080) }).prefault({}),
       device_scale_factor: z.number().min(1).max(3).default(1),
       /** Hostnames the browser may visit. Defaults to the base_url host. `*.example.com` allows subdomains. */
       allowed_domains: z.array(z.string()).default([]),

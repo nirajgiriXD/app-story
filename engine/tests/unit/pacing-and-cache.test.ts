@@ -71,7 +71,16 @@ describe("several actions in one agent turn", () => {
       [click("Nope"), click("New project")],
       [{ name: "give_up", input: { reason: "x", category: "other" } }],
     ]);
-    await runRehearsal({ provider, controller, product: { name: "App", description: "d", baseUrl: "http://app.test" }, objective: "o", targetDurationS: 60, maxIterations: 6, maxDurationS: 60, log: createSilentLogger() });
+    await runRehearsal({
+      provider,
+      controller,
+      product: { name: "App", description: "d", baseUrl: "http://app.test" },
+      objective: "o",
+      targetDurationS: 60,
+      maxIterations: 6,
+      maxDurationS: 60,
+      log: createSilentLogger(),
+    });
 
     const results = provider.received.filter((r) => r.type === "tool_results").map((r) => (r.type === "tool_results" ? r.results : []));
     const [first = [], second = []] = results;

@@ -127,9 +127,7 @@ export class OpenAIProvider implements AIProvider {
       const toolCalls = response.output
         .filter((item): item is OpenAI.Responses.ResponseFunctionToolCall => item.type === "function_call")
         .map((call) => ({ id: call.call_id, name: call.name, input: safeJson(call.arguments) }));
-      const refused = response.output.some(
-        (item) => item.type === "message" && item.content.some((c) => c.type === "refusal"),
-      );
+      const refused = response.output.some((item) => item.type === "message" && item.content.some((c) => c.type === "refusal"));
       const truncated = response.status === "incomplete" && response.incomplete_details?.reason === "max_output_tokens";
       const stop = refused ? "refusal" : truncated ? "max_tokens" : toolCalls.length > 0 ? "tool_calls" : "end";
       return { text: response.output_text.trim(), toolCalls, stop, usage: usageOf(response.usage) };
@@ -167,17 +165,12 @@ function safeJson(text: string): unknown {
 }
 
 function assertComplete(response: OpenAI.Responses.Response): void {
-  const refusal = response.output
-    .flatMap((item) => (item.type === "message" ? item.content : []))
-    .find((c) => c.type === "refusal");
+  const refusal = response.output.flatMap((item) => (item.type === "message" ? item.content : [])).find((c) => c.type === "refusal");
   if (refusal && refusal.type === "refusal") {
     throw new AppStoryError("PROVIDER_REFUSAL", `OpenAI declined the request: ${refusal.refusal}`);
   }
   if (response.status === "incomplete") {
-    throw new AppStoryError(
-      "PROVIDER_INVALID_OUTPUT",
-      `OpenAI response was incomplete (${response.incomplete_details?.reason ?? "unknown reason"}).`,
-    );
+    throw new AppStoryError("PROVIDER_INVALID_OUTPUT", `OpenAI response was incomplete (${response.incomplete_details?.reason ?? "unknown reason"}).`);
   }
 }
 

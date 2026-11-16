@@ -25,11 +25,7 @@ export interface RunStepsOptions {
  * Run steps in order. Stops at the first failed step that is not optional.
  * Returns a report; never throws for step failures (callers decide what a failure means).
  */
-export async function runSteps(
-  controller: BrowserController,
-  steps: readonly Step[],
-  options: RunStepsOptions,
-): Promise<ExecutionReport> {
+export async function runSteps(controller: BrowserController, steps: readonly Step[], options: RunStepsOptions): Promise<ExecutionReport> {
   const startedAt = Date.now();
   const results: StepResult[] = [];
   if (options.screenshotDir) await ensureDir(options.screenshotDir);

@@ -101,9 +101,7 @@ function timestamp(ms: number, separator: "," | "."): string {
 }
 
 export function toSrt(cues: readonly CaptionCue[]): string {
-  return cues
-    .map((c, i) => `${i + 1}\n${timestamp(c.start_ms, ",")} --> ${timestamp(c.end_ms, ",")}\n${c.text}\n`)
-    .join("\n");
+  return cues.map((c, i) => `${i + 1}\n${timestamp(c.start_ms, ",")} --> ${timestamp(c.end_ms, ",")}\n${c.text}\n`).join("\n");
 }
 
 export function toVtt(cues: readonly CaptionCue[]): string {

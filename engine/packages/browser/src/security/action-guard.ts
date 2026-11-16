@@ -6,14 +6,36 @@ export type SensitiveCategory = "delete" | "payments" | "emails" | "publishing" 
 export const SENSITIVE_KEYWORDS: Record<SensitiveCategory, readonly string[]> = {
   delete: ["delete", "remove", "destroy", "erase", "purge", "trash", "terminate", "deactivate", "wipe", "drop"],
   payments: [
-    "pay", "pay now", "purchase", "buy", "checkout", "check out", "place order", "subscribe", "upgrade",
-    "charge", "add card", "payment", "billing", "cancel subscription", "refund",
+    "pay",
+    "pay now",
+    "purchase",
+    "buy",
+    "checkout",
+    "check out",
+    "place order",
+    "subscribe",
+    "upgrade",
+    "charge",
+    "add card",
+    "payment",
+    "billing",
+    "cancel subscription",
+    "refund",
   ],
   emails: ["send", "email", "e-mail", "resend", "notify", "mail"],
   publishing: ["publish", "go live", "deploy", "release", "make public", "unpublish", "post"],
   account_settings: [
-    "change password", "reset password", "delete account", "close account", "two-factor", "2fa",
-    "transfer ownership", "change email", "api key", "revoke", "sign out everywhere",
+    "change password",
+    "reset password",
+    "delete account",
+    "close account",
+    "two-factor",
+    "2fa",
+    "transfer ownership",
+    "change email",
+    "api key",
+    "revoke",
+    "sign out everywhere",
   ],
   invite_users: ["invite", "add member", "add user", "add teammate", "share access", "add collaborator"],
 };
@@ -61,8 +83,7 @@ export class ActionGuard {
     private readonly safety: SafetyConfig,
     mode: "normal" | "read_only" = "normal",
   ) {
-    this.readOnly =
-      mode === "read_only" || (safety.environment === "production" && !safety.allow.production_data);
+    this.readOnly = mode === "read_only" || (safety.environment === "production" && !safety.allow.production_data);
   }
 
   check(action: StepAction, element: ElementInfo | undefined, extraText = ""): GuardDecision {

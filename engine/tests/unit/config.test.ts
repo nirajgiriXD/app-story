@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } from "@app-story/contracts";
 import { getTemplate } from "@app-story/video";
 import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@app-story/products";
-import { AppStoryError, redactSecrets, resolveCredential } from "@app-story/shared";
+import { type AppStoryError, redactSecrets, resolveCredential } from "@app-story/shared";
 
 const KEYS = [
   "ANTHROPIC_API_KEY",
@@ -45,7 +45,13 @@ const errorOf = (fn: () => unknown): AppStoryError => {
 describe("product file", () => {
   it("needs only a url; everything else has a sensible default", () => {
     const { config, brief } = parse(file("url: https://staging.acme.test/app?tab=1"));
-    expect(config.product).toMatchObject({ id: "acme", name: "Acme", description: "Acme is a billing tool for small shops.", base_url: "https://staging.acme.test", start_path: "/app?tab=1" });
+    expect(config.product).toMatchObject({
+      id: "acme",
+      name: "Acme",
+      description: "Acme is a billing tool for small shops.",
+      base_url: "https://staging.acme.test",
+      start_path: "/app?tab=1",
+    });
     expect(config.browser).toMatchObject({ viewport: { width: 1600, height: 900 }, device_scale_factor: 2, allowed_domains: ["staging.acme.test"] });
     expect(config.authentication).toEqual({ strategy: "none" });
     expect(config.providers.tts.provider).toBe("kokoro");
@@ -68,7 +74,11 @@ describe("product file", () => {
   });
 
   it("maps the optional settings", () => {
-    const { config } = parse(file('url: https://acme.test\nai: openai\nmodel: gpt-5\nvoice: none\nlength: 45\nlanguage: de\nlogo: acme.png\ncolor: "#112233"\nallow: delete, invite users'));
+    const { config } = parse(
+      file(
+        'url: https://acme.test\nai: openai\nmodel: gpt-5\nvoice: none\nlength: 45\nlanguage: de\nlogo: acme.png\ncolor: "#112233"\nallow: delete, invite users',
+      ),
+    );
     expect(config.providers.ai).toMatchObject({ provider: "openai", model: "gpt-5" });
     expect(config.providers.tts.provider).toBe("none");
     expect(config.demo).toMatchObject({ default_duration: 45, default_language: "de" });

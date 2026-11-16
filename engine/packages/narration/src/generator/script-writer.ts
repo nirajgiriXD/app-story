@@ -79,7 +79,13 @@ export async function writeNarrationScript(request: ScriptRequest): Promise<{ sc
     schemaName: "narration_script",
     effort: PHASE_EFFORT.narration,
   });
-  return { script: normalizeScript(script, workflow.steps.map((s) => s.id)), source: "ai" };
+  return {
+    script: normalizeScript(
+      script,
+      workflow.steps.map((s) => s.id),
+    ),
+    source: "ai",
+  };
 }
 
 /**
@@ -113,7 +119,7 @@ export function normalizeScript(script: NarrationScript, stepIds: readonly strin
       continue;
     }
     ids.sort((a, b) => (position.get(a) as number) - (position.get(b) as number));
-    ids.forEach((id) => claimed.add(id));
+    for (const id of ids) claimed.add(id);
     segments.push({ step_ids: ids, text: segment.text.trim() });
   }
   segments.sort((a, b) => (position.get(a.step_ids[0] as string) as number) - (position.get(b.step_ids[0] as string) as number));
@@ -122,8 +128,7 @@ export function normalizeScript(script: NarrationScript, stepIds: readonly strin
   for (const id of stepIds) {
     if (claimed.has(id)) continue;
     const idx = position.get(id) as number;
-    const host =
-      [...segments].reverse().find((s) => (position.get(s.step_ids[0] as string) as number) < idx) ?? segments[0];
+    const host = [...segments].reverse().find((s) => (position.get(s.step_ids[0] as string) as number) < idx) ?? segments[0];
     if (host) host.step_ids.push(id);
     else segments.push({ step_ids: [id], text: "" });
     host?.step_ids.sort((a, b) => (position.get(a) as number) - (position.get(b) as number));

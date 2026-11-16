@@ -34,7 +34,10 @@ describe("browser safety in a real Chromium", () => {
       const blocked = await c.click({ role: "button", name: "Delete workspace" }).catch((e) => e);
       expect(isAppStoryError(blocked) && blocked.code).toBe("POLICY_VIOLATION");
 
-      const invite = await c.navigate("/team").then(() => c.click({ role: "button", name: "Invite member" })).catch((e) => e);
+      const invite = await c
+        .navigate("/team")
+        .then(() => c.click({ role: "button", name: "Invite member" }))
+        .catch((e) => e);
       expect(isAppStoryError(invite) && invite.code).toBe("POLICY_VIOLATION");
 
       const offsite = await c.navigate("https://example.org/").catch((e) => e);

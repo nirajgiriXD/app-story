@@ -13,11 +13,7 @@ export interface WithBrowserOptions {
 }
 
 /** Open an isolated, logged-in browser session for one phase. It is always closed, even on failure. */
-export async function withBrowser<T>(
-  product: LoadedProduct,
-  options: WithBrowserOptions,
-  fn: (session: BrowserSession) => Promise<T>,
-): Promise<T> {
+export async function withBrowser<T>(product: LoadedProduct, options: WithBrowserOptions, fn: (session: BrowserSession) => Promise<T>): Promise<T> {
   let session: BrowserSession | undefined;
   try {
     session = await launchBrowserSession({

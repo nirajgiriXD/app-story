@@ -1,15 +1,6 @@
-import type { TtsConfig } from "@app-story/contracts";
 import type { TTSProvider } from "@app-story/narration";
 import { runFfmpeg } from "@app-story/shared";
-import type {
-  AIProvider,
-  AgentInput,
-  AgentSession,
-  AgentTurnResult,
-  StructuredGenerationRequest,
-  ToolCall,
-  UsageTracker,
-} from "@app-story/ai";
+import type { AIProvider, AgentInput, AgentSession, AgentTurnResult, StructuredGenerationRequest, ToolCall, UsageTracker } from "@app-story/ai";
 
 /** Test-only TTS: a soft tone whose length matches natural speech for the text. */
 export class ToneTTS implements TTSProvider {
@@ -17,8 +8,6 @@ export class ToneTTS implements TTSProvider {
   readonly voice = "tone";
   readonly model = "ffmpeg-sine";
   readonly calls: string[] = [];
-
-  constructor(_config?: TtsConfig) {}
 
   async synthesize(text: string, outPath: string): Promise<void> {
     this.calls.push(text);

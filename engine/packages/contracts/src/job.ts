@@ -74,9 +74,7 @@ export const JobMetadataSchema = z.object({
   }),
   tts: z.object({ provider: z.string().nullable(), voice: z.string().nullable(), model: z.string().nullable() }),
   workflow_version: z.number().nullable(),
-  recording: z
-    .object({ path: z.string(), duration_s: z.number(), width: z.number(), height: z.number(), engine: z.string() })
-    .nullable(),
+  recording: z.object({ path: z.string(), duration_s: z.number(), width: z.number(), height: z.number(), engine: z.string() }).nullable(),
   video: z.object({ path: z.string(), thumbnail: z.string().nullable(), duration_s: z.number() }).nullable(),
   usage: UsageSummarySchema.nullable(),
   quality: z.object({ passed: z.boolean(), errors: z.number(), warnings: z.number() }).nullable(),

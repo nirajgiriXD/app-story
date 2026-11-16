@@ -170,7 +170,8 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
     let status: JobStatus;
     if (errors.length > 0) {
-      for (const e of errors) recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
+      for (const e of errors)
+        recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
       status = "failed";
     } else {
       status = job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";

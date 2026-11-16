@@ -3,7 +3,7 @@ import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } f
 import { AppStoryError, sleep, type Logger } from "@app-story/shared";
 import type { ActionOptions, ActionOutcome, BrowserController, PageObservation, VerificationResult } from "../types";
 import { buildLocators, resolveLocator, describeTarget } from "../selectors/locator";
-import { ActionGuard, type ElementInfo } from "../security/action-guard";
+import type { ActionGuard, ElementInfo } from "../security/action-guard";
 import { isAllowedUrl, resolveUrl } from "../security/url-guard";
 
 export interface PlaywrightControllerOptions {
@@ -290,7 +290,10 @@ export class PlaywrightController implements BrowserController {
       case "visible":
       case "not_visible": {
         if (!condition.target) return false;
-        const visible = await resolveLocator(this.page, condition.target, 1500).then(() => true, () => false);
+        const visible = await resolveLocator(this.page, condition.target, 1500).then(
+          () => true,
+          () => false,
+        );
         return condition.type === "visible" ? visible : !visible;
       }
       case "url_contains":
@@ -307,7 +310,12 @@ export class PlaywrightController implements BrowserController {
     try {
       snapshot = await this.page.locator("body").ariaSnapshot({ timeout: 5000 });
     } catch {
-      snapshot = (await this.page.locator("body").innerText().catch(() => "")).slice(0, maxChars);
+      snapshot = (
+        await this.page
+          .locator("body")
+          .innerText()
+          .catch(() => "")
+      ).slice(0, maxChars);
     }
     const truncated = snapshot.length > maxChars;
     return {
@@ -392,9 +400,10 @@ export class PlaywrightController implements BrowserController {
     await this.page.waitForLoadState("domcontentloaded", { timeout: this.timeout(options) }).catch(() => undefined);
     const deadline = Date.now() + SETTLE_MAX_MS;
     while (Date.now() < deadline) {
-      const quiet = await this.page
-        .evaluate(waitForDomQuiet, { quietMs: QUIET_MS, maxMs: deadline - Date.now() })
-        .then(() => true, () => false);
+      const quiet = await this.page.evaluate(waitForDomQuiet, { quietMs: QUIET_MS, maxMs: deadline - Date.now() }).then(
+        () => true,
+        () => false,
+      );
       if (!quiet) {
         // The page navigated mid-wait; wait for the new document, then check again.
         await this.page.waitForLoadState("domcontentloaded", { timeout: Math.max(1, deadline - Date.now()) }).catch(() => undefined);
@@ -450,7 +459,12 @@ export class PlaywrightController implements BrowserController {
   }
 
   private async bodyText(): Promise<string> {
-    return normalize(await this.page.locator("body").innerText({ timeout: 2000 }).catch(() => ""));
+    return normalize(
+      await this.page
+        .locator("body")
+        .innerText({ timeout: 2000 })
+        .catch(() => ""),
+    );
   }
 
   private async poll(check: () => Promise<boolean>, timeoutMs: number): Promise<boolean> {
@@ -478,7 +492,12 @@ async function elementInfo(locator: Locator): Promise<ElementInfo> {
     const tag = el.tagName.toLowerCase();
     const type = el.getAttribute("type") ?? undefined;
     const implicit: Record<string, string> = {
-      a: "link", button: "button", select: "combobox", textarea: "textbox", option: "option", summary: "button",
+      a: "link",
+      button: "button",
+      select: "combobox",
+      textarea: "textbox",
+      option: "option",
+      summary: "button",
     };
     let role = el.getAttribute("role") ?? implicit[tag] ?? "generic";
     if (tag === "input") {

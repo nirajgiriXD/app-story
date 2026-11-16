@@ -58,13 +58,7 @@ interface FfprobeJson {
 }
 
 export async function probeMedia(path: string): Promise<MediaProbe> {
-  const result = await runProcess("ffprobe", [
-    "-v", "error",
-    "-print_format", "json",
-    "-show_format",
-    "-show_streams",
-    path,
-  ]);
+  const result = await runProcess("ffprobe", ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path]);
   if (result.code !== 0) {
     throw new AppStoryError("RENDER_FAILED", `ffprobe could not read ${path}: ${result.stderr.trim()}`);
   }
@@ -98,8 +92,18 @@ export async function meanVolumeDb(path: string): Promise<number | undefined> {
 /** Luma range (max - min, 0-255) of the frame at `atSec`. Near 0 means a blank frame. */
 export async function frameContrast(path: string, atSec: number): Promise<number | undefined> {
   const result = await runProcess("ffmpeg", [
-    "-hide_banner", "-ss", atSec.toFixed(2), "-i", path, "-frames:v", "1",
-    "-vf", "signalstats,metadata=print", "-f", "null", "-",
+    "-hide_banner",
+    "-ss",
+    atSec.toFixed(2),
+    "-i",
+    path,
+    "-frames:v",
+    "1",
+    "-vf",
+    "signalstats,metadata=print",
+    "-f",
+    "null",
+    "-",
   ]);
   const min = /YMIN=(\d+(?:\.\d+)?)/.exec(result.stderr);
   const max = /YMAX=(\d+(?:\.\d+)?)/.exec(result.stderr);

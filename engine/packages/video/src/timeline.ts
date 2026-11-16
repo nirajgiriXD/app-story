@@ -20,12 +20,7 @@ export interface TimelinePlan {
  * intro card → (crossfade) → recording → (crossfade) → outro card.
  * Cards stretch to fit their narration.
  */
-export function planTimeline(input: {
-  template: VideoTemplate;
-  recordingMs: number;
-  introAudioMs?: number;
-  outroAudioMs?: number;
-}): TimelinePlan {
+export function planTimeline(input: { template: VideoTemplate; recordingMs: number; introAudioMs?: number; outroAudioMs?: number }): TimelinePlan {
   const t = input.template.transitionMs;
   const introMs = Math.max(input.template.introMs, (input.introAudioMs ?? 0) + 600 + t);
   const outroMs = Math.max(input.template.outroMs, (input.outroAudioMs ?? 0) + 900 + t);

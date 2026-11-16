@@ -194,9 +194,16 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
 
 /** Open the start page with a saved login; true if the app did not ask to log in again. */
 async function stillLoggedIn(controller: PlaywrightController, page: Page, config: ProductConfig): Promise<boolean> {
-  const opened = await controller.navigate(config.product.start_path).then(() => true, () => false);
+  const opened = await controller.navigate(config.product.start_path).then(
+    () => true,
+    () => false,
+  );
   if (!opened) return false;
-  return !(await page.locator('input[type="password"]:visible').first().isVisible().catch(() => false));
+  return !(await page
+    .locator('input[type="password"]:visible')
+    .first()
+    .isVisible()
+    .catch(() => false));
 }
 
 /** Paths tried, in order, when the start page shows no login form and none is configured. */
@@ -235,7 +242,10 @@ async function autoLogin(controller: PlaywrightController, page: Page, config: P
   const candidates = auth.login_path ? [auth.login_path] : [config.product.start_path, ...COMMON_LOGIN_PATHS];
   let found = false;
   for (const [i, path] of candidates.entries()) {
-    const opened = await controller.navigate(path).then(() => true, () => false);
+    const opened = await controller.navigate(path).then(
+      () => true,
+      () => false,
+    );
     // The start page usually redirects to the login form; give it time to appear.
     if (opened && (await formVisible(i === 0 ? 5_000 : 2_000))) {
       found = true;

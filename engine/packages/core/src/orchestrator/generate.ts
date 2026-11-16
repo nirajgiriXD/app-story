@@ -2,14 +2,14 @@ import type { JobMetadata, JobStatus, Workflow } from "@demoforge/contracts";
 import { WORKFLOW_VERSION } from "@demoforge/contracts";
 import type { LoadedProduct } from "@demoforge/products";
 import { validateWorkflow } from "@demoforge/workflow";
-import { DemoForgeError, isDemoForgeError, probeMedia, slugify, writeJson } from "@demoforge/shared";
-import { createJob, finishJob, recordError, saveMetadata, type Job } from "../job-manager/job";
+import { DemoForgeError, isDemoForgeError, probeMedia, slugify } from "@demoforge/shared";
+import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type Job } from "../job-manager/job";
 import type { ProviderOverrides } from "../pipeline/providers";
 import { rehearseWorkflow } from "../pipeline/rehearse";
 import { prepareNarration } from "../pipeline/narrate";
 import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
 import { composeVideo } from "../pipeline/compose";
-import { forgetPlan, loadSavedPlan, savePlan, savedPlanFile } from "../pipeline/plans";
+import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
 import { statusForError } from "../pipeline/status";
 import { runQualityChecks } from "../qa/quality";
 
@@ -18,11 +18,11 @@ export interface GenerateRequest {
   outputDir: string;
   /** What to demonstrate, in plain language. */
   objective: string;
-  /** Short name for the job folder and the saved plan. Default: a slug of the objective. */
+  /** Short name for the video file and the saved plan. Default: a slug of the objective. */
   name?: string;
   /** Replay this plan instead of planning (used by tests). */
   plan?: Workflow;
-  /** Reuse and save verified plans in <output>/.plans/ (default: true). */
+  /** Reuse and save verified plans in the database (default: true). */
   reusePlans?: boolean;
   /** Ignore a saved plan and plan again. */
   fresh?: boolean;
@@ -55,11 +55,11 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     logLevel: request.logLevel,
   });
   request.onJobCreated?.(job);
+  saveRecord(job, "config", productConfigForRecord(product));
   const overrides = request.providers ?? {};
   const config = product.config;
   const durationS = request.durationS ?? config.demo.default_duration;
   const reuse = request.reusePlans !== false && !request.plan;
-  const planFile = savedPlanFile(request.outputDir, product.id, name);
   let phase = "plan";
 
   const planWithAI = () => rehearseWorkflow(job, product, { objective: request.objective, durationS, headless: request.headless }, overrides);
@@ -71,7 +71,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     if (validation.errors.length > 0) {
       throw new DemoForgeError("UNSUPPORTED_WORKFLOW", `The plan is not safe or not verifiable:\n- ${validation.errors.join("\n- ")}`);
     }
-    await writeJson(job.paths.plan, workflow);
+    saveRecord(job, "plan", workflow);
     await saveMetadata(job);
   };
 
@@ -99,11 +99,11 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     let workflow = request.plan;
     let fromSavedPlan = false;
     if (!workflow && reuse && !request.fresh) {
-      workflow = await loadSavedPlan(planFile, request.objective);
+      workflow = loadSavedPlan(job.store, product.id, name, request.objective);
       if (workflow) {
         fromSavedPlan = true;
         job.metadata.mode = "scenario";
-        job.log.info({ file: planFile }, "replaying the saved plan (no AI planning needed)");
+        job.log.info({ plan: name }, "replaying the saved plan (no AI planning needed)");
       }
     }
     workflow ??= await planWithAI();
@@ -118,7 +118,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       if (!fromSavedPlan || !(isDemoForgeError(error) && STALE_PLAN_CODES.has(error.code))) throw error;
       job.log.warn({ error: (error as Error).message }, "the saved plan no longer works (did the app change?); planning again");
       job.metadata.warnings.push("The saved plan no longer matched the app, so the demo was planned again.");
-      await forgetPlan(planFile);
+      forgetPlan(job.store, product.id, name);
       fromSavedPlan = false;
       job.metadata.mode = "guided";
       phase = "plan";
@@ -132,7 +132,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     phase = "render";
     const composed = await composeVideo(job, product, workflow, clips, recorded, { templateName: request.templateName });
     const final = await probeMedia(job.paths.finalVideo);
-    job.metadata.video = { path: job.paths.finalVideo, thumbnail: job.paths.thumbnail, duration_s: round(final.durationSec) };
+    job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
 
     // 5. Quality
     phase = "quality";
@@ -147,7 +147,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       plan: composed.plan,
       silentNarration: silent,
     });
-    await writeJson(job.paths.quality, quality);
+    saveRecord(job, "quality", quality);
     const errors = quality.checks.filter((c) => !c.passed && c.severity === "error");
     const warnings = quality.checks.filter((c) => !c.passed && c.severity === "warning");
     job.metadata.quality = { passed: quality.passed, errors: errors.length, warnings: warnings.length };
@@ -159,8 +159,9 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       status = "failed";
     } else {
       status = job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
-      // Keep the verified plan so the next video of this feature replays it.
-      if (reuse && !fromSavedPlan) await savePlan(planFile, workflow);
+      // The video is the only file in output/; keep the verified plan for the next video.
+      await deliverVideo(job);
+      if (reuse && !fromSavedPlan) savePlan(job.store, product.id, name, workflow);
     }
     return await finishJob(job, status);
   } catch (error) {
@@ -178,6 +179,15 @@ function failIfIncomplete(recorded: RecordingOutcome): void {
     `Step ${failed?.step_id} failed during recording: ${failed?.error}. No video was produced.`,
     { hint: failed?.screenshot ? `See ${failed.screenshot} and logs/trace.zip (open with \`npx playwright show-trace\`).` : undefined },
   );
+}
+
+/** The product settings used, kept with the job. A password written in the product file is hidden. */
+function productConfigForRecord(product: LoadedProduct): unknown {
+  const config = structuredClone(product.config);
+  if (config.authentication.strategy === "auto" && !config.authentication.password.startsWith("env:")) {
+    config.authentication.password = "***";
+  }
+  return { file: product.file, config };
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;

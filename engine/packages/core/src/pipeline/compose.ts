@@ -1,11 +1,11 @@
-import { copyFile } from "node:fs/promises";
+import { copyFile, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import type { AudioClip, CaptionCue, Workflow } from "@demoforge/contracts";
 import { buildCues, toSrt, toVtt } from "@demoforge/captions";
 import { resolveProductPath, type LoadedProduct } from "@demoforge/products";
-import { ensureDir, fileExists, runFfmpeg, toPosixRelative, writeText } from "@demoforge/shared";
+import { ensureDir, fileExists, toPosixRelative } from "@demoforge/shared";
 import { buildRenderProps, getTemplate, placeNarration, renderVideo, type TimelinePlan } from "@demoforge/video";
-import type { Job } from "../job-manager/job";
+import { saveRecord, type Job } from "../job-manager/job";
 import type { RecordingOutcome } from "./record";
 
 export interface ComposeResult {
@@ -26,7 +26,7 @@ async function copyAsset(job: Job, product: LoadedProduct, path: string | undefi
   return toPosixRelative(job.paths.root, target);
 }
 
-/** Captions + Remotion render + thumbnail + narration audio export. */
+/** Captions + Remotion render + thumbnail (captions and thumbnail are kept in the database). */
 export async function composeVideo(
   job: Job,
   product: LoadedProduct,
@@ -53,8 +53,8 @@ export async function composeVideo(
     { maxCharsPerLine: config.captions.max_chars_per_line, maxLines: 2 },
   );
   if (config.captions.enabled) {
-    await writeText(job.paths.srt, toSrt(cues));
-    await writeText(job.paths.vtt, toVtt(cues));
+    saveRecord(job, "captions_srt", toSrt(cues));
+    saveRecord(job, "captions_vtt", toVtt(cues));
   }
 
   const props = buildRenderProps({
@@ -87,8 +87,7 @@ export async function composeVideo(
     thumbnailAtMs: thumbAt,
     log: job.log,
   });
-  await runFfmpeg(["-i", job.paths.finalVideo, "-vn", "-c:a", "libmp3lame", "-q:a", "2", job.paths.narrationAudio]).catch((error: Error) =>
-    job.log.warn({ error: error.message }, "could not export narration audio"),
-  );
+  const thumbnail = await readFile(job.paths.thumbnail).catch(() => undefined);
+  if (thumbnail) saveRecord(job, "thumbnail", thumbnail);
   return { plan, cues };
 }

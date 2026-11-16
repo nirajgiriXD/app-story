@@ -7,7 +7,7 @@
   ],
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "demoforge": "tsx engine/cli/src/index.ts",

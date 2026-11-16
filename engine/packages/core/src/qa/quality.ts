@@ -86,8 +86,7 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
   const placedAll = segments.every((c) => input.recorded.placed.some((p) => p.id === c.id));
   add("audio", "every segment placed on the recording", placedAll, "error");
   if (input.config.captions.enabled) {
-    const files = (await fileExists(input.paths.srt)) && (await fileExists(input.paths.vtt));
-    add("audio", "captions generated", files && input.cues.length > 0, "error", `${input.cues.length} cue(s)`);
+    add("audio", "captions generated", input.cues.length > 0, "error", `${input.cues.length} cue(s)`);
   }
 
   // --- final video

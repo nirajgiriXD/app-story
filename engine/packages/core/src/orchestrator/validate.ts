@@ -1,9 +1,8 @@
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
 import { chromium } from "playwright";
 import { resolveKokoroVoice } from "@demoforge/contracts";
 import { resolveProductPath, type LoadedProduct } from "@demoforge/products";
-import { credentialEnvName, fileExists, hasBinary } from "@demoforge/shared";
+import { credentialEnvName, dataDirFor, fileExists, hasBinary } from "@demoforge/shared";
+import { Store } from "../store/store";
 
 export interface ValidationItem {
   level: "ok" | "warning" | "error";
@@ -81,8 +80,8 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
   }
 
   if (options.outputDir) {
-    const plans = await readdir(join(options.outputDir, ".plans", product.id)).catch(() => []);
-    if (plans.length) ok(`${plans.length} saved plan(s) will be replayed without AI planning`);
+    const plans = Store.open(dataDirFor(options.outputDir)).countPlans(product.id);
+    if (plans) ok(`${plans} saved plan(s) will be replayed without AI planning`);
   }
 
   if (await hasBinary("ffmpeg")) ok("ffmpeg found");

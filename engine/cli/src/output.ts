@@ -25,18 +25,19 @@ export function printJob(m: JobMetadata): void {
   console.log(`${ok ? green("✔") : red("✖")} ${bold(m.status.replace(/_/g, " "))}  ${dim(`job ${m.job_id}`)}`);
   if (m.ai.provider) console.log(`  AI:        ${m.ai.provider} / ${m.ai.model}${m.ai.fallback_used ? yellow(" (fallback used)") : ""}`);
   if (m.tts.provider) console.log(`  Voice:     ${m.tts.provider} / ${m.tts.voice}`);
-  if (m.video) console.log(`  Video:     ${m.video.path} ${dim(`(${m.video.duration_s}s)`)}`);
+  if (ok && m.video) console.log(`  Video:     ${m.video.path} ${dim(`(${m.video.duration_s}s)`)}`);
   if (m.usage && m.usage.requests > 0) {
     const cost = m.usage.estimated_cost_usd === null ? "n/a" : `$${m.usage.estimated_cost_usd.toFixed(4)}`;
     console.log(`  Tokens:    ${m.usage.input_tokens} in / ${m.usage.output_tokens} out ${dim(`(est. ${cost})`)}`);
   }
-  console.log(`  Output:    ${m.output_dir}`);
+  // Failed jobs keep their scratch files (raw recording, screenshots, trace) for troubleshooting.
+  if (!ok) console.log(`  Debug:     ${m.output_dir}`);
   for (const w of m.warnings) console.log(yellow(`  ! ${w}`));
   for (const e of m.errors) {
     console.log(red(`  ✖ [${e.code}] ${e.message}`));
     if (e.hint) console.log(dim(`    hint: ${e.hint}`));
   }
-  if (m.video) console.log(dim("\n  Review the video and logs/ before publishing. Nothing is published automatically."));
+  if (ok && m.video) console.log(dim("\n  Review the video before publishing. Nothing is published automatically."));
 }
 
 export function exitCodeFor(m: JobMetadata): number {

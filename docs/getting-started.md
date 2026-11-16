@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Node.js 22+ and npm 11+
+- Node.js 22.13+ (for its built-in SQLite) and npm 11+
 - FFmpeg and ffprobe on `PATH`
 - An Anthropic or OpenAI API key. That is all.
   - The voice-over is free and runs on your computer ([Kokoro](https://huggingface.co/hexgrad/Kokoro-82M),
@@ -26,7 +26,7 @@ Run it with `npx demoforge`. For a global `demoforge` command: `cd engine/cli &&
 | Folder | What it is |
 | --- | --- |
 | `products/` | **Yours.** One file per product, e.g. `products/acme.md`; the format is in the README's "Product files" |
-| `output/` | **Yours.** Finished videos and reports |
+| `output/` | **Yours.** Finished videos, nothing else |
 | `.env` | **Yours.** Your AI key, and any password a product file reads with `env:NAME` |
 | `docs/` | These guides |
 | `engine/` | DemoForge itself; no need to touch it |
@@ -66,7 +66,7 @@ What happens:
 3. The narration is written and spoken, the app is recorded at presentation speed in
    time with it, and the video is rendered and checked.
 
-The working click-plan is saved in `output/.plans/`. The next video of the same feature
+The working click-plan is saved in the database. The next video of the same feature
 replays it: no AI planning, same video. Editing the feature in the release notes, or the
 app changing so the plan no longer works, makes DemoForge plan again by itself. Use
 `--fresh` to force it.
@@ -83,22 +83,29 @@ app changing so the plan no longer works, makes DemoForge plan again by itself. 
 
 `--headed` shows the browser while it works. `--log-level` sets how much is printed.
 
-## What a video job writes
+## What a video job keeps
 
-Each video gets a folder `output/<product>/<date-time>-<name>/`:
+Only the video goes to `output/<product>/<job-id>-<name>.mp4`. Everything else is in the
+SQLite database `.demoforge/demoforge.db` (see "Output" in the README):
 
-| Path | What |
+| Record | What |
 | --- | --- |
-| `video/final.mp4`, `video/thumbnail.png` | the video |
-| `metadata.json` | status, AI provider and model, tokens and cost estimate, errors |
-| `quality.json` | workflow, recording, audio and video checks |
-| `plan.json`, `plan.yaml` | the click-plan that was recorded |
-| `recording/raw.mp4`, `recording/screenshots/` | the raw take, failure screenshots |
-| `narration/` | script, per-line audio clips, `audio.mp3` |
-| `captions/subtitles.srt`, `.vtt` | subtitles |
-| `logs/` | `execution.json`, `browser.json`, `errors.json`, `rehearsal.json`, `run.log`, `trace.zip` |
+| `jobs` row | status, goal, AI provider and model, voice, tokens and cost estimate, errors, video path |
+| `config` | the product settings used (a password written in the file is hidden) |
+| `plan`, `rehearsal` | the click-plan that was recorded, and the AI's practice run |
+| `narration_script`, `narration_clips` | what the narrator says, line by line |
+| `captions_srt`, `captions_vtt` | subtitles |
+| `execution`, `browser_issues`, `quality` | step results, console/network problems, quality checks |
+| `log`, `thumbnail` | the full log, and a PNG cover image |
 
-Open a trace with `npx playwright show-trace output/.../logs/trace.zip`.
+A failed video keeps its scratch folder, `.demoforge/work/<job>/`, with the raw recording,
+failure screenshots and `logs/trace.zip` (open it with `npx playwright show-trace`).
+
+Any SQLite tool can read the database, for example:
+
+```bash
+sqlite3 .demoforge/demoforge.db "SELECT created_at, product_id, status, video_path FROM jobs ORDER BY created_at DESC"
+```
 
 ## Environment variables
 

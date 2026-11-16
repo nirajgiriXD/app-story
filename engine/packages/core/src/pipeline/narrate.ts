@@ -1,8 +1,7 @@
 import type { AudioClip, NarrationScript, Workflow } from "@demoforge/contracts";
 import { synthesizeNarration, writeNarrationScript } from "@demoforge/narration";
 import type { LoadedProduct } from "@demoforge/products";
-import { writeJson, writeText } from "@demoforge/shared";
-import type { Job } from "../job-manager/job";
+import { saveRecord, type Job } from "../job-manager/job";
 import { makeTTS, withProviderFallback, type ProviderOverrides } from "./providers";
 import { productContext } from "./rehearse";
 
@@ -33,28 +32,16 @@ export async function prepareNarration(
     : await withProviderFallback(job, "narration", config, overrides, (provider) => writeNarrationScript({ ...request, provider }));
   job.log.info({ source, segments: script.segments.length }, "narration script ready");
 
-  await writeJson(`${job.paths.narrationDir}/script.json`, script);
-  await writeText(job.paths.script, scriptMarkdown(workflow, script));
+  saveRecord(job, "narration_script", script);
 
   const tts = makeTTS(config.providers.tts, overrides);
   job.metadata.tts = { provider: tts.name, voice: tts.voice, model: tts.model };
   const clips = await synthesizeNarration(script, tts, job.paths.narrationDir, job.log);
-  await writeJson(`${job.paths.narrationDir}/clips.json`, clips);
+  saveRecord(job, "narration_clips", clips.map(({ path: _path, ...clip }) => clip));
   if (tts.silent) {
     if (!config.captions.enabled) {
       job.metadata.warnings.push("Captions are disabled too, so the video has no narration at all.");
     }
   }
   return { script, clips, silent: Boolean(tts.silent) };
-}
-
-function scriptMarkdown(workflow: Workflow, script: NarrationScript): string {
-  const byId = new Map(workflow.steps.map((s) => [s.id, s]));
-  const lines = [`# ${workflow.title}`, "", `**Intro:** ${script.intro}`, ""];
-  for (const segment of script.segments) {
-    const steps = segment.step_ids.map((id) => `${id} (${byId.get(id)?.description ?? "?"})`).join(", ");
-    lines.push(`- _${steps}_`, `  ${segment.text}`, "");
-  }
-  lines.push(`**Outro:** ${script.outro}`, "");
-  return lines.join("\n");
 }

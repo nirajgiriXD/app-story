@@ -3,7 +3,7 @@
 All code lives in `engine/`: the CLI in `engine/cli`, the packages in `engine/packages/`.
 
 ```text
-cli ──► core (orchestrator, pipeline stages, job manager, QA)
+cli ──► core (orchestrator, pipeline stages, job manager, QA, SQLite store)
         │
         ├─ products   product file reader (settings block + Markdown), plan YAML
         ├─ ai         provider interface, Anthropic + OpenAI, agents, prompts, tools
@@ -31,10 +31,10 @@ at login time and registered as secrets.
 0. **Features.** Without a goal, one structured AI call reads the product file and picks
    the new user-visible features from its release notes (`planFeatures`). Each becomes an
    objective, for one video or one each.
-1. **Plan.** A saved plan from `output/.plans/` is replayed if it was made for exactly this
+1. **Plan.** A saved plan from the database is replayed if it was made for exactly this
    objective. Otherwise a **rehearsal** runs: the AI drives an *unrecorded* browser through
    guarded tools, recovers from mistakes, verifies the outcome, then picks the successful
-   steps to keep. The result is a versioned workflow (`plan.json`).
+   steps to keep. The result is a versioned workflow (the `plan` record).
 2. **Static validation.** Domains, sensitive actions and at least one verification.
 3. **Narration.** Script from the verified steps (AI, or the scenario's own `narration`
    lines), then text-to-speech per line, loudness-normalised and measured.
@@ -48,6 +48,15 @@ at login time and registered as secrets.
    with zoom-to-element, cursor highlight, click ripples, chapter chips and branding.
 6. **Quality checks** and **metadata**. A plan made by the AI is saved for reuse only
    after its video passed. Videos are never published automatically.
+
+## Storage
+
+`output/` receives only the finished MP4. Everything else is in one SQLite file,
+`.demoforge/demoforge.db`, through Node's built-in `node:sqlite` (`Store` in
+`engine/packages/core/src/store/`): a `jobs` table with each job's metadata, `job_records`
+with everything a job produces (settings used, plan, practice run, narration, captions,
+reports, quality checks, log, thumbnail), and `plans` with the saved click-plans. Jobs work
+in `.demoforge/work/<job>/`, deleted on success and kept on failure for troubleshooting.
 
 ## Decisions that differ from a literal reading of the spec
 
@@ -78,7 +87,7 @@ These were chosen deliberately (and agreed before building):
 - OpenAI: Responses API via `openai`, default `gpt-5`, `reasoning.effort` and
   `temperature` only when configured.
 - With keys for both providers, the one not chosen is the fallback. It is triggered only
-  by provider errors, and every attempt and switch is written to `metadata.json`.
+  by provider errors, and every attempt and switch is written to the job's metadata.
 - New providers: `registerAIProvider(name, factory)`; TTS: `registerTTSProvider`.
 
 ## Security

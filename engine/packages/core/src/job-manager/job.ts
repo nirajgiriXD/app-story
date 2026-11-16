@@ -1,89 +1,66 @@
-import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
-import { JobMetadataSchema, type JobError, type JobMetadata, type JobStatus } from "@demoforge/contracts";
+import { copyFile, mkdir, rename, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import type { JobError, JobMetadata, JobStatus } from "@demoforge/contracts";
 import { UsageTracker } from "@demoforge/ai";
-import {
-  createJobId,
-  createLogger,
-  ensureDir,
-  redactSecrets,
-  slugify,
-  toDemoForgeError,
-  writeJson,
-  type Logger,
-} from "@demoforge/shared";
+import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugify, toDemoForgeError, type Logger } from "@demoforge/shared";
+import { Store, type RecordKind } from "../store/store";
 
+/**
+ * Scratch files of a running job, in `.demoforge/work/<job-id>-<name>/`. Only the finished
+ * video leaves this folder (to `output/`); everything worth keeping goes into the database.
+ * The folder is deleted when the job succeeds and kept for troubleshooting when it fails.
+ */
 export interface JobPaths {
   root: string;
-  metadata: string;
-  plan: string;
-  planYaml: string;
-  quality: string;
   recordingDir: string;
   rawRecording: string;
   screenshots: string;
   narrationDir: string;
-  script: string;
-  narrationAudio: string;
-  captionsDir: string;
-  srt: string;
-  vtt: string;
   videoDir: string;
   finalVideo: string;
   thumbnail: string;
   assetsDir: string;
   logsDir: string;
-  executionLog: string;
-  browserLog: string;
-  errorsLog: string;
-  runLog: string;
   trace: string;
-  rehearsal: string;
 }
 
 export interface Job {
   id: string;
+  /** Short name, used for the video file and the saved plan. */
+  name: string;
+  /** Where the finished video goes: `<output>/<product>/`. */
+  outputDir: string;
   paths: JobPaths;
   metadata: JobMetadata;
   log: Logger;
   usage: UsageTracker;
+  store: Store;
+  /** The job's log lines (JSON), saved to the database when the job finishes. */
+  logLines: string[];
 }
 
 export function jobPaths(root: string): JobPaths {
   const p = (...parts: string[]) => join(root, ...parts);
   return {
     root,
-    metadata: p("metadata.json"),
-    plan: p("plan.json"),
-    planYaml: p("plan.yaml"),
-    quality: p("quality.json"),
     recordingDir: p("recording"),
     rawRecording: p("recording", "raw.mp4"),
     screenshots: p("recording", "screenshots"),
     narrationDir: p("narration"),
-    script: p("narration", "script.md"),
-    narrationAudio: p("narration", "audio.mp3"),
-    captionsDir: p("captions"),
-    srt: p("captions", "subtitles.srt"),
-    vtt: p("captions", "subtitles.vtt"),
     videoDir: p("video"),
     finalVideo: p("video", "final.mp4"),
     thumbnail: p("video", "thumbnail.png"),
     assetsDir: p("assets"),
     logsDir: p("logs"),
-    executionLog: p("logs", "execution.json"),
-    browserLog: p("logs", "browser.json"),
-    errorsLog: p("logs", "errors.json"),
-    runLog: p("logs", "run.log"),
     trace: p("logs", "trace.zip"),
-    rehearsal: p("logs", "rehearsal.json"),
   };
 }
 
 export interface CreateJobInput {
+  /** The output folder (videos only); the database lives next to it in `.demoforge/`. */
   outputDir: string;
   productId: string;
-  /** Short name of the demo; the job folder is `<output>/<product>/<job-id>-<name>/`. */
+  /** Short name of the demo, used for the video file name. */
   name: string;
   mode: JobMetadata["mode"];
   objective: string | null;
@@ -93,10 +70,13 @@ export interface CreateJobInput {
 
 export async function createJob(input: CreateJobInput): Promise<Job> {
   const id = createJobId();
-  const root = join(input.outputDir, input.productId, `${id}-${slugify(input.name)}`);
+  const name = slugify(input.name);
+  const dataDir = dataDirFor(input.outputDir);
+  const root = join(dataDir, "work", `${id}-${name}`);
   const paths = jobPaths(root);
   await ensureDir(paths.logsDir);
-  const log = createLogger({ level: input.logLevel, file: paths.runLog }).child({ job: id });
+  const logLines: string[] = [];
+  const log = createLogger({ level: input.logLevel, collect: logLines }).child({ job: id });
   const metadata: JobMetadata = {
     job_id: id,
     product_id: input.productId,
@@ -118,14 +98,19 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
     errors: [],
     warnings: [],
   };
-  const job: Job = { id, paths, metadata, log, usage: new UsageTracker() };
+  const job: Job = { id, name, outputDir: input.outputDir, paths, metadata, log, usage: new UsageTracker(), store: Store.open(dataDir), logLines };
   await saveMetadata(job);
   return job;
 }
 
 export async function saveMetadata(job: Job): Promise<void> {
   job.metadata.usage = job.usage.summary();
-  await writeJson(job.paths.metadata, redactSecrets(JobMetadataSchema.parse(job.metadata)));
+  job.store.saveJob(job.metadata, job.name);
+}
+
+/** Keep something the job produced in the database (JSON-able value, text, or a Buffer). */
+export function saveRecord(job: Job, kind: RecordKind, value: unknown): void {
+  job.store.saveRecord(job.id, kind, value);
 }
 
 export function recordError(job: Job, error: unknown, phase?: string, stepId?: string): JobError {
@@ -135,11 +120,35 @@ export function recordError(job: Job, error: unknown, phase?: string, stepId?: s
   return entry;
 }
 
+/** Move the rendered video to `<output>/<product>/<job-id>-<name>.mp4`: the only file a job leaves behind. */
+export async function deliverVideo(job: Job): Promise<string> {
+  const dest = join(job.outputDir, job.metadata.product_id, `${job.id}-${job.name}.mp4`);
+  await mkdir(dirname(dest), { recursive: true });
+  await rename(job.paths.finalVideo, dest).catch(async () => {
+    // Different drives: copy instead.
+    await copyFile(job.paths.finalVideo, dest);
+  });
+  if (job.metadata.video) job.metadata.video.path = dest;
+  return dest;
+}
+
+const SUCCESS = new Set<JobStatus>(["success", "success_with_warnings"]);
+
+/**
+ * Record the outcome and the log in the database. A successful job's scratch folder is
+ * deleted; a failed one's is kept (raw recording, screenshots, trace) for troubleshooting.
+ */
 export async function finishJob(job: Job, status: JobStatus): Promise<JobMetadata> {
   job.metadata.status = status;
   job.metadata.finished_at = new Date().toISOString();
+  job.metadata.usage = job.usage.summary();
+  if (SUCCESS.has(status)) {
+    await rm(job.paths.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch((error: Error) =>
+      job.log.warn({ error: error.message }, "could not delete the job's scratch folder"),
+    );
+  }
+  saveRecord(job, "log", job.logLines.join(""));
   await saveMetadata(job);
-  if (job.metadata.errors.length) await writeJson(job.paths.errorsLog, job.metadata.errors);
   return job.metadata;
 }
 
@@ -160,37 +169,9 @@ export interface HistoryEntry {
   cost_usd: number | null;
 }
 
-/** Folders one level down, without hidden ones (such as `.plans`), or none when `dir` does not exist. */
-async function subdirs(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  return entries.filter((e) => e.isDirectory() && !e.name.startsWith(".")).map((e) => join(dir, e.name));
-}
-
-/**
- * Finished jobs, newest first. Read from each job's own metadata.json
- * (`<output>/<product>/<job-id>-<name>/`), so there is no separate index to keep in
- * sync: deleting a job folder also removes it from the history.
- */
+/** Finished jobs, newest first, from the database next to `outputDir`. */
 export async function readHistory(outputDir: string, options: { limit?: number; productId?: string } = {}): Promise<HistoryEntry[]> {
-  const products = options.productId ? [join(outputDir, options.productId)] : await subdirs(outputDir);
-  const jobs = (await Promise.all(products.map(subdirs))).flat();
-  const entries: HistoryEntry[] = [];
-  await Promise.all(
-    jobs.map(async (dir) => {
-      const raw = await readFile(join(dir, "metadata.json"), "utf8").catch(() => undefined);
-      if (!raw) return;
-      let parsed;
-      try {
-        parsed = JobMetadataSchema.safeParse(JSON.parse(raw));
-      } catch {
-        return; // a half-written or hand-edited file: skip it
-      }
-      // Jobs still running (or killed mid-run) have no finish time yet.
-      if (parsed.success && parsed.data.finished_at) entries.push(toHistoryEntry(parsed.data));
-    }),
-  );
-  entries.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  return options.limit ? entries.slice(0, options.limit) : entries;
+  return Store.open(dataDirFor(outputDir)).listJobs(options).map(toHistoryEntry);
 }
 
 function toHistoryEntry(m: JobMetadata): HistoryEntry {

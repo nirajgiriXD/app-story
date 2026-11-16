@@ -11,7 +11,7 @@ The goal is to make product demo creation repeatable and largely automated. Inst
 ```text
 demo-forge/
 ├── products/     👉 your products: one file each, e.g. products/acme.md (see "Product files")
-├── output/       👉 finished videos and reports (see "Output")
+├── output/       👉 finished videos, nothing else (see "Output")
 ├── .env          👉 your AI key, voice choices, and passwords read with env:NAME
 ├── docs/         guides: start with docs/getting-started.md
 └── engine/       DemoForge itself — no need to touch it to make videos (see "Engine")
@@ -103,7 +103,7 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
 
 - Picks the features from the release notes.
 - Logs in, plans the clicks in the real app, proves each feature works, then records it.
-- Saves each working plan in `output/.plans/` and replays it next time: no AI cost, same
+- Saves each working plan in its database and replays it next time: no AI cost, same
   video. If you edit the feature in the release notes, or the app changed and the plan
   stops working, it plans again. Use `--fresh` to force a new plan.
 
@@ -129,26 +129,31 @@ DEMOFORGE_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
 
 ## Output
 
-Every video gets one folder:
+`output/` holds only the finished videos:
 
 ```text
-output/<product>/<date-time>-<name>/
-├── video/final.mp4        the demo video
-├── video/thumbnail.png    a cover image
-├── captions/              subtitles (.srt and .vtt)
-├── narration/             the script and voice clips
-├── metadata.json          status, AI provider, cost estimate, errors
-├── quality.json           automatic checks on the video
-└── logs/                  details for troubleshooting
+output/
+└── acme/
+    ├── 20261116-134205-a1b2c3-whats-new-2-4.mp4
+    └── 20261116-141010-d4e5f6-bulk-export.mp4
 ```
 
-`output/.plans/` (hidden) keeps each working click-plan, so the next video of the same
-feature replays it without AI planning. DemoForge manages it; deleting it only means the
-next videos are planned again.
+Everything else is kept in one SQLite database, `.demoforge/demoforge.db` (hidden, ignored
+by git):
 
-`npx demoforge history` lists recent videos, read from each folder's `metadata.json`.
-The whole `output/` folder is ignored by git, so it is safe to delete old folders; they
-drop out of `history` too.
+| Table | What it keeps |
+| --- | --- |
+| `jobs` | one row per video: product, goal, status, AI and model, voice, cost, video path, full metadata |
+| `job_records` | per video: the product settings used (passwords hidden), the click-plan, the AI's practice run, narration script, captions (SRT and WebVTT), recording and browser reports, quality checks, the log, and the thumbnail |
+| `plans` | the working click-plan of each feature, replayed by the next video without AI planning |
+
+While a video is being made, its raw recording and voice clips sit in
+`.demoforge/work/<job>/`. That folder is deleted when the video succeeds, and kept when it
+fails so you can see what happened (the path is printed).
+
+`npx demoforge history` lists recent videos from the database. Deleting a video file is
+safe; deleting `.demoforge/` forgets the history and the saved plans (the next videos
+are planned again).
 
 ## Engine
 
@@ -159,7 +164,7 @@ your work happens in `products/`, and the videos land in `output/`.
 engine/
 ├── cli/            the `demoforge` command (npx demoforge ...)
 ├── packages/       the building blocks
-│   ├── core/         runs every step of a job, in order
+│   ├── core/         runs every step of a job, in order; keeps the SQLite database
 │   ├── ai/           talks to Anthropic or OpenAI; plans the clicks
 │   ├── browser/      drives a real Chromium browser and records the screen
 │   ├── workflow/     checks and replays click-plans
@@ -717,7 +722,7 @@ demoforge easydash "Demonstrate how to create and restore a website backup"
 
 ## Repeatable runs
 
-Each verified plan is saved in `output/.plans/` and replayed by the next video of the same
+Each verified plan is saved in the database and replayed by the next video of the same
 feature, without AI planning. It is re-planned automatically when the feature text changes
 or the app no longer matches it, or on `--fresh`.
 
@@ -745,13 +750,14 @@ demoforge/
 ├── products/                 user-owned: one file per product
 │   └── example.md            the practice app
 │
-├── output/                   videos, and saved plans in .plans/ (git-ignored)
+├── output/                   finished videos only (git-ignored)
+├── .demoforge/               SQLite database and scratch folders (hidden, git-ignored)
 ├── docs/
 │
 ├── engine/                   DemoForge itself
 │   ├── cli/                  the demoforge command
 │   ├── packages/
-│   │   ├── core/             orchestrator, pipeline, plans, job-manager
+│   │   ├── core/             orchestrator, pipeline, plans, job-manager, SQLite store
 │   │   ├── ai/               providers, agents, prompts, tools, factory
 │   │   ├── browser/          playwright, auto login, controller, recording, security
 │   │   ├── workflow/         executor, validators
@@ -780,25 +786,20 @@ Keep modules independently testable. Avoid circular dependencies and unnecessary
 
 # 9. Output Structure
 
-Every video gets its own folder, `output/<product>/<date-time>-<name>/`:
+`output/` receives only finished videos:
 
 ```text
 output/
-  .plans/easydash/website-backup.yaml     the saved plan, replayed next time
   easydash/
-    20261116-134205-a1b2c3-website-backup/
-      metadata.json
-      plan.json
-      recording/   raw.mp4, screenshots/
-      narration/   script.md, audio.mp3
-      captions/    subtitles.srt, subtitles.vtt
-      video/       final.mp4, thumbnail.png
-      logs/        execution.json, browser.json, errors.json, run.log, trace.zip
+    20261116-134205-a1b2c3-website-backup.mp4
 ```
 
-The metadata file contains the product, objective, timestamps, AI provider and model,
-voice, workflow version, status, recording duration, video path, token usage and
-estimated AI cost, and any errors.
+Everything else is in the SQLite database `.demoforge/demoforge.db`: the `jobs` table
+(product, objective, timestamps, AI provider and model, voice, workflow version, status,
+recording duration, video path, token usage and estimated AI cost, errors), `job_records`
+(settings used, plan, practice run, narration, captions, reports, quality checks, log,
+thumbnail) and `plans` (saved click-plans). A job's scratch files live in
+`.demoforge/work/<job>/`, deleted on success and kept on failure for troubleshooting.
 
 ---
 

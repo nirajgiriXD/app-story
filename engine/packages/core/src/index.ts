@@ -6,3 +6,4 @@ export * from "./qa/quality";
 export * from "./orchestrator/generate";
 export * from "./orchestrator/validate";
 export * from "./orchestrator/release-notes";
+export * from "./store/store";

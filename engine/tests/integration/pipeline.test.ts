@@ -1,12 +1,12 @@
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@demoforge/contracts";
-import { generateDemo } from "@demoforge/core";
-import { loadProduct, parseWorkflow, workflowToYaml } from "@demoforge/products";
+import { generateDemo, storeFor } from "@demoforge/core";
+import { loadProduct, parseWorkflow } from "@demoforge/products";
 import { probeMedia } from "@demoforge/shared";
-import { savedPlanFile } from "../../packages/core/src/pipeline/plans";
 import { startExampleApp } from "../support/example-app";
 import { ScriptedProvider, ToneTTS } from "../support/fakes";
 
@@ -14,11 +14,12 @@ const PORT = 4391;
 let app: { url: string; stop: () => void };
 let productsDir: string;
 let outputDir: string;
+let root: string;
 let plan: Workflow;
 
 beforeAll(async () => {
   app = await startExampleApp(PORT);
-  const root = await mkdtemp(join(tmpdir(), "demoforge-it-"));
+  root = await mkdtemp(join(tmpdir(), "demoforge-it-"));
   productsDir = join(root, "products");
   outputDir = join(root, "output");
   await mkdir(productsDir);
@@ -76,13 +77,20 @@ describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () 
     expect([video.width, video.height, video.videoCodec, video.audioCodec]).toEqual([1920, 1080, "h264", "aac"]);
     expect(video.durationSec).toBeGreaterThan(15);
 
-    const quality = JSON.parse(await readFile(join(metadata.output_dir, "quality.json"), "utf8"));
-    const failedErrors = quality.checks.filter((c: { passed: boolean; severity: string }) => !c.passed && c.severity === "error");
-    expect(failedErrors).toEqual([]);
-
-    const srt = await readFile(join(metadata.output_dir, "captions", "subtitles.srt"), "utf8");
-    expect(srt).toContain("Q3 Product Launch");
+    // Everything but the video is in the database.
+    const store = storeFor(outputDir);
+    const quality = store.getRecordJson<{ checks: { passed: boolean; severity: string }[] }>(metadata.job_id, "quality");
+    expect(quality?.checks.filter((c) => !c.passed && c.severity === "error")).toEqual([]);
+    expect(store.getRecordText(metadata.job_id, "captions_srt")).toContain("Q3 Product Launch");
+    expect(store.getRecordBlob(metadata.job_id, "thumbnail")?.subarray(1, 4).toString()).toBe("PNG");
+    expect(store.getRecordJson(metadata.job_id, "plan")).toMatchObject({ id: "create-project" });
+    expect(store.getRecordText(metadata.job_id, "log")).toBeTruthy();
     expect(tts.calls.length).toBe(9); // intro + 7 segments + outro
+
+    // output/ holds only videos, and the scratch folder is gone.
+    expect(metadata.video!.path).toBe(join(outputDir, "example", `${metadata.job_id}-${"demonstrate-how-to-create-a-new-project"}.mp4`));
+    expect((await readdir(join(outputDir, "example"))).every((f) => f.endsWith(".mp4"))).toBe(true);
+    expect(existsSync(metadata.output_dir)).toBe(false);
   });
 
   it("narrates with the free local Kokoro voice (no API key)", async () => {
@@ -92,8 +100,8 @@ describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () 
     expect(metadata.errors).toEqual([]);
     expect(metadata.status).toBe("success");
     expect(metadata.tts.provider).toBe("kokoro");
-    const quality = JSON.parse(await readFile(join(metadata.output_dir, "quality.json"), "utf8"));
-    const silentCheck = quality.checks.find((c: { name: string }) => c.name === "no silent narration segments");
+    const quality = storeFor(outputDir).getRecordJson<{ checks: { name: string; passed: boolean }[] }>(metadata.job_id, "quality");
+    const silentCheck = quality?.checks.find((c) => c.name === "no silent narration segments");
     expect(silentCheck?.passed).toBe(true);
   }, 300_000);
 
@@ -104,21 +112,20 @@ describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () 
     expect(metadata.errors).toEqual([]);
     expect(metadata.status).toBe("success");
     expect(metadata.tts.provider).toBe("none");
-    const srt = await readFile(join(metadata.output_dir, "captions", "subtitles.srt"), "utf8");
-    expect(srt).toContain("Q3 Product Launch");
+    expect(storeFor(outputDir).getRecordText(metadata.job_id, "captions_srt")).toContain("Q3 Product Launch");
   });
 
   it("plans with AI, saves the plan, then replays it next time without AI planning", async () => {
     const product = await loadProduct(productsDir, "example");
     const ai = plannerAI();
     const providers = { createAI: (_config: unknown, deps: { usage: unknown }) => Object.assign(ai, { usage: deps.usage }), createTTS: () => new ToneTTS() };
-    const out = join(outputDir, "replay");
+    const out = join(root, "replay", "output");
 
     const first = await generateDemo({ product, outputDir: out, objective: OBJECTIVE, name: "create-project", logLevel: "warn", providers });
     expect(first.errors).toEqual([]);
     expect(first.mode).toBe("guided");
-    const saved = await readFile(savedPlanFile(out, "example", "create-project"), "utf8");
-    expect(parseWorkflow(saved).steps.map((s) => s.action)).toEqual(["click", "fill", "click", "assert"]);
+    const saved = storeFor(out).getPlan("example", "create-project");
+    expect(saved?.workflow.steps.map((s) => s.action)).toEqual(["click", "fill", "click", "assert"]);
     const agentTurns = ai.received.length;
 
     const second = await generateDemo({ product, outputDir: out, objective: OBJECTIVE, name: "create-project", logLevel: "warn", providers });
@@ -130,7 +137,7 @@ describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () 
 
   it("plans again by itself when a saved plan no longer matches the app", async () => {
     const product = await loadProduct(productsDir, "example");
-    const out = join(outputDir, "stale");
+    const out = join(root, "stale", "output");
     // A saved plan for the same objective whose button no longer exists.
     const stale: Workflow = {
       ...plan,
@@ -139,9 +146,7 @@ describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () 
         { id: "s2", description: "Check the list", action: "assert", expected: { type: "text_present", text: "Projects" } },
       ],
     };
-    const file = savedPlanFile(out, "example", "create-project");
-    await mkdir(join(out, ".plans", "example"), { recursive: true });
-    await writeFile(file, workflowToYaml({ ...stale, objective: OBJECTIVE }));
+    storeFor(out).savePlan("example", "create-project", { ...stale, objective: OBJECTIVE });
 
     const ai = plannerAI();
     const metadata = await generateDemo({
@@ -155,7 +160,7 @@ describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () 
     expect(metadata.errors).toEqual([]);
     expect(metadata.status).toBe("success_with_warnings");
     expect(metadata.warnings.join()).toMatch(/planned again/);
-    const replaced = parseWorkflow(await readFile(file, "utf8"));
-    expect(replaced.steps.some((s) => s.value === "Website Launch")).toBe(true);
+    const replaced = storeFor(out).getPlan("example", "create-project")?.workflow;
+    expect(replaced?.steps.some((s) => s.value === "Website Launch")).toBe(true);
   });
 });

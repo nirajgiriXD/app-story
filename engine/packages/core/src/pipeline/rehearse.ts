@@ -1,9 +1,9 @@
 import { join } from "node:path";
 import type { Workflow } from "@demoforge/contracts";
 import { runRehearsal, type ProductContext, type RehearsalOutcome } from "@demoforge/ai";
-import { workflowToYaml, type LoadedProduct } from "@demoforge/products";
-import { DemoForgeError, writeJson, writeText, type ErrorCode } from "@demoforge/shared";
-import type { Job } from "../job-manager/job";
+import type { LoadedProduct } from "@demoforge/products";
+import { DemoForgeError, type ErrorCode } from "@demoforge/shared";
+import { saveRecord, type Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
 import { withProviderFallback, type ProviderOverrides } from "./providers";
 
@@ -34,7 +34,7 @@ const GIVE_UP_CODES: Record<Extract<RehearsalOutcome, { status: "gave_up" }>["ca
 
 /**
  * Practice run: the AI explores and verifies the flow in an unrecorded browser and
- * returns a clean workflow (a click-plan), saved in the job folder as plan.json and plan.yaml.
+ * returns a clean workflow (a click-plan). The practice run is kept in the database.
  */
 export async function rehearseWorkflow(
   job: Job,
@@ -63,11 +63,9 @@ export async function rehearseWorkflow(
         }),
     ),
   );
-  await writeJson(job.paths.rehearsal, outcome);
+  saveRecord(job, "rehearsal", outcome);
 
   if (outcome.status === "success") {
-    await writeJson(job.paths.plan, outcome.workflow);
-    await writeText(job.paths.planYaml, workflowToYaml(outcome.workflow));
     job.log.info({ steps: outcome.workflow.steps.length, iterations: outcome.iterations }, "rehearsal succeeded");
     return outcome.workflow;
   }

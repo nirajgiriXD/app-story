@@ -4,8 +4,8 @@ import type { RecorderResult } from "@demoforge/browser";
 import { NarrationPacer } from "@demoforge/narration";
 import type { LoadedProduct } from "@demoforge/products";
 import { runSteps } from "@demoforge/workflow";
-import { DemoForgeError, writeJson } from "@demoforge/shared";
-import type { Job } from "../job-manager/job";
+import { DemoForgeError } from "@demoforge/shared";
+import { saveRecord, type Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
 
 export interface RecordingOutcome {
@@ -74,8 +74,8 @@ export async function recordWorkflow(
     },
   );
 
-  await writeJson(job.paths.executionLog, outcome.report);
-  await writeJson(job.paths.browserLog, outcome.report.issues);
+  saveRecord(job, "execution", outcome.report);
+  saveRecord(job, "browser_issues", outcome.report.issues);
 
   if (workflow.cleanup.length > 0) {
     await withBrowser(product, { workDir: join(job.paths.logsDir, "cleanup"), log: job.log, headless: options.headless }, async (s) => {

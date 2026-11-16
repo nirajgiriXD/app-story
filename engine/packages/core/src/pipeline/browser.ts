@@ -1,4 +1,4 @@
-import { launchBrowserSession, type BrowserSession } from "@showrun/browser";
+import { launchBrowserSession, type BrowserSession, type LoginState } from "@showrun/browser";
 import type { LoadedProduct } from "@showrun/products";
 import type { Logger } from "@showrun/shared";
 
@@ -9,6 +9,7 @@ export interface WithBrowserOptions {
   headless?: boolean;
   mode?: "normal" | "read_only";
   traceFile?: string;
+  loginState?: LoginState;
 }
 
 /** Open an isolated, logged-in browser session for one phase. It is always closed, even on failure. */
@@ -27,6 +28,7 @@ export async function withBrowser<T>(
       headless: options.headless,
       mode: options.mode,
       traceFile: options.traceFile,
+      loginState: options.loginState,
     });
     return await fn(session);
   } finally {

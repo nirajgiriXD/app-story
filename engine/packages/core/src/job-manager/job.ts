@@ -2,6 +2,7 @@ import { copyFile, mkdir, rename, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { JobError, JobMetadata, JobStatus } from "@showrun/contracts";
 import { UsageTracker } from "@showrun/ai";
+import type { LoginState } from "@showrun/browser";
 import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugify, toShowrunError, type Logger } from "@showrun/shared";
 import { Store, type RecordKind } from "../store/store";
 
@@ -37,6 +38,8 @@ export interface Job {
   store: Store;
   /** The job's log lines (JSON), saved to the database when the job finishes. */
   logLines: string[];
+  /** The app login from this job's first browser session, reused by the next ones (memory only). */
+  loginState?: LoginState;
 }
 
 export function jobPaths(root: string): JobPaths {

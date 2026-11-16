@@ -39,8 +39,10 @@ export async function recordWorkflow(
       record: true,
       headless: options.headless,
       traceFile: config.recording.trace ? job.paths.trace : undefined,
+      loginState: job.loginState,
     },
     async (session) => {
+      job.loginState = session.loginState;
       const controller = session.controller;
       if (workflow.setup.length > 0) {
         const setup = await runSteps(controller, workflow.setup, { phase: "recording", log: job.log, retries: 1 });
@@ -78,7 +80,7 @@ export async function recordWorkflow(
   saveRecord(job, "browser_issues", outcome.report.issues);
 
   if (workflow.cleanup.length > 0) {
-    await withBrowser(product, { workDir: join(job.paths.logsDir, "cleanup"), log: job.log, headless: options.headless }, async (s) => {
+    await withBrowser(product, { workDir: join(job.paths.logsDir, "cleanup"), log: job.log, headless: options.headless, loginState: job.loginState }, async (s) => {
       const cleanup = await runSteps(s.controller, workflow.cleanup, { phase: "recording", log: job.log, retries: 1 });
       if (!cleanup.ok) job.metadata.warnings.push("A cleanup step failed; demo data may need manual cleanup.");
     });

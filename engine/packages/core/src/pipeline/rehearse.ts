@@ -47,9 +47,10 @@ export async function rehearseWorkflow(
   const outcome = await withProviderFallback(job, "rehearsal", config, overrides, (provider) =>
     withBrowser(
       product,
-      { workDir: join(job.paths.logsDir, "rehearsal-browser"), log: job.log, headless: options.headless },
-      (session) =>
-        runRehearsal({
+      { workDir: join(job.paths.logsDir, "rehearsal-browser"), log: job.log, headless: options.headless, loginState: job.loginState },
+      (session) => {
+        job.loginState = session.loginState;
+        return runRehearsal({
           provider,
           controller: session.controller,
           product: productContext(product),
@@ -62,7 +63,8 @@ export async function rehearseWorkflow(
           log: job.log,
           screenshotDir: join(job.paths.logsDir, "rehearsal-screenshots"),
           jobId: job.id,
-        }),
+        });
+      },
     ),
   );
   saveRecord(job, "rehearsal", outcome);

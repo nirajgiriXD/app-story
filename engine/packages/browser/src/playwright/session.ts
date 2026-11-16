@@ -8,6 +8,9 @@ import { isAllowedUrl } from "../security/url-guard";
 import { CdpScreencastRecorder, type Recorder, type RecorderResult } from "../recording/cdp-recorder";
 import { PlaywrightVideoRecorder } from "../recording/playwright-recorder";
 
+/** Cookies and local storage of a logged-in browser (kept in memory only, never written to disk). */
+export type LoginState = Awaited<ReturnType<BrowserContext["storageState"]>>;
+
 export interface BrowserSessionOptions {
   config: ProductConfig;
   /** Scratch folder for recordings and traces. */
@@ -19,6 +22,8 @@ export interface BrowserSessionOptions {
   /** `read_only` blocks typing, selecting and button clicks (production environments). */
   mode?: "normal" | "read_only";
   traceFile?: string;
+  /** Login from an earlier session of the same job: skips the login form while it still works. */
+  loginState?: LoginState;
   initBrowser?: (page: Page, context: BrowserContext) => Promise<void>;
   customVerify?: (name: string, page: Page, context: BrowserContext) => Promise<boolean>;
 }
@@ -27,6 +32,8 @@ export interface BrowserSession {
   controller: PlaywrightController;
   page: Page;
   context: BrowserContext;
+  /** The state right after logging in, for the job's next session (undefined without a login). */
+  loginState?: LoginState;
   startRecording(): Promise<number>;
   stopRecording(outputPath: string): Promise<RecorderResult>;
   saveStorageState(path: string): Promise<void>;
@@ -58,6 +65,7 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
     colorScheme: config.browser.color_scheme,
     acceptDownloads: false,
     serviceWorkers: "block",
+    storageState: config.authentication.strategy === "auto" ? options.loginState : undefined,
     recordVideo: recordWithPlaywright ? { dir: join(options.workDir, "pw-video"), size: viewport } : undefined,
   });
   context.setDefaultTimeout(config.browser.action_timeout_ms);
@@ -80,7 +88,9 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
   });
 
   if (options.traceFile) {
-    await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
+    // Trace screenshots run a second screencast next to the recorder and cost it frames,
+    // so the take being recorded keeps only DOM snapshots (failure screenshots are separate).
+    await context.tracing.start({ screenshots: !options.record, snapshots: true, sources: false });
   }
 
   let page = await context.newPage();
@@ -115,8 +125,19 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
 
   try {
     let controller = makeController(page);
-    await autoLogin(controller, page, config);
-    await controller.navigate(config.product.start_path);
+    let loginState: LoginState | undefined;
+    if (config.authentication.strategy === "auto") {
+      // Reuse the job's login when it still works: no login form, no waiting for redirects.
+      if (options.loginState && (await stillLoggedIn(controller, page, config))) {
+        loginState = options.loginState;
+      } else {
+        await autoLogin(controller, page, config);
+        loginState = await context.storageState();
+        await controller.navigate(config.product.start_path);
+      }
+    } else {
+      await controller.navigate(config.product.start_path);
+    }
 
     if (recordWithPlaywright) {
       // Playwright records from page creation, so start a fresh page after login.
@@ -139,6 +160,7 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
       controller: activeController,
       page: activePage,
       context,
+      loginState,
       async startRecording() {
         recorder =
           engine === "cdp"
@@ -168,6 +190,13 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
     await closeAll();
     throw error;
   }
+}
+
+/** Open the start page with a saved login; true if the app did not ask to log in again. */
+async function stillLoggedIn(controller: PlaywrightController, page: Page, config: ProductConfig): Promise<boolean> {
+  const opened = await controller.navigate(config.product.start_path).then(() => true, () => false);
+  if (!opened) return false;
+  return !(await page.locator('input[type="password"]:visible').first().isVisible().catch(() => false));
 }
 
 /** Paths tried, in order, when the start page shows no login form and none is configured. */

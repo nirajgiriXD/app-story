@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest something AppStory should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to happen?
+      description: How it could work, for example a new product file setting, command or video template.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Other ways you have tried
+      description: Workarounds or other tools you have considered.

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem
+    url: https://github.com/nirajgiriXD/app-story/security/advisories/new
+    about: Please report security problems privately, not as a public issue.
+  - name: Getting started guide
+    url: https://github.com/nirajgiriXD/app-story/blob/main/docs/getting-started.md
+    about: Setup, commands and settings.

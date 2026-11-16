@@ -1,0 +1,65 @@
+name: Bug report
+description: Something went wrong while making a video, or AppStory did not do what the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. **Remove passwords, API keys and private data** from anything you paste.
+        Security problems go through [SECURITY.md](https://github.com/nirajgiriXD/app-story/blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      description: The command you ran, and the product file settings that matter (no secrets).
+      placeholder: |
+        1. npx app-story check acme
+        2. npx app-story acme --each
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output or log
+      description: The error printed in the terminal, or the log from the failed job. It is pasted as code.
+      render: text
+  - type: dropdown
+    id: ai
+    attributes:
+      label: AI provider
+      options:
+        - Anthropic
+        - OpenAI
+        - Both
+        - Not related to the AI
+  - type: dropdown
+    id: voice
+    attributes:
+      label: Voice
+      options:
+        - Kokoro (free)
+        - OpenAI
+        - ElevenLabs
+        - None
+        - Not related to the voice
+  - type: input
+    id: version
+    attributes:
+      label: AppStory version
+      description: The commit you are on (`git rev-parse --short HEAD`).
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Node.js version (`node -v`) and FFmpeg version (`ffmpeg -version`).
+      placeholder: Windows 11, Node 24.15.0, FFmpeg 7.1
+    validations:
+      required: true

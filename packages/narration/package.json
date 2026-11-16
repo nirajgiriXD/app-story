@@ -7,9 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/ai": "workspace:*",
-    "@demoforge/contracts": "workspace:*",
-    "@demoforge/shared": "workspace:*",
+    "@demoforge/ai": "*",
+    "@demoforge/contracts": "*",
+    "@demoforge/shared": "*",
     "kokoro-js": "1.2.1",
     "openai": "^7.57.0",
     "zod": "^4.6.7"

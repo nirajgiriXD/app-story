@@ -7,9 +7,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/browser": "workspace:*",
-    "@demoforge/contracts": "workspace:*",
-    "@demoforge/shared": "workspace:*",
+    "@demoforge/browser": "*",
+    "@demoforge/contracts": "*",
+    "@demoforge/shared": "*",
     "zod": "^4.6.7"
   }
 }

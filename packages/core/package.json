@@ -7,15 +7,15 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/ai": "workspace:*",
-    "@demoforge/browser": "workspace:*",
-    "@demoforge/captions": "workspace:*",
-    "@demoforge/contracts": "workspace:*",
-    "@demoforge/narration": "workspace:*",
-    "@demoforge/products": "workspace:*",
-    "@demoforge/shared": "workspace:*",
-    "@demoforge/video": "workspace:*",
-    "@demoforge/workflow": "workspace:*",
+    "@demoforge/ai": "*",
+    "@demoforge/browser": "*",
+    "@demoforge/captions": "*",
+    "@demoforge/contracts": "*",
+    "@demoforge/narration": "*",
+    "@demoforge/products": "*",
+    "@demoforge/shared": "*",
+    "@demoforge/video": "*",
+    "@demoforge/workflow": "*",
     "playwright": "^1.65.1",
     "zod": "^4.6.7"
   }

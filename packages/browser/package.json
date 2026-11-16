@@ -7,8 +7,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@demoforge/contracts": "workspace:*",
-    "@demoforge/shared": "workspace:*",
+    "@demoforge/contracts": "*",
+    "@demoforge/shared": "*",
     "playwright": "^1.65.1"
   }
 }

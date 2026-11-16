@@ -11,7 +11,7 @@ import { startExampleApp } from "../support/example-app";
 /*
  * README §16 — the first end-to-end milestone, against real AI and TTS APIs.
  * Costs real money, so each provider only runs when its key is present:
- *   pnpm test:e2e
+ *   npm run test:e2e
  */
 loadEnv({ quiet: true });
 

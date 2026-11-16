@@ -112,7 +112,7 @@ Use the following stack unless a strong technical reason requires an alternative
 |---|---|
 | Language | TypeScript |
 | Runtime | Node.js |
-| Package manager | pnpm |
+| Package manager | npm (workspaces) |
 | AI agent architecture | Provider-agnostic |
 | AI providers | Anthropic Claude, OpenAI |
 | AI SDKs | Official Anthropic SDK, OpenAI SDK |
@@ -714,7 +714,7 @@ Commands and flags may be adjusted as the implementation evolves, but keep the C
 
 # 8. Project Structure
 
-Use a pnpm monorepo.
+Use an npm workspaces monorepo.
 
 Suggested structure:
 
@@ -808,7 +808,6 @@ demoforge/
 ├── .env.example
 ├── .gitignore
 ├── package.json
-├── pnpm-workspace.yaml
 ├── tsconfig.base.json
 └── README.md
 ```
@@ -1121,7 +1120,7 @@ Do not attempt to implement everything in one pass.
 
 ## Phase 1 — Foundation
 
-- Set up pnpm monorepo.
+- Set up npm workspaces monorepo.
 - Configure TypeScript.
 - Implement CLI.
 - Implement product configuration loader.

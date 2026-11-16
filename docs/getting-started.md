@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Node.js 22+ and pnpm 10
+- Node.js 22+ and npm 11+
 - FFmpeg and ffprobe on `PATH`
 - An Anthropic or OpenAI API key. That is all.
   - The voice-over is free and runs on your computer ([Kokoro](https://huggingface.co/hexgrad/Kokoro-82M),
@@ -13,13 +13,13 @@
 ## Install
 
 ```bash
-pnpm install
-pnpm browsers:install          # Playwright Chromium
+npm install
+npm run browsers:install       # Playwright Chromium
 cp .env.example .env           # then fill in your keys
 ```
 
-Run the CLI with `pnpm demoforge <command>`. To get a global `demoforge` command:
-`cd apps/cli && pnpm link --global`.
+Run the CLI with `npx demoforge <command>`. To get a global `demoforge` command:
+`cd apps/cli && npm link`.
 
 ## Try the example product
 
@@ -27,13 +27,13 @@ The repo ships a tiny app with synthetic data (`examples/projects-app`) and a pr
 configuration for it (`products/example`).
 
 ```bash
-pnpm example-app                                   # terminal 1: http://localhost:4310
-pnpm demoforge validate --product example          # terminal 2
-pnpm demoforge generate --product example --features
-pnpm demoforge run --product example --scenario create-project --dry-run
-pnpm demoforge generate --product example --objective "Demonstrate how to create a new project"
-pnpm demoforge generate --product example --objective "..." --ai-provider openai
-pnpm demoforge generate --product example --scenario create-project
+npm run example-app                               # terminal 1: http://localhost:4310
+npx demoforge validate --product example          # terminal 2
+npx demoforge generate --product example --features
+npx demoforge run --product example --scenario create-project --dry-run
+npx demoforge generate --product example --objective "Demonstrate how to create a new project"
+npx demoforge generate --product example --objective "..." --ai-provider openai
+npx demoforge generate --product example --scenario create-project
 ```
 
 Each job writes to `output/<product>/<demo>/<job-id>/`:
@@ -54,10 +54,10 @@ Open a trace with `npx playwright show-trace output/.../logs/trace.zip`.
 ## Add your own product
 
 ```bash
-pnpm demoforge init                                 # creates products/<id>/
-pnpm demoforge browser inspect --product <id> --save-auth   # if the app needs a login
-pnpm demoforge validate --product <id>
-pnpm demoforge discover --product <id>              # optional: read-only exploration, demo ideas
+npx demoforge init                                 # creates products/<id>/
+npx demoforge browser inspect --product <id> --save-auth   # if the app needs a login
+npx demoforge validate --product <id>
+npx demoforge discover --product <id>              # optional: read-only exploration, demo ideas
 ```
 
 Then describe the product in `instructions.md` and `knowledge/*.md`. See
@@ -79,9 +79,9 @@ Where it is, which buttons to click, and what the user sees when it worked.
 ```
 
 ```bash
-pnpm demoforge generate --product <id> --features                  # one video, all features
-pnpm demoforge generate --product <id> --features --each           # one video per feature
-pnpm demoforge generate --product <id> --features path/to/CHANGELOG.md
+npx demoforge generate --product <id> --features                  # one video, all features
+npx demoforge generate --product <id> --features --each           # one video per feature
+npx demoforge generate --product <id> --features path/to/CHANGELOG.md
 ```
 
 The AI reads the file, plans the clicks in the real app, verifies each feature works,
@@ -125,8 +125,8 @@ Global flags: `--products-dir`, `--output-dir`, `--log-level`. Provider flags on
 ## Tests
 
 ```bash
-pnpm test                 # unit (fast, no browser)
-pnpm test:integration     # real Chromium, recorder and Remotion; fake AI and voice
-pnpm test:e2e             # real APIs (costs money); skipped when keys are missing
-pnpm typecheck
+npm test                  # unit (fast, no browser)
+npm run test:integration  # real Chromium, recorder and Remotion; fake AI and voice
+npm run test:e2e          # real APIs (costs money); skipped when keys are missing
+npm run typecheck
 ```

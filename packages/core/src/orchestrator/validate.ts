@@ -88,7 +88,7 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
   if (await hasBinary("ffprobe")) ok("ffprobe found");
   else error("ffprobe not found on PATH");
   if (await fileExists(chromium.executablePath())) ok("Playwright Chromium installed");
-  else error("Playwright Chromium is not installed; run `pnpm browsers:install`");
+  else error("Playwright Chromium is not installed; run `npm run browsers:install`");
 
   return items;
 }

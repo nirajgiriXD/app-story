@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AIProvider } from "@demoforge/ai";
-import { ProductConfigSchema, type FeaturePlan } from "@demoforge/contracts";
+import { ProductConfigSchema, resolveKokoroVoice, type FeaturePlan } from "@demoforge/contracts";
 import { planFeatures } from "@demoforge/core";
 import { createTTSProvider } from "@demoforge/narration";
-import { loadProduct, objectiveForAllFeatures, objectiveForFeature } from "@demoforge/products";
+import { applyVoiceSettings, loadProduct, objectiveForAllFeatures, objectiveForFeature } from "@demoforge/products";
 import { DemoForgeError } from "@demoforge/shared";
 import { ScriptedProvider } from "../support/fakes";
 
@@ -136,3 +136,49 @@ describe("text-to-speech selection", () => {
   });
 });
 
+describe("voice settings from .env", () => {
+  const kokoro = { provider: "kokoro" as const, speed: 1 };
+  const voiceOf = (env: Record<string, string>, base: Parameters<typeof applyVoiceSettings>[0] = kokoro) =>
+    createTTSProvider(applyVoiceSettings(base, env)).voice;
+
+  it("picks the best Kokoro voice for a gender and accent", () => {
+    expect(voiceOf({})).toBe("af_heart");
+    expect(voiceOf({ DEMOFORGE_VOICE: "male" })).toBe("am_michael");
+    expect(voiceOf({ DEMOFORGE_VOICE: "Female", DEMOFORGE_VOICE_ACCENT: "British" })).toBe("bf_emma");
+    expect(voiceOf({ DEMOFORGE_VOICE: "male", DEMOFORGE_VOICE_ACCENT: "british" })).toBe("bm_george");
+    expect(resolveKokoroVoice("male", "british")).toMatchObject({ name: "George", gender: "male", accent: "british" });
+  });
+
+  it("accepts a Kokoro voice by id or name", () => {
+    expect(voiceOf({ DEMOFORGE_VOICE: "am_puck" })).toBe("am_puck");
+    expect(voiceOf({ DEMOFORGE_VOICE: "Emma" })).toBe("bf_emma");
+  });
+
+  it("reads speed and tone", () => {
+    const tts = applyVoiceSettings({ provider: "openai", speed: 1 }, { DEMOFORGE_VOICE: "cedar", DEMOFORGE_VOICE_SPEED: "1.15", DEMOFORGE_VOICE_TONE: "warm and upbeat" });
+    expect(tts).toMatchObject({ voice: "cedar", speed: 1.15, style: "warm and upbeat" });
+  });
+
+  it("rejects mistakes before any AI work, with the fix in the message", () => {
+    expect(() => applyVoiceSettings(kokoro, { DEMOFORGE_VOICE: "robot" })).toThrow(/Unknown voice 'robot'/);
+    try {
+      applyVoiceSettings(kokoro, { DEMOFORGE_VOICE: "robot" });
+    } catch (error) {
+      expect((error as DemoForgeError).hint).toContain("am_michael");
+    }
+    expect(() => applyVoiceSettings(kokoro, { DEMOFORGE_VOICE_ACCENT: "australian" })).toThrow(/american or british/);
+    expect(() => applyVoiceSettings(kokoro, { DEMOFORGE_VOICE_SPEED: "2" })).toThrow(/0.7 .* to 1.3/);
+    expect(() => applyVoiceSettings({ provider: "openai", speed: 1 }, { DEMOFORGE_VOICE: "male" })).toThrow(/only the free Kokoro voice/);
+  });
+
+  it("applies to every product through the loader", async () => {
+    process.env.DEMOFORGE_VOICE = "male";
+    try {
+      const product = await productWith("# Shop\n");
+      expect(product.config.providers.tts).toMatchObject({ provider: "kokoro", voice: "male" });
+      expect(createTTSProvider(product.config.providers.tts).voice).toBe("am_michael");
+    } finally {
+      delete process.env.DEMOFORGE_VOICE;
+    }
+  });
+});

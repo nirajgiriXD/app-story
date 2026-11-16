@@ -4,13 +4,19 @@ import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import {
   AI_PROVIDERS,
+  KOKORO_VOICES,
   ProductConfigSchema,
   TTS_PROVIDERS,
+  VOICE_ACCENTS,
+  VOICE_GENDERS,
   formatZodError,
+  resolveKokoroVoice,
   type AiProviderName,
   type ProductConfig,
   type SafetyConfig,
+  type TtsConfig,
   type TtsProviderName,
+  type VoiceAccent,
 } from "@demoforge/contracts";
 import { DemoForgeError, fileExists, isDemoForgeError } from "@demoforge/shared";
 
@@ -224,6 +230,51 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
       throw new DemoForgeError("CONFIG_INVALID", `Unknown voice '${ttsProvider}'. Use ${TTS_PROVIDERS.join(", ")}.`);
     }
     next.providers.tts = { ...next.providers.tts, provider: ttsProvider, voice: undefined, model: undefined };
+  }
+  next.providers.tts = applyVoiceSettings(next.providers.tts);
+  return next;
+}
+
+/**
+ * Voice choices from .env, for every product: DEMOFORGE_VOICE (female, male or a voice
+ * name), DEMOFORGE_VOICE_ACCENT, DEMOFORGE_VOICE_SPEED and DEMOFORGE_VOICE_TONE.
+ * Checked here, so a typo fails before any AI work instead of at the narration step.
+ */
+export function applyVoiceSettings(tts: TtsConfig, env: NodeJS.ProcessEnv = process.env): TtsConfig {
+  const read = (name: string) => env[name]?.trim() || undefined;
+  const next = { ...tts };
+  const voice = read("DEMOFORGE_VOICE");
+  const accent = read("DEMOFORGE_VOICE_ACCENT")?.toLowerCase();
+  const speed = read("DEMOFORGE_VOICE_SPEED");
+  const tone = read("DEMOFORGE_VOICE_TONE");
+
+  if (voice) next.voice = voice;
+  if (accent) {
+    if (!(VOICE_ACCENTS as readonly string[]).includes(accent)) {
+      throw new DemoForgeError("CONFIG_INVALID", `DEMOFORGE_VOICE_ACCENT must be ${VOICE_ACCENTS.join(" or ")}, not '${accent}'.`);
+    }
+    next.accent = accent as VoiceAccent;
+  }
+  if (speed) {
+    const value = Number(speed);
+    if (!(value >= 0.7 && value <= 1.3)) {
+      throw new DemoForgeError("CONFIG_INVALID", `DEMOFORGE_VOICE_SPEED must be a number from 0.7 (slower) to 1.3 (faster), not '${speed}'.`);
+    }
+    next.speed = value;
+  }
+  if (tone) next.style = tone;
+
+  if (next.provider === "kokoro" && !resolveKokoroVoice(next.voice, next.accent)) {
+    const names = (gender: string) => KOKORO_VOICES.filter((v) => v.gender === gender).map((v) => v.id).join(", ");
+    throw new DemoForgeError("CONFIG_INVALID", `Unknown voice '${next.voice}' in DEMOFORGE_VOICE.`, {
+      hint: `Use female, male, or one of the Kokoro voices.\n  female: ${names("female")}\n  male:   ${names("male")}`,
+    });
+  }
+  const byGender = next.voice && (VOICE_GENDERS as readonly string[]).includes(next.voice.toLowerCase());
+  if (byGender && (next.provider === "openai" || next.provider === "elevenlabs")) {
+    throw new DemoForgeError("CONFIG_INVALID", `DEMOFORGE_VOICE=${next.voice} picks a voice by gender, which only the free Kokoro voice can do.`, {
+      hint: next.provider === "openai" ? "Name an OpenAI voice instead, e.g. marin, cedar, coral or onyx." : "Use a voice id from your ElevenLabs account.",
+    });
   }
   return next;
 }

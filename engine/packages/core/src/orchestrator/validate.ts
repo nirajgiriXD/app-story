@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { chromium } from "playwright";
+import { resolveKokoroVoice } from "@demoforge/contracts";
 import { resolveProductPath, type LoadedProduct } from "@demoforge/products";
 import { credentialEnvName, fileExists, hasBinary } from "@demoforge/shared";
 
@@ -40,18 +41,24 @@ export async function validateProduct(product: LoadedProduct, options: { outputD
   else error(`${aiKey} is not set; add it to .env (or set "ai:" to the provider you have a key for)`);
   if (config.providers.ai_fallback) ok(`backup AI: ${config.providers.ai_fallback.provider}, used if ${ai.provider} fails`);
 
-  const tts = config.providers.tts.provider;
+  const voice = config.providers.tts;
+  const tts = voice.provider;
+  const speed = voice.speed !== 1 ? `, speed ${voice.speed}` : "";
   if (tts === "none") {
     ok("voice: off; videos get captions only");
   } else if (tts === "kokoro") {
-    ok("voice: free local Kokoro voice, no key needed (first run downloads ~90 MB)");
+    const chosen = resolveKokoroVoice(voice.voice, voice.accent);
+    ok(`voice: free local Kokoro voice ${chosen ? `${chosen.name} (${chosen.gender}, ${chosen.accent}, ${chosen.id})` : ""}${speed}; no key needed`);
     if (!config.demo.default_language.toLowerCase().startsWith("en")) {
       warn(`Kokoro voices speak English only, but language is '${config.demo.default_language}'`);
     }
+    if (voice.style) warn("DEMOFORGE_VOICE_TONE is ignored: Kokoro has no tone control (only the OpenAI voice does)");
   } else {
     const ttsKey = API_KEYS[tts] as string;
-    if (process.env[ttsKey]) ok(`voice: ${tts} (${ttsKey} found)`);
+    if (process.env[ttsKey]) ok(`voice: ${tts}${voice.voice ? ` ${voice.voice}` : ""}${speed}${voice.style && tts === "openai" ? `, tone "${voice.style}"` : ""} (${ttsKey} found)`);
     else error(`${ttsKey} is not set (needed for the ${tts} voice)`);
+    if (voice.accent) warn("DEMOFORGE_VOICE_ACCENT is ignored: it only picks among the free Kokoro voices");
+    if (voice.style && tts !== "openai") warn(`DEMOFORGE_VOICE_TONE is ignored: only the OpenAI voice follows a tone`);
   }
 
   const auth = config.authentication;

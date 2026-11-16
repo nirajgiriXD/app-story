@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VOICE_ACCENTS } from "./voices";
 
 export const AI_PROVIDERS = ["anthropic", "openai"] as const;
 export const AiProviderNameSchema = z.enum(AI_PROVIDERS);
@@ -44,11 +45,14 @@ export type AiProviderConfig = z.infer<typeof AiProviderConfigSchema>;
 
 export const TtsConfigSchema = z.object({
   provider: TtsProviderNameSchema.default("kokoro"),
+  /** Kokoro: "female", "male" or a voice id/name. OpenAI: a voice name. ElevenLabs: a voice id. */
   voice: z.string().optional(),
+  /** Kokoro only: picks the best voice of the gender with this accent. */
+  accent: z.enum(VOICE_ACCENTS).optional(),
   model: z.string().optional(),
   /** 1.0 is natural speed. */
   speed: z.number().min(0.7).max(1.3).default(1),
-  /** Extra delivery guidance for providers that support it (OpenAI). */
+  /** Tone and delivery guidance, e.g. "warm and upbeat" (OpenAI only). */
   style: z.string().optional(),
 });
 export type TtsConfig = z.infer<typeof TtsConfigSchema>;

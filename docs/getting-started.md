@@ -8,7 +8,8 @@
   - The voice-over is free and runs on your computer ([Kokoro](https://huggingface.co/hexgrad/Kokoro-82M),
     via `kokoro-js`). The first run downloads the voice model (~90 MB) once. English only.
   - Paid voices are optional (`voice: openai` or `voice: elevenlabs`); `voice: none` makes
-    captions-only videos.
+    captions-only videos. Female or male, accent, speed and tone are set in `.env`
+    (see "Voice" in the README).
 
 ## Install
 
@@ -106,6 +107,7 @@ Open a trace with `npx playwright show-trace output/.../logs/trace.zip`.
 | `ANTHROPIC_API_KEY` | Claude |
 | `OPENAI_API_KEY` | OpenAI models, and the optional OpenAI voice |
 | `ELEVENLABS_API_KEY` | optional; ElevenLabs voice |
+| `DEMOFORGE_VOICE`, `DEMOFORGE_VOICE_ACCENT`, `DEMOFORGE_VOICE_SPEED`, `DEMOFORGE_VOICE_TONE` | which voice speaks (female, male or a name), accent, speed and tone |
 | `DEMOFORGE_AI_PROVIDER`, `DEMOFORGE_AI_MODEL`, `DEMOFORGE_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
 | `DEMOFORGE_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
 | anything a product file names, e.g. `ACME_PASSWORD` | `login: demo@acme.com / env:ACME_PASSWORD` |

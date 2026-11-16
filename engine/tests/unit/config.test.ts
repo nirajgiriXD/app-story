@@ -13,6 +13,10 @@ const KEYS = [
   "DEMOFORGE_AI_PROVIDER",
   "DEMOFORGE_AI_MODEL",
   "DEMOFORGE_TTS_PROVIDER",
+  "DEMOFORGE_VOICE",
+  "DEMOFORGE_VOICE_ACCENT",
+  "DEMOFORGE_VOICE_SPEED",
+  "DEMOFORGE_VOICE_TONE",
 ];
 let savedEnv: Record<string, string | undefined> = {};
 beforeEach(() => {

@@ -1,5 +1,5 @@
 import { rm, writeFile } from "node:fs/promises";
-import type { TtsConfig } from "@demoforge/contracts";
+import { resolveKokoroVoice, type TtsConfig } from "@demoforge/contracts";
 import { DemoForgeError, runFfmpeg } from "@demoforge/shared";
 import type { KokoroTTS as KokoroModel } from "kokoro-js";
 import type { TTSProvider } from "./tts";
@@ -43,7 +43,8 @@ export class KokoroTTS implements TTSProvider {
   private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly config: TtsConfig) {
-    this.voice = config.voice ?? KOKORO_DEFAULTS.voice;
+    // "female"/"male" (with the accent) or a voice name; unknown names fail at synthesis with the full list.
+    this.voice = resolveKokoroVoice(config.voice, config.accent)?.id ?? config.voice ?? KOKORO_DEFAULTS.voice;
     this.model = config.model ?? KOKORO_DEFAULTS.model;
   }
 

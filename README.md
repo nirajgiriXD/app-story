@@ -12,7 +12,7 @@ The goal is to make product demo creation repeatable and largely automated. Inst
 demo-forge/
 ├── products/     👉 your products: one file each, e.g. products/acme.md (see "Product files")
 ├── output/       👉 finished videos and reports (see "Output")
-├── .env          👉 your AI key, and passwords read with env:NAME
+├── .env          👉 your AI key, voice choices, and passwords read with env:NAME
 ├── docs/         guides: start with docs/getting-started.md
 └── engine/       DemoForge itself — no need to touch it to make videos (see "Engine")
 ```
@@ -106,6 +106,26 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
 - Saves each working plan in `output/.plans/` and replays it next time: no AI cost, same
   video. If you edit the feature in the release notes, or the app changed and the plan
   stops working, it plans again. Use `--fresh` to force a new plan.
+
+## Voice
+
+The voice is set in `.env` and applies to every product. All of it is optional.
+
+```bash
+DEMOFORGE_VOICE=female            # female | male | a voice name (default: female)
+DEMOFORGE_VOICE_ACCENT=american   # american | british (default: american)
+DEMOFORGE_VOICE_SPEED=1.0         # 0.7 (slower) to 1.3 (faster)
+DEMOFORGE_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
+```
+
+- **Kokoro** (the free default) picks its best voice for the gender and accent:
+  female American *Heart*, male American *Michael*, female British *Emma*, male British
+  *George*. You can also name any Kokoro voice, e.g. `DEMOFORGE_VOICE=am_puck`; the 28
+  names are listed by `npx demoforge check <product>` when a name is wrong. Kokoro has no
+  tone, emotion or pitch control.
+- **OpenAI** (`voice: openai` in the product file) needs a voice name, e.g. `marin`,
+  `cedar`, `coral` or `onyx`, and is the one that follows `DEMOFORGE_VOICE_TONE`.
+- **ElevenLabs** (`voice: elevenlabs`) needs a voice id from your ElevenLabs account.
 
 ## Output
 

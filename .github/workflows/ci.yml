@@ -38,7 +38,8 @@ jobs:
   integration:
     name: Integration tests (real browser, video and voice)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Several real videos are made; a 4-core runner takes a while.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -53,9 +54,10 @@ jobs:
         run: npx playwright install --with-deps chromium
       # The free Kokoro voice downloads its model (~90 MB) on first use.
       - name: Cache the Kokoro voice model
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: node_modules/@huggingface/transformers/.cache
           key: kokoro-${{ hashFiles('package-lock.json') }}
           restore-keys: kokoro-
-      - run: npm run test:integration
+      # Print each test as it finishes, so a slow run shows where it is.
+      - run: npm run test:integration -- --reporter=verbose

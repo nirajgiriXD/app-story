@@ -9,20 +9,52 @@ AppStory uses AI agents powered by **Anthropic Claude or OpenAI**, **Playwright 
 
 The goal is to make product demo creation repeatable and largely automated. Instead of manually recording every feature, users provide a web application, define what they want to demonstrate, and let AppStory plan, execute, record, narrate, and render the demo.
 
-## Where things are
+## Install
 
-```text
-app-story/
-├── products/     👉 your products: one file each, e.g. products/acme.md (see "Product files")
-├── output/       👉 finished videos, nothing else (see "Output")
-├── .env          👉 your AI key, voice choices, and passwords read with env:NAME
-├── docs/         guides: start with docs/getting-started.md
-└── engine/       AppStory itself — no need to touch it to make videos (see "Engine")
+Pick one. They all make the same videos.
+
+**In your project, with npm.** Needs Node.js 22.13+ and [FFmpeg](https://ffmpeg.org).
+
+```bash
+npm install --save-dev app-story
+npx playwright install chromium   # the browser it drives
+npx app-story new acme            # creates products/acme.md
 ```
 
-Quick start: `npm install`, `npm run browsers:install`, add a key to `.env`, then
-`npx app-story new acme`, fill in `products/acme.md`, and `npx app-story acme`.
-See [docs/getting-started.md](docs/getting-started.md).
+**With Docker.** Needs only Docker: Node, Chromium, FFmpeg and the voice model are inside.
+
+```bash
+docker pull ghcr.io/nirajgirixd/app-story
+docker run --rm -it -v "$PWD:/work" ghcr.io/nirajgirixd/app-story new acme
+```
+
+Run it from your project folder; it reads `.env` and `products/` there and writes the
+videos to `output/`. On Linux, add `--user "$(id -u):$(id -g)"` so the files are yours.
+Inside Docker, an app running on your own computer is at `host.docker.internal`, not
+`localhost`. To build the image yourself: `docker build -t app-story .` in this repository.
+
+**From this repository**, to work on AppStory itself: see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Then add your AI key to `.env` (`ANTHROPIC_API_KEY=...` or `OPENAI_API_KEY=...`), fill in
+`products/acme.md`, and run `npx app-story acme`. See [docs/getting-started.md](docs/getting-started.md).
+
+## Where things are
+
+AppStory works in your project folder:
+
+```text
+your-project/
+├── products/          👉 your products: one file each, e.g. products/acme.md (see "Product files")
+│   └── acme.plans/    the saved click-plans of acme, one YAML file per video: commit them
+├── output/            👉 finished videos, nothing else (see "Output")
+├── .env               👉 your AI key, voice choices, and passwords read with env:NAME
+└── .app-story/        AppStory's records: history, cache and kept recordings (git ignores it by itself)
+```
+
+Your project folder is the nearest folder, from where you run AppStory upwards, that has a
+`products/` or `.app-story/` folder (or the current folder, the first time).
+`APP_STORY_HOME=/some/folder` picks it explicitly. In this repository it is the repository
+itself, so `products/example.md` is ready to try.
 
 ## Product files
 
@@ -126,9 +158,16 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
 
 - Picks the features from the release notes.
 - Logs in, plans the clicks in the real app, proves each feature works, then records it.
-- Saves each working plan in its database and replays it next time: no AI cost, same
-  video. If you edit the feature in the release notes, or the app changed and the plan
-  stops working, it plans again. Use `--fresh` to force a new plan.
+- Saves each working plan as a file next to the product file
+  (`products/acme.plans/<video>.yaml`) and replays it next time: no AI cost, same video.
+  Commit these files, so teammates and automated runs replay the same clicks, and
+  changes to a plan show up in pull requests. If you edit the feature in the release
+  notes, or the app changed and the plan stops working, it plans again and replaces the
+  file. Use `--fresh` to force a new plan, or delete the file.
+- Keeps the recording of the 5 newest videos of each product, so a video can be made
+  again in another look, or with a new logo, color, music or captions setting, without
+  the app and without AI: `npx app-story redo acme --template tutorial`. The clicks, the
+  voice and the timing stay as recorded.
 - Reuses what has not changed: the feature list of an unchanged product file, the
   narration of a replayed plan, and every line already spoken in the same voice.
 - Fits the narration to the clicks: each line is about as long as its steps take on
@@ -166,23 +205,30 @@ output/
     └── 20261116-141010-d4e5f6-bulk-export.mp4
 ```
 
-Everything else is kept in one SQLite database, `engine/data/app-story.db` (ignored by
-git):
+The saved plans are in `products/<product>.plans/` (see above). Everything else is in
+`.app-story/`, which git ignores:
+
+```text
+.app-story/
+├── app-story.db       history, records and cache (SQLite)
+├── takes/<job>/       the recording, spoken clips and timeline of a recent video, for redo
+└── work/<job>/        scratch files of a video being made
+```
+
+The database has these tables:
 
 | Table | What it keeps |
 | --- | --- |
 | `jobs` | one row per video: product, goal, status, AI and model, voice, cost, video path, full metadata |
 | `job_records` | per video: the product settings used (passwords hidden), the click-plan, the AI's practice run, narration script, captions (SRT and WebVTT), recording and browser reports, quality checks, the log, and the thumbnail |
-| `plans` | the working click-plan of each feature, replayed by the next video without AI planning |
 | `cache` | AI answers and spoken lines that are identical for identical inputs (unused entries are deleted after 30 days) |
 
-While a video is being made, its raw recording and voice clips sit in
-`engine/data/work/<job>/`. That folder is deleted when the video succeeds, and kept when it
-fails so you can see what happened (the path is printed).
+A video's scratch folder, `.app-story/work/<job>/`, is deleted when the video succeeds,
+and kept when it fails so you can see what happened (the path is printed).
 
-`npx app-story history` lists recent videos from the database. Deleting a video file is
-safe; deleting `engine/data/` forgets the history and the saved plans (the next videos
-are planned again).
+`npx app-story history` lists recent videos from the database, with their ids. Deleting a
+video file is safe; deleting `.app-story/` forgets the history and the kept recordings,
+but not the saved plans.
 
 ## Engine
 
@@ -203,10 +249,9 @@ engine/
 │   ├── products/     reads the product files in products/
 │   ├── contracts/    the shape of every config and result file
 │   └── shared/       small helpers used everywhere
-├── data/           the SQLite database and scratch folders of running jobs (git-ignored),
-│                   and example-app/: a tiny fake app to practise on (npm run example-app)
-├── tests/          unit, integration (real browser) and e2e (real AI) tests, fixtures
-├── scripts/        helper that starts the tests
+├── tests/          unit, integration (real browser) and e2e (recorded AI answers) tests, fixtures,
+│                   and example-app/: the practice app they run against (npm run example-app)
+├── scripts/        helpers that start the tests and build the npm package
 ├── tsconfig*.json  TypeScript settings
 └── vitest.config.ts
 ```
@@ -215,10 +260,10 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
 ## Requirements
 
-- Node.js 22.13 or newer
-- [FFmpeg](https://ffmpeg.org) (`ffmpeg` and `ffprobe` on your PATH)
 - An Anthropic or OpenAI API key in `.env`
-- Chromium for Playwright: `npm run browsers:install`
+- With Docker: nothing else.
+- Without Docker: Node.js 22.13 or newer, [FFmpeg](https://ffmpeg.org) (`ffmpeg` and
+  `ffprobe` on your PATH), and Chromium for Playwright (`npx playwright install chromium`)
 
 ## Development
 
@@ -227,7 +272,8 @@ npm run typecheck      # TypeScript
 npm run lint           # Biome: lint and formatting checks
 npm run format         # Biome: format every file
 npm test               # unit tests
-npm run test:all       # unit, integration (real browser) and e2e (real AI, needs a key)
+npm run test:all       # unit, integration (real browser) and e2e (recorded AI answers)
+npm run build          # the npm package, in dist/app-story/
 ```
 
 GitHub Actions runs the checks and tests on every push to `main` and every pull request.

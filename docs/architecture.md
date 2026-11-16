@@ -15,7 +15,16 @@ cli ──► core (orchestrator, pipeline stages, job manager, QA, SQLite store
   contracts (Zod schemas)  ·  shared (errors, logging, secrets, FFmpeg helpers)
 ```
 
-Packages export TypeScript sources directly and run through `tsx`, so there is no build step.
+Packages export TypeScript sources directly and run through `tsx`, so working on them needs
+no build step. The npm package `app-story` is built by `npm run build`
+(`engine/scripts/build-package.ts`): esbuild bundles the CLI and the engine's packages
+into one file, with the render page bundled ahead of time and the prompts next to it;
+everything from npm stays a dependency. The Docker image (`Dockerfile`) installs that
+package with FFmpeg, Chromium and the Kokoro voice model.
+
+AppStory never keeps user data in its own folder. Everything belongs to the user's
+project folder (`workspace()` in the shared package): the nearest folder with
+`products/` or `.app-story/`, or `APP_STORY_HOME`.
 
 ## Product files
 
@@ -31,7 +40,7 @@ at login time and registered as secrets.
 0. **Features.** Without a goal, one structured AI call reads the product file and picks
    the new user-visible features from its release notes (`planFeatures`). Each becomes an
    objective, for one video or one each.
-1. **Plan.** A saved plan from the database is replayed if it was made for exactly this
+1. **Plan.** A saved plan (`products/<product>.plans/<name>.yaml`) is replayed if it was made for exactly this
    objective. Otherwise a **rehearsal** runs: the AI drives an *unrecorded* browser through
    guarded tools, recovers from mistakes, verifies the outcome, then picks the successful
    steps to keep. The result is a versioned workflow (the `plan` record).
@@ -65,14 +74,24 @@ at login time and registered as secrets.
 
 ## Storage
 
-`output/` receives only the finished MP4. Everything else is in one SQLite file,
-`engine/data/app-story.db`, through Node's built-in `node:sqlite` (`Store` in
-`engine/packages/core/src/store/`): a `jobs` table with each job's metadata, `job_records`
-with everything a job produces (settings used, plan, practice run, narration, captions,
-reports, quality checks, log, thumbnail), `plans` with the saved click-plans, and `cache`
-with results that are identical for identical inputs: the feature list of a product file,
-the narration of a plan, and spoken clips by voice and text. Jobs work
-in `engine/data/work/<job>/`, deleted on success and kept on failure for troubleshooting.
+`output/` receives only the finished MP4. A plan made by the AI is saved, after its video
+passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`, see
+`pipeline/plans.ts`), so it can be committed, reviewed and shared. Everything else is in
+`.app-story/` in the user's project, which ignores itself in git:
+
+- `app-story.db`, one SQLite file through Node's built-in `node:sqlite` (`Store` in
+  `engine/packages/core/src/store/`): a `jobs` table with each job's metadata,
+  `job_records` with everything a job produces (settings used, plan, practice run,
+  narration, captions, reports, quality checks, log, thumbnail), and `cache` with results
+  that are identical for identical inputs: the feature list of a product file, the
+  narration of a plan, and spoken clips by voice and text.
+- `takes/<job>/`: the take of each of the 5 newest videos per product (`pipeline/takes.ts`):
+  the raw recording, the spoken clips, the plan and the recording's timeline. `redo`
+  (`orchestrator/redo.ts`) renders a take again with the product file's current look,
+  without a browser or the AI. The take is kept before rendering, so a video whose render
+  failed can be redone too.
+- `work/<job>/`: where a job works; deleted on success and kept on failure for
+  troubleshooting.
 
 ## Decisions that differ from a literal reading of the spec
 

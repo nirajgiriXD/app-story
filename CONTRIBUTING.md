@@ -50,8 +50,10 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
   every file. Biome skips Markdown, so prompts and product files are never reformatted.
 - Run the integration tests when you touch the browser, recording, narration or video.
   They take several minutes, and the first run downloads the voice model (~90 MB).
-- `npm run test:e2e` makes a real video with a real AI and costs money. It is skipped
-  without an API key, and you do not need to run it.
+- `npm run test:e2e` makes a real video with real AI answers that were recorded once
+  (`engine/tests/fixtures/ai-answers/`), so it is free and needs no key. After changing a
+  prompt, the AI tools or the practice app, record them again (needs the key, costs a
+  little): `APP_STORY_RECORD_AI=1 npm run test:e2e`, and commit the new files.
 
 ## Writing code
 
@@ -67,6 +69,18 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
   code, tests, fixtures, product files or screenshots. Use `env:NAME` and made-up data.
 - **Docs.** If you change a setting, a command or what users see, update the README or
   `docs/` in the same pull request.
+
+## Releases
+
+The npm package and the Docker image are published by GitHub Actions
+(`.github/workflows/release.yml`) when a version tag is pushed:
+
+1. Set the new version in `engine/cli/package.json` and in `engine/cli/src/program.ts`.
+2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
+
+Publishing to npm needs an `NPM_TOKEN` secret in the repository settings. The image goes
+to `ghcr.io/nirajgirixd/app-story`. To try the package locally: `npm run build`, then
+`npm pack ./dist/app-story` and install the `.tgz` in another folder.
 
 ## Commits and pull requests
 

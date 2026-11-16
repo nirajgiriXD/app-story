@@ -10,6 +10,7 @@ export const PROMPT_VERSIONS = {
   narration: "v1",
   discovery: "v1",
   "discovery-report": "v1",
+  "release-notes": "v1",
 } as const;
 
 export type PromptName = keyof typeof PROMPT_VERSIONS;

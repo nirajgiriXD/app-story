@@ -1,17 +1,10 @@
 import { Command, Option } from "commander";
 import { TTS_PROVIDERS } from "@demoforge/contracts";
-import { generateDemo } from "@demoforge/core";
-import {
-  defaultFeaturesPath,
-  loadFeatures,
-  loadScenario,
-  objectiveForAllFeatures,
-  objectiveForFeature,
-  type LoadedProduct,
-} from "@demoforge/products";
+import { generateDemo, planFromReleaseNotes } from "@demoforge/core";
+import { loadScenario, objectiveForAllFeatures, objectiveForFeature, type LoadedProduct } from "@demoforge/products";
 import { DemoForgeError, mapWithConcurrency, slugify } from "@demoforge/shared";
 import { globals, openProduct, type ProviderFlags } from "../context";
-import { dim, exitCodeFor, printJob, yellow } from "../output";
+import { bold, dim, exitCodeFor, green, printJob, yellow } from "../output";
 
 interface GenerateOptions extends ProviderFlags {
   product: string;
@@ -38,12 +31,12 @@ export function providerFlags(cmd: Command): Command {
 
 export function generateCommand(): Command {
   const cmd = new Command("generate")
-    .description("Generate a demo video from your feature file, an objective (AI-planned) or a saved scenario")
+    .description("Generate a demo video from your release notes, an objective (AI-planned) or a saved scenario")
     .requiredOption("--product <id>", "product id")
     .option("--objective <text>", "what to demonstrate, in plain language (Mode A)")
     .option("--scenario <id>", "saved scenario to replay (Mode B)")
     .option("--all", "generate every approved scenario of the product")
-    .option("--features [file]", "make the video from the feature/changelog file (default: products/<id>/features.md)")
+    .option("--features [file]", "make the video from release notes in any format (default: products/<id>/features.md)")
     .option("--each", "with --features: one video per feature instead of one video for all of them")
     .option("--template <name>", "video template (minimal, modern-saas, product-update, tutorial, feature-highlight)")
     .option("--duration <seconds>", "target video length in seconds")
@@ -93,7 +86,7 @@ export function generateCommand(): Command {
     }
 
     if (opts.features) {
-      const jobs = await featureJobs(product, opts.features, Boolean(opts.each));
+      const jobs = await featureJobs(product, opts.features, Boolean(opts.each), logLevel);
       const results = await mapWithConcurrency(jobs, Math.max(1, Number(opts.concurrency)), (job) =>
         generateDemo({ ...common, ...job, saveScenario: opts.saveScenario }),
       );
@@ -108,15 +101,26 @@ export function generateCommand(): Command {
   });
 }
 
-/** Turn the feature file into one job (all features) or one job per feature. */
-async function featureJobs(product: LoadedProduct, file: string | boolean, each: boolean): Promise<{ objective: string; name: string }[]> {
-  const features = await loadFeatures(typeof file === "string" ? file : defaultFeaturesPath(product));
+/** Let the AI pick the demoable features from the release notes, then make one job for all or one per feature. */
+async function featureJobs(
+  product: LoadedProduct,
+  file: string | boolean,
+  each: boolean,
+  logLevel: string | undefined,
+): Promise<{ objective: string; name: string }[]> {
+  const { notes, plan, costUsd } = await planFromReleaseNotes({ product, file: typeof file === "string" ? file : undefined, logLevel });
   // A file passed on the command line replaces products/<id>/features.md as AI context too.
-  product.features = features;
-  const count = features.features.length;
-  console.log(dim(`Read ${count} feature(s) from ${features.file}`));
+  product.features = notes;
+
+  const cost = costUsd ? ` · $${costUsd.toFixed(3)}` : "";
+  console.log(`${bold(`Features to demo${plan.title ? ` from ${plan.title}` : ""}`)} ${dim(`(read from ${notes.file}${cost})`)}`);
+  for (const f of plan.features) console.log(`  ${green("•")} ${f.title}`);
+  for (const s of plan.skipped) console.log(dim(`  - skipped: ${s.item} (${s.reason})`));
+  console.log();
+
   if (each) {
-    return features.features.map((f) => ({ objective: objectiveForFeature(f), name: slugify(f.title) }));
+    return plan.features.map((f) => ({ objective: objectiveForFeature(f), name: slugify(f.title) }));
   }
-  return [{ objective: objectiveForAllFeatures(features), name: slugify(features.title ?? (count === 1 ? features.features[0]!.title : "features")) }];
+  const name = plan.title ?? (plan.features.length === 1 ? (plan.features[0] as { title: string }).title : "features");
+  return [{ objective: objectiveForAllFeatures(plan), name: slugify(name) }];
 }

@@ -7,3 +7,4 @@ export * from "./orchestrator/generate";
 export * from "./orchestrator/dry-run";
 export * from "./orchestrator/discover";
 export * from "./orchestrator/validate";
+export * from "./orchestrator/release-notes";

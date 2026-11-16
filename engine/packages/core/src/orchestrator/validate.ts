@@ -26,7 +26,7 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
   ok(`product.yaml is valid (${config.product.name}, ${config.product.base_url})`);
   ok(`allowed domains: ${config.browser.allowed_domains.join(", ")}`);
   if (product.adapterPath) ok(`custom adapter loaded from ${product.adapterPath}`);
-  if (product.features) ok(`feature file: ${product.features.features.length} feature(s) in ${product.features.file}`);
+  if (product.features) ok(`release notes found: ${product.features.file}`);
 
   try {
     getTemplate(config.demo.template);

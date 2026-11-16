@@ -8,6 +8,7 @@ export * from "./agents/tool-loop";
 export * from "./agents/context";
 export * from "./agents/rehearsal-agent";
 export * from "./agents/discovery-agent";
+export * from "./agents/release-notes";
 export { AnthropicProvider } from "./providers/anthropic/anthropic.provider";
 export { OpenAIProvider } from "./providers/openai/openai.provider";
 export { ANTHROPIC_DEFAULT_MODEL } from "./providers/anthropic/anthropic.models";

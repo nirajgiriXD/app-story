@@ -74,20 +74,10 @@ npx demoforge discover --product <id>              # optional: read-only explora
 Then describe the product in `instructions.md` and `knowledge/*.md`. See
 [products/README.md](../products/README.md) for every option of `product.yaml` and scenarios.
 
-## From a feature file (changelog) to a video
+## From release notes to a video
 
-Describe what to demo in `products/<id>/features.md`. The format is in
-[products/README.md](../products/README.md#featuresmd).
-
-```markdown
-# Release 2.4 — what's new        <- optional title
-
-## Bulk export                    <- one "##" section per feature
-Where it is, which buttons to click, and what the user sees when it worked.
-
-## Dark mode
-...
-```
+Paste your release notes into `products/<id>/features.md`, as they are: a changelog,
+a bullet list, any format. You never write steps.
 
 ```bash
 npx demoforge generate --product <id> --features                  # one video, all features
@@ -95,8 +85,13 @@ npx demoforge generate --product <id> --features --each           # one video pe
 npx demoforge generate --product <id> --features path/to/CHANGELOG.md
 ```
 
-The AI reads the file, plans the clicks in the real app, verifies each feature works,
-and writes the narration from it. Add `--save-scenario` to keep the plan for review.
+1. The AI reads the notes and picks the features a viewer can see in the app. Bug fixes,
+   internal changes and headings like "Added"/"Fixed" are skipped. It prints both lists.
+2. For each feature, it finds the clicks in the real app and verifies the feature works.
+3. It writes the narration, records and renders the video.
+
+Add `--save-scenario` to keep each verified plan for review. More in
+[products/README.md](../products/README.md#featuresmd).
 
 ## From objective to repeatable scenario
 

@@ -134,38 +134,31 @@ captions:
 
 ## features.md
 
-What the video should show. Then run:
+Your release notes, as they are: a changelog, a "what's new" post, a bullet list, any
+format. You never write steps. Then run:
 
 ```bash
 npx demoforge generate --product <id> --features          # one video for all features
 npx demoforge generate --product <id> --features --each   # one video per feature
+npx demoforge generate --product <id> --features path/to/CHANGELOG.md   # any other file
 ```
 
-- `# Title` (optional) names the release. It becomes the video's theme.
-- Each `## Heading` is one feature. Everything under it describes that feature.
-- Be concrete: which page, which buttons, what the user should see when it worked.
-  The AI uses this to plan the clicks and to write the narration.
+The AI first reads the notes and picks the features a viewer can see in the app. It
+skips bug fixes, performance and internal changes, and headings like "Added"/"Fixed",
+and prints what it picked and skipped. Then, for each feature, it finds the clicks
+in the real app by itself.
 
 ```markdown
-# Release 2.4 — what's new
-
-Short intro (optional): who this release is for and why it matters.
-
-## Bulk export
-
-Export many records at once as CSV.
-
-- Where: Reports page, "Export" button in the top right.
-- How: tick the rows to export, click Export, choose CSV.
-- Done when: a "Your export is ready" message appears.
-
-## Dark mode
-
-Switch the whole app to a dark theme.
-
-- Where: the moon icon in the top bar.
-- Done when: the page background turns dark.
+## [2.4.0] - 2026-11-01
+### Added
+- Bulk export: export many records at once as CSV.
+- Dark mode for the whole app.
+### Fixed
+- Crash when saving an empty report.
 ```
+
+Optional: a hint like "Reports page, Export button in the top right" helps the AI find
+a feature faster, especially one hidden in a menu.
 
 ---
 

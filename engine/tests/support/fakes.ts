@@ -47,7 +47,11 @@ export class ScriptedProvider implements AIProvider {
     return "ok";
   }
 
+  /** Prompts sent to generateStructuredOutput, in order. */
+  readonly structuredPrompts: string[] = [];
+
   async generateStructuredOutput<T>(request: StructuredGenerationRequest<T>): Promise<T> {
+    this.structuredPrompts.push(request.prompt);
     const value = this.structured[request.schemaName];
     if (value === undefined) throw new Error(`no canned output for ${request.schemaName}`);
     return request.schema.parse(value);

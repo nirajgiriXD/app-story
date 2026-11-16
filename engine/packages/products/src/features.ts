@@ -1,26 +1,16 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { Feature, FeaturePlan } from "@demoforge/contracts";
 import { DemoForgeError, fileExists } from "@demoforge/shared";
 
 export const FEATURES_FILE = "features.md";
 
-export interface Feature {
-  title: string;
-  /** Everything under the feature's `##` heading: what it does, where it is, how to use it. */
-  details: string;
-}
-
 /**
- * The product's feature list or changelog: the source of what a video demonstrates.
- *
- * Format: an optional `# Title` (e.g. the release name), optional intro text, then one
- * `## Feature name` section per feature. A file without `##` sections is one feature.
+ * Release notes, a changelog or a feature list, in any format. The AI reads it to pick
+ * what to demo (see `readReleaseNotes`), and the demo agent gets it as product knowledge.
  */
-export interface FeatureFile {
+export interface ReleaseNotes {
   file: string;
-  title: string | undefined;
-  intro: string;
-  features: Feature[];
   content: string;
 }
 
@@ -28,61 +18,39 @@ export function defaultFeaturesPath(product: { dir: string }): string {
   return join(product.dir, FEATURES_FILE);
 }
 
-export async function loadFeatures(file: string): Promise<FeatureFile> {
-  if (!(await fileExists(file))) {
-    throw new DemoForgeError("CONFIG_INVALID", `Feature file not found: ${file}`, {
-      hint: `Create it with one "## Feature name" section per feature (see products/README.md).`,
-    });
-  }
-  const parsed = parseFeatures(await readFile(file, "utf8"), file);
-  if (parsed.features.length === 0) {
-    throw new DemoForgeError("CONFIG_INVALID", `Feature file ${file} is empty.`, {
-      hint: 'Describe each feature under its own "## Feature name" heading.',
-    });
-  }
-  return parsed;
+/**
+ * Read a release-notes file; `undefined` when it is missing or has no text.
+ * `<!-- ... -->` notes are left out, so the instructions in a new file are not mistaken for features.
+ */
+export async function readReleaseNotesFile(file: string): Promise<ReleaseNotes | undefined> {
+  if (!(await fileExists(file))) return undefined;
+  const content = (await readFile(file, "utf8"))
+    .replace(/\r\n/g, "\n")
+    .replace(/<!--[\s\S]*?-->\n?/g, "")
+    .trim();
+  return content ? { file, content: `${content}\n` } : undefined;
 }
 
-export function parseFeatures(text: string, file = FEATURES_FILE): FeatureFile {
-  const content = text.replace(/\r\n/g, "\n");
-  let title: string | undefined;
-  const intro: string[] = [];
-  const features: { title: string; lines: string[] }[] = [];
-  let inFence = false;
-
-  for (const line of content.split("\n")) {
-    if (/^\s*(```|~~~)/.test(line)) inFence = !inFence;
-    const h1 = !inFence && /^#\s+(.+?)\s*#*\s*$/.exec(line);
-    const h2 = !inFence && /^##\s+(.+?)\s*#*\s*$/.exec(line);
-    if (h1 && title === undefined && features.length === 0) {
-      title = h1[1];
-    } else if (h2) {
-      features.push({ title: h2[1] as string, lines: [] });
-    } else if (features.length > 0) {
-      features[features.length - 1]?.lines.push(line);
-    } else {
-      intro.push(line);
-    }
+/** Like `readReleaseNotesFile`, but a missing or empty file is an error. */
+export async function loadReleaseNotes(file: string): Promise<ReleaseNotes> {
+  const notes = await readReleaseNotesFile(file);
+  if (!notes) {
+    throw new DemoForgeError("CONFIG_INVALID", `No release notes found in ${file}.`, {
+      hint: "Paste your release notes or changelog into it, in any format (see products/README.md).",
+    });
   }
-
-  const introText = intro.join("\n").trim();
-  const list: Feature[] = features.map((f) => ({ title: f.title, details: f.lines.join("\n").trim() }));
-  // No `##` sections: the whole file describes a single feature.
-  if (list.length === 0 && (introText || title)) {
-    return { file, title, intro: "", features: [{ title: title ?? "Product update", details: introText }], content };
-  }
-  return { file, title, intro: introText, features: list, content };
+  return notes;
 }
 
-/** Objective for one video that walks through every feature in the file, in order. */
-export function objectiveForAllFeatures(features: FeatureFile): string {
-  if (features.features.length === 1) return objectiveForFeature(features.features[0] as Feature);
-  const list = features.features.map((f, i) => `${i + 1}. ${f.title}`).join("\n");
+/** Objective for one video that walks through every feature, in order. */
+export function objectiveForAllFeatures(plan: Pick<FeaturePlan, "title" | "features">): string {
+  if (plan.features.length === 1) return objectiveForFeature(plan.features[0] as Feature);
+  const list = plan.features.map((f, i) => `${i + 1}. ${f.title}${f.details ? `: ${f.details}` : ""}`).join("\n\n");
   return [
-    `Show what is new${features.title ? ` in "${features.title}"` : ""}: demonstrate each feature below, in this order.`,
+    `Show what is new${plan.title ? ` in "${plan.title}"` : ""}: demonstrate each feature below, in this order.`,
     list,
-    `Give each feature its own section, named after it. Keep each one short and verify that each feature is visible or works. ` +
-      `The feature file (${FEATURES_FILE}) in the product knowledge describes every feature in detail.`,
+    "Give each feature its own section, named after it. Keep each one short and verify that each feature is visible or works. " +
+      `The release notes (${FEATURES_FILE}) in the product knowledge have more detail.`,
   ].join("\n\n");
 }
 

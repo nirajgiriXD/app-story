@@ -91,12 +91,11 @@ describe("product configuration", () => {
   it("keeps the examples in products/README.md valid", async () => {
     const { readFile } = await import("node:fs/promises");
     const { parse } = await import("yaml");
-    const { parseFeatures, parseWorkflow } = await import("@demoforge/products");
+    const { parseWorkflow } = await import("@demoforge/products");
     const readme = await readFile("products/README.md", "utf8");
-    const blocks = [...readme.matchAll(/```(yaml|markdown)\r?\n([\s\S]*?)```/g)].map((m) => ({ lang: m[1], text: m[2] as string }));
-    const product = blocks.find((b) => b.lang === "yaml" && b.text.startsWith("version: 1"));
-    const scenario = blocks.find((b) => b.lang === "yaml" && b.text.startsWith("workflow_version: 1"));
-    const features = blocks.find((b) => b.lang === "markdown");
+    const blocks = [...readme.matchAll(/```(yaml)\r?\n([\s\S]*?)```/g)].map((m) => ({ lang: m[1], text: m[2] as string }));
+    const product = blocks.find((b) => b.text.startsWith("version: 1"));
+    const scenario = blocks.find((b) => b.text.startsWith("workflow_version: 1"));
 
     const config = ProductConfigSchema.safeParse(parse(product!.text));
     expect(config.success, config.error?.message).toBe(true);
@@ -104,7 +103,6 @@ describe("product configuration", () => {
     const bare = ProductConfigSchema.parse({ ...minimal, providers: { ai: { provider: "anthropic" } } });
     expect({ ...config.data!, product: null }).toEqual({ ...bare, product: null });
     expect(parseWorkflow(scenario!.text).steps).toHaveLength(5);
-    expect(parseFeatures(features!.text).features.map((f) => f.title)).toEqual(["Bulk export", "Dark mode"]);
   });
 
   it("loads the bundled example product with its adapter and scenario", async () => {

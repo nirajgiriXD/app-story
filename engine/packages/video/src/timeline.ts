@@ -2,7 +2,7 @@ import type { Box, CursorPoint } from "@app-story/contracts";
 import type { VideoTemplate } from "./templates";
 
 /*
- * Pure timing maths shared by the Node side (planning) and the Remotion composition
+ * Pure timing maths shared by the Node side (planning) and the compositions
  * (rendering). No React, no Node APIs.
  */
 

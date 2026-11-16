@@ -42,7 +42,7 @@ export async function readJsonIfExists<T = unknown>(path: string): Promise<T | u
   return readJson<T>(path);
 }
 
-/** Convert an absolute path to a forward-slash path relative to `base` (for reports and Remotion). */
+/** Convert an absolute path to a forward-slash path relative to `base` (for reports and the renderer). */
 export function toPosixRelative(base: string, target: string): string {
   const b = base.replace(/\\/g, "/").replace(/\/$/, "");
   const t = target.replace(/\\/g, "/");

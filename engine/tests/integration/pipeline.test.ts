@@ -78,7 +78,7 @@ const plannerAI = () =>
 
 const OBJECTIVE = "Demonstrate how to create a new project";
 
-describe("end-to-end pipeline (real browser, login, recorder and Remotion)", () => {
+describe("end-to-end pipeline (real browser, login, recorder and renderer)", () => {
   it("logs in by itself and renders a plan into a playable 1080p MP4 with captions and a report", async () => {
     const product = await loadProduct(productsDir, "example");
     const tts = new ToneTTS();

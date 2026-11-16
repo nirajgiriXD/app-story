@@ -1,5 +1,5 @@
 import type React from "react";
-import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
 import { asset, backdrop, fontStack, px, textColor } from "./theme";
 

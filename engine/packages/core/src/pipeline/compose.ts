@@ -26,7 +26,7 @@ async function copyAsset(job: Job, product: LoadedProduct, path: string | undefi
   return toPosixRelative(job.paths.root, target);
 }
 
-/** Captions + Remotion render + thumbnail (captions and thumbnail are kept in the database). */
+/** Captions + video render + thumbnail (captions and thumbnail are kept in the database). */
 export async function composeVideo(
   job: Job,
   product: LoadedProduct,

@@ -1,10 +1,11 @@
 import type React from "react";
-import { AbsoluteFill, Audio, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import type { RenderProps } from "../props";
 import { RecordingScene } from "./RecordingScene";
+import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "./runtime";
 import { TitleCard } from "./TitleCard";
-import { asset, backdrop, fontStack, px } from "./theme";
+import { backdrop, fontStack, px } from "./theme";
 
+/** The picture of the whole video. The sound (voice and music) is mixed by FFmpeg, see audio.ts. */
 export const DemoVideo: React.FC<RenderProps> = (p) => {
   const { fps } = useVideoConfig();
   const f = (ms: number) => Math.max(0, Math.round((ms / 1000) * fps));
@@ -20,42 +21,8 @@ export const DemoVideo: React.FC<RenderProps> = (p) => {
       <Sequence from={f(p.outro.startMs)} durationInFrames={Math.max(1, f(p.outro.endMs - p.outro.startMs))} name="Outro">
         <TitleCard p={p} kind="outro" durationMs={p.outro.endMs - p.outro.startMs} />
       </Sequence>
-      {p.audio.map((clip) => (
-        <Sequence key={clip.src} from={f(clip.startMs)} durationInFrames={f(clip.durationMs) + 3} name={`Voice ${clip.src}`}>
-          <Audio src={asset(p, clip.src)} />
-        </Sequence>
-      ))}
-      {p.music ? <Music p={p} /> : null}
       {p.captions.enabled ? <Captions p={p} /> : null}
     </AbsoluteFill>
-  );
-};
-
-const Music: React.FC<{ p: RenderProps }> = ({ p }) => {
-  const { fps, durationInFrames } = useVideoConfig();
-  const music = p.music;
-  if (!music) return null;
-  return (
-    <Audio
-      src={asset(p, music.src)}
-      loop
-      volume={(frame) => {
-        const ms = (frame / fps) * 1000;
-        // Duck under the voice with short fades, so the music never jumps in volume.
-        const duck = Math.max(
-          0,
-          ...p.audio.map((a) =>
-            interpolate(ms, [a.startMs - 350, a.startMs, a.startMs + a.durationMs, a.startMs + a.durationMs + 500], [0, 1, 1, 0], {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            }),
-          ),
-        );
-        const fadeIn = interpolate(frame, [0, fps], [0, 1], { extrapolateRight: "clamp" });
-        const fadeOut = interpolate(frame, [durationInFrames - 2 * fps, durationInFrames], [1, 0], { extrapolateLeft: "clamp" });
-        return music.volume * (1 - 0.6 * duck) * fadeIn * fadeOut;
-      }}
-    />
   );
 };
 

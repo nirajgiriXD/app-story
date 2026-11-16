@@ -1,15 +1,13 @@
 import type { Box, CursorPoint } from "@app-story/contracts";
 import type { VideoTemplate } from "./templates";
 
-/** Everything the Remotion composition needs. JSON-serialisable; all times are global ms unless noted. */
+/** Everything the render page needs to draw the video. JSON-serialisable; all times are global ms unless noted. Every `src` is relative to the job folder. */
 export interface RenderProps {
   [key: string]: unknown;
   width: number;
   height: number;
   fps: number;
   durationMs: number;
-  /** Folder (under the renderer's public folder) that every `src` below is relative to. */
-  assetBase: string;
   template: VideoTemplate;
   brand: {
     productName: string;

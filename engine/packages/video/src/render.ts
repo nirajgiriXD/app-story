@@ -1,19 +1,37 @@
-import { copyFile, link, mkdir, mkdtemp, rm } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { availableParallelism, tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { bundle } from "@remotion/bundler";
-import { ensureBrowser, openBrowser, renderMedia, selectComposition } from "@remotion/renderer";
-import { AppStoryError, ensureDir, extractFrame, type Logger } from "@app-story/shared";
+import { build } from "esbuild";
+import { chromium, type Browser, type Route } from "playwright";
+import { AppStoryError, ensureDir, extractFrame, runFfmpeg, type Logger } from "@app-story/shared";
+import { buildAudioMix } from "./audio";
+import { RecordingFrames } from "./frames";
 import type { RenderProps } from "./props";
 
+/*
+ * How a video is made:
+ *
+ * 1. The compositions (React) are bundled into one script for a render page.
+ * 2. The frames are split into stretches, one per worker. Each worker has its own headless
+ *    browser tab, its own FFmpeg reading the recording's frames for its stretch, and its
+ *    own FFmpeg encoding what the tab shows. For every frame the tab draws the picture
+ *    (title cards, the app window with the recording, zoom, cursor, captions) and is
+ *    captured.
+ * 3. FFmpeg joins the stretches without re-encoding and adds the sound (see audio.ts).
+ */
+
 const here = dirname(fileURLToPath(import.meta.url));
-const ENTRY = join(here, "remotion", "index.ts");
-const COMPOSITION_ID = "DemoVideo";
+const ENTRY = join(here, "page", "main.tsx");
+/** The render page's made-up address. Nothing is fetched from the network: every request is answered below. */
+const ORIGIN = "http://render.app-story.local";
+/** Fewer frames than this per worker is not worth another browser tab. */
+const MIN_FRAMES_PER_WORKER = 90;
 
 export interface RenderVideoOptions {
-  /** Folder that every `src` in props is relative to. Only those files are handed to the renderer. */
+  /** Folder that every `src` in props is relative to. Only files inside it are served to the page. */
   publicDir: string;
   props: RenderProps;
   outputFile: string;
@@ -25,80 +43,137 @@ export interface RenderVideoOptions {
 
 let prepared: Promise<string> | undefined;
 
-/**
- * Bundle the compositions and make sure Chrome is ready, once per process. Bundling takes
- * seconds, so the pipeline starts it at the beginning of a job and it runs while the AI
- * works. The bundle has no public folder of its own: each render stages only its files.
- */
+/** Bundle the render page's script, once per process. The pipeline starts it early, while the AI works. */
 export function prepareRenderer(): Promise<string> {
-  prepared ??= (async () => {
-    await ensureBrowser({ logLevel: "error" });
-    const emptyPublic = await mkdtemp(join(tmpdir(), "app-story-public-"));
-    return bundle({ entryPoint: ENTRY, publicDir: emptyPublic, enableCaching: true });
-  })().catch((error: unknown) => {
-    prepared = undefined;
-    throw error;
-  });
+  prepared ??= build({
+    entryPoints: [ENTRY],
+    bundle: true,
+    write: false,
+    format: "iife",
+    platform: "browser",
+    target: "chrome120",
+    jsx: "automatic",
+    minify: true,
+    define: { "process.env.NODE_ENV": '"production"' },
+    logLevel: "silent",
+  })
+    .then((result) => {
+      const script = result.outputFiles[0]?.text;
+      if (!script) throw new Error("bundling the render page produced no script");
+      return script;
+    })
+    .catch((error: unknown) => {
+      prepared = undefined;
+      throw error;
+    });
   return prepared;
 }
 
 /** One render at a time: two at once only fight over the CPU. */
 let renderQueue: Promise<unknown> = Promise.resolve();
 
-/** Render the final MP4 (H.264 + AAC) and a PNG thumbnail with Remotion. */
+/** Render the final MP4 (H.264 + AAC) and a PNG thumbnail. */
 export function renderVideo(options: RenderVideoOptions): Promise<void> {
   const run = renderQueue.then(() => render(options));
   renderQueue = run.catch(() => undefined);
   return run;
 }
 
+/** Frames in the whole video. */
+export function frameCount(props: RenderProps): number {
+  return Math.max(1, Math.round((props.durationMs / 1000) * props.fps));
+}
+
+/** Split frames 0..total-1 into contiguous [from, to) stretches, one per worker. */
+export function splitFrames(total: number, workers: number): [number, number][] {
+  const count = Math.max(1, Math.min(workers, Math.ceil(total / MIN_FRAMES_PER_WORKER)));
+  const ranges: [number, number][] = [];
+  for (let i = 0; i < count; i++) {
+    const from = Math.round((total * i) / count);
+    const to = Math.round((total * (i + 1)) / count);
+    if (to > from) ranges.push([from, to]);
+  }
+  return ranges;
+}
+
+function workerCount(): number {
+  const fromEnv = Number(process.env.APP_STORY_RENDER_WORKERS);
+  if (Number.isInteger(fromEnv) && fromEnv > 0) return fromEnv;
+  // Each worker is a browser tab and two FFmpeg processes, so one per two cores.
+  return Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)));
+}
+
 async function render(options: RenderVideoOptions): Promise<void> {
-  const { log } = options;
-  let stageDir: string | undefined;
-  let browser: Awaited<ReturnType<typeof openBrowser>> | undefined;
+  const { props, log } = options;
+  const total = frameCount(props);
+  let workDir: string | undefined;
+  let browser: Browser | undefined;
   try {
-    log.info("preparing the video renderer");
-    const serveUrl = await prepareRenderer();
-    const stage = `job-${randomUUID().slice(0, 8)}`;
-    stageDir = join(serveUrl, "public", stage);
-    await stageFiles(options.publicDir, stageDir, sourcesOf(options.props));
-    const props: RenderProps = { ...options.props, assetBase: stage };
+    const script = await prepareRenderer();
+    workDir = await mkdtemp(join(tmpdir(), "app-story-render-"));
+    browser = await launchBrowser();
+    const ranges = splitFrames(total, workerCount());
+    log.info({ frames: total, workers: ranges.length }, "rendering video");
 
-    // One browser for picking the composition and rendering it.
-    browser = await openBrowser("chrome", { logLevel: "error" });
-    const composition = await selectComposition({ serveUrl, id: COMPOSITION_ID, inputProps: props, logLevel: "error", puppeteerInstance: browser });
-    await ensureDir(dirname(options.outputFile));
-
+    let done = 0;
     let lastLogged = -1;
-    await renderMedia({
-      composition,
-      serveUrl,
-      puppeteerInstance: browser,
-      codec: "h264",
-      audioCodec: "aac",
-      pixelFormat: "yuv420p",
-      crf: 18,
-      // Frames are captured as JPEG before encoding; Remotion's default quality (80) blurs small UI text.
-      jpegQuality: 100,
-      // Tag the colours so players do not shift them (untagged H.264 is often shown washed out).
-      colorSpace: "bt709",
-      // Remotion uses half the cores by default; rendering is the only work left at this point.
-      concurrency: availableParallelism() >= 2 ? "75%" : null,
-      outputLocation: options.outputFile,
-      inputProps: props,
-      logLevel: "error",
-      onProgress: ({ progress }) => {
-        const pct = Math.floor(progress * 10) * 10;
-        if (pct !== lastLogged) {
-          lastLogged = pct;
-          log.info(`rendering video ${pct}%`);
-        }
-      },
-    });
+    const onFrame = () => {
+      done++;
+      const pct = Math.floor((done / total) * 10) * 10;
+      if (pct !== lastLogged) {
+        lastLogged = pct;
+        log.info(`rendering video ${pct}%`);
+      }
+    };
+    const parts = ranges.map((_, i) => join(workDir as string, `part-${i}.mp4`));
+    const state = { failed: false };
+    const b = browser;
+    await Promise.all(
+      ranges.map((range, i) =>
+        renderRange({ browser: b, script, options, range, outFile: parts[i] as string, onFrame, state }).catch((error: unknown) => {
+          state.failed = true;
+          throw error;
+        }),
+      ),
+    );
+
+    await ensureDir(dirname(options.outputFile));
+    const list = join(workDir, "parts.ffconcat");
+    await writeFile(list, ["ffconcat version 1.0", ...parts.map((p) => `file '${p.replace(/\\/g, "/")}'`)].join("\n"), "utf8");
+    const audio = buildAudioMix(props, 1, (src) => fileIn(options.publicDir, src));
+    await runFfmpeg([
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      list,
+      ...audio.inputArgs,
+      "-filter_complex",
+      audio.filter,
+      "-map",
+      "0:v",
+      "-map",
+      "[aout]",
+      "-c:v",
+      "copy",
+      // Joining the parts drops their BT.709 colour tags; write them back so players do not shift the colours.
+      "-bsf:v",
+      "h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "192k",
+      "-t",
+      (total / props.fps).toFixed(3),
+      "-movflags",
+      "+faststart",
+      options.outputFile,
+    ]);
 
     if (options.thumbnailFile) {
       // The thumbnail is a frame of the finished video: no second render needed.
-      const lastSec = Math.max(0, composition.durationInFrames - 1) / composition.fps;
+      const lastSec = (total - 1) / props.fps;
       const atSec = Math.min(lastSec, Math.max(0, (options.thumbnailAtMs ?? 0) / 1000));
       await extractFrame(options.outputFile, atSec, options.thumbnailFile);
     }
@@ -106,22 +181,201 @@ async function render(options: RenderVideoOptions): Promise<void> {
     if (error instanceof AppStoryError) throw error;
     throw new AppStoryError("RENDER_FAILED", `Video rendering failed: ${(error as Error).message}`, { cause: error });
   } finally {
-    await browser?.close({ silent: true }).catch(() => undefined);
-    if (stageDir) await rm(stageDir, { recursive: true, force: true }).catch(() => undefined);
+    await browser?.close().catch(() => undefined);
+    if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
   }
 }
 
-/** Every file the composition loads, relative to the job folder. */
-function sourcesOf(props: RenderProps): string[] {
-  return [props.recording.src, ...props.audio.map((a) => a.src), props.brand.logo, props.music?.src].filter((s): s is string => Boolean(s));
+async function launchBrowser(): Promise<Browser> {
+  try {
+    // sRGB everywhere, so colours match the recording and other players.
+    return await chromium.launch({ headless: true, args: ["--force-color-profile=srgb", "--hide-scrollbars"] });
+  } catch (error) {
+    if (/Executable doesn't exist|playwright install/i.test((error as Error).message)) {
+      throw new AppStoryError("DEPENDENCY_MISSING", "The browser for rendering videos is not installed.", {
+        hint: "Run: npm run browsers:install",
+        cause: error,
+      });
+    }
+    throw error;
+  }
 }
 
-/** Put the job's files where the bundle serves them. Hard links are instant; copy across drives. */
-async function stageFiles(fromDir: string, toDir: string, sources: string[]): Promise<void> {
-  for (const src of new Set(sources)) {
-    const from = join(fromDir, src);
-    const to = join(toDir, src);
-    await mkdir(dirname(to), { recursive: true });
-    await link(from, to).catch(() => copyFile(from, to));
+interface RangeJob {
+  browser: Browser;
+  script: string;
+  options: RenderVideoOptions;
+  range: [number, number];
+  outFile: string;
+  onFrame: () => void;
+  /** Set when another worker failed, so the rest stop early. */
+  state: { failed: boolean };
+}
+
+/** Draw, capture and encode frames [from, to) in one browser tab. */
+async function renderRange(job: RangeJob): Promise<void> {
+  const { props, publicDir } = job.options;
+  const [from, to] = job.range;
+  // The recording's place in frames, exactly as the composition computes it.
+  const recordingFirst = Math.max(0, Math.round((props.recording.startMs / 1000) * props.fps));
+  const recordingCount = Math.max(1, Math.round((props.recording.durationMs / 1000) * props.fps));
+  const first = Math.max(from, recordingFirst);
+  const last = Math.min(to, recordingFirst + recordingCount);
+  const recording = last > first ? new RecordingFrames(fileIn(publicDir, props.recording.src), props.fps, first - recordingFirst, last - first) : undefined;
+
+  const context = await job.browser.newContext({ viewport: { width: props.width, height: props.height }, deviceScaleFactor: 1 });
+  const encoder = new FrameEncoder(props.fps, job.outFile);
+  let serveError: unknown;
+  try {
+    const page = await context.newPage();
+    await page.route("**/*", async (route) => {
+      try {
+        await serve(route, job, recording);
+      } catch (error) {
+        serveError ??= error;
+        await route.abort().catch(() => undefined);
+      }
+    });
+    await page.goto(`${ORIGIN}/`);
+    await page.evaluate((p) => window.appStory.setup(p), props);
+    const cdp = await context.newCDPSession(page);
+    for (let frame = from; frame < to; frame++) {
+      if (job.state.failed) return;
+      await page.evaluate((n) => window.appStory.renderFrame(n), frame);
+      if (serveError) throw serveError;
+      const shot = (await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 100 })) as { data: string };
+      await encoder.write(Buffer.from(shot.data, "base64"));
+      job.onFrame();
+    }
+    await encoder.finish();
+  } finally {
+    recording?.close();
+    encoder.kill();
+    await context.close().catch(() => undefined);
+  }
+}
+
+/** Answer the render page's requests: the page, its script, job files and recording frames. */
+async function serve(route: Route, job: RangeJob, recording: RecordingFrames | undefined): Promise<void> {
+  const url = new URL(route.request().url());
+  if (url.origin !== ORIGIN) return route.abort();
+  const { props, publicDir } = job.options;
+  if (url.pathname === "/") return route.fulfill({ contentType: "text/html; charset=utf-8", body: pageHtml(props) });
+  if (url.pathname === "/main.js") return route.fulfill({ contentType: "text/javascript; charset=utf-8", body: job.script });
+  const frame = /^\/recording\/(\d+)\.jpg$/.exec(url.pathname);
+  if (frame) {
+    if (!recording) throw new Error(`recording frame ${frame[1]} was asked for outside this worker's stretch`);
+    return route.fulfill({ contentType: "image/jpeg", body: await recording.frame(Number(frame[1])) });
+  }
+  if (url.pathname.startsWith("/files/")) {
+    const src = url.pathname.slice("/files/".length).split("/").map(decodeURIComponent).join("/");
+    return route.fulfill({ path: fileIn(publicDir, src) });
+  }
+  return route.abort();
+}
+
+function pageHtml(props: RenderProps): string {
+  return [
+    "<!doctype html>",
+    '<html><head><meta charset="utf-8">',
+    `<style>*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0;overflow:hidden}#root{position:relative;width:${props.width}px;height:${props.height}px;overflow:hidden}</style>`,
+    '</head><body><div id="root"></div><script src="/main.js"></script></body></html>',
+  ].join("");
+}
+
+/** A job file by its `src`; never anything outside the job folder. */
+function fileIn(publicDir: string, src: string): string {
+  const base = resolve(publicDir);
+  const file = resolve(base, src);
+  if (!file.startsWith(base + sep)) throw new Error(`'${src}' is outside the job folder`);
+  return file;
+}
+
+/**
+ * Encodes captured frames (JPEG) to H.264 as they arrive. The page is captured in sRGB,
+ * which JPEG stores as full-range BT.601; the video is tagged BT.709, like the recording,
+ * so players show the same colours.
+ */
+class FrameEncoder {
+  private readonly ffmpeg;
+  private readonly closed: Promise<number>;
+  private stderr = "";
+  private failure: Error | undefined;
+
+  constructor(fps: number, outFile: string) {
+    this.ffmpeg = spawn(
+      "ffmpeg",
+      [
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "image2pipe",
+        "-framerate",
+        String(fps),
+        "-c:v",
+        "mjpeg",
+        "-i",
+        "-",
+        "-vf",
+        "scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "medium",
+        "-crf",
+        "18",
+        "-colorspace",
+        "bt709",
+        "-color_primaries",
+        "bt709",
+        "-color_trc",
+        "bt709",
+        "-color_range",
+        "tv",
+        outFile,
+      ],
+      { windowsHide: true },
+    );
+    this.ffmpeg.stderr.on("data", (chunk: Buffer) => {
+      this.stderr = (this.stderr + chunk.toString()).slice(-2000);
+    });
+    this.ffmpeg.stdin.on("error", (error: Error) => {
+      this.failure ??= error;
+    });
+    this.closed = new Promise((resolveClosed) => {
+      this.ffmpeg.on("error", (error: NodeJS.ErrnoException) => {
+        this.failure ??=
+          error.code === "ENOENT"
+            ? new AppStoryError("DEPENDENCY_MISSING", "'ffmpeg' was not found on PATH.", {
+                hint: "Install FFmpeg (https://ffmpeg.org) and make sure it is on PATH.",
+              })
+            : error;
+        resolveClosed(-1);
+      });
+      this.ffmpeg.on("close", (code) => resolveClosed(code ?? -1));
+    });
+  }
+
+  async write(image: Buffer): Promise<void> {
+    if (this.failure) throw this.encoderError();
+    if (!this.ffmpeg.stdin.write(image)) await Promise.race([once(this.ffmpeg.stdin, "drain"), this.closed]);
+    if (this.failure) throw this.encoderError();
+  }
+
+  async finish(): Promise<void> {
+    this.ffmpeg.stdin.end();
+    const code = await this.closed;
+    if (code !== 0 || this.failure) throw this.encoderError();
+  }
+
+  kill(): void {
+    if (this.ffmpeg.exitCode === null) this.ffmpeg.kill();
+  }
+
+  private encoderError(): Error {
+    if (this.failure instanceof AppStoryError) return this.failure;
+    return new AppStoryError("RENDER_FAILED", `ffmpeg could not encode the video: ${this.stderr.trim() || this.failure?.message || "unknown error"}`);
   }
 }

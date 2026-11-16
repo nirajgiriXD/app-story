@@ -1,9 +1,13 @@
-import { staticFile } from "remotion";
 import type { RenderProps } from "../props";
 
-/** URL of a job file (recording, voice clip, logo, music) as the renderer serves it. */
-export function asset(p: RenderProps, src: string): string {
-  return staticFile(p.assetBase ? `${p.assetBase}/${src}` : src);
+/** URL of a job file (for example the logo) as the render page loads it. */
+export function asset(_p: RenderProps, src: string): string {
+  return `/files/${src.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+/** URL of the recording's frame `index` (0 = recording start), streamed to the page by the renderer. */
+export function recordingFrame(index: number): string {
+  return `/recording/${Math.max(0, Math.round(index))}.jpg`;
 }
 
 export function fontStack(font: string): string {

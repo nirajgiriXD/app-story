@@ -99,7 +99,6 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     height,
     fps: config.demo.fps,
     durationMs: plan.totalMs,
-    assetBase: "",
     template,
     brand: {
       productName: config.product.name,

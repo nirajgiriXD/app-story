@@ -27,7 +27,7 @@ Run the CLI with `npx demoforge <command>`. To get a global `demoforge` command:
 | --- | --- |
 | `products/` | **Yours.** One folder per product; every option explained in `products/README.md` |
 | `output/` | **Yours.** Finished videos and reports |
-| `.env` | **Yours.** API keys and login passwords |
+| `.env` | **Yours.** API keys. Each product's login goes in `products/<id>/.env` |
 | `docs/` | These guides |
 | `engine/` | DemoForge itself; no need to touch it |
 
@@ -37,6 +37,7 @@ The repo ships a tiny app with synthetic data (`engine/example-app`) and a produ
 configuration for it (`products/example`).
 
 ```bash
+cp products/example/.env.example products/example/.env   # the practice app's login
 npm run example-app                               # terminal 1: http://localhost:4310
 npx demoforge validate --product example          # terminal 2
 npx demoforge generate --product example --features
@@ -130,7 +131,11 @@ Global flags: `--products-dir`, `--output-dir`, `--log-level`. Provider flags on
 | `DEMOFORGE_AI_PROVIDER`, `DEMOFORGE_AI_MODEL`, `DEMOFORGE_TTS_PROVIDER` | override product.yaml (CLI flags win) |
 | `DEMOFORGE_PRODUCTS_DIR`, `DEMOFORGE_OUTPUT_DIR` | folder locations |
 | `DEMOFORGE_LOG_LEVEL` | `debug`, `info`, `warn`, ... |
-| product-specific, e.g. `EXAMPLE_APP_USER` | login credentials named in product.yaml |
+| product-specific, e.g. `EXAMPLE_APP_USER` | login credentials named in product.yaml; put them in `products/<id>/.env` |
+
+Keys shared by every product go in the root `.env`. Values for one product (its login)
+go in that product's own `products/<id>/.env`; a value set in the shell or the root
+`.env` wins over it. Both files are ignored by git.
 
 ## Tests
 

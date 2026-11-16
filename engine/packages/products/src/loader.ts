@@ -1,6 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { isAbsolute, join, resolve, extname, basename } from "node:path";
 import { pathToFileURL } from "node:url";
+import { parseEnv } from "node:util";
 import { parse as parseYaml } from "yaml";
 import {
   ProductConfigSchema,
@@ -111,6 +112,24 @@ async function loadAdapter(dir: string): Promise<{ adapter: ProductAdapter; path
   return { adapter: genericAdapter, path: undefined };
 }
 
+/**
+ * Load `products/<id>/.env` (logins and other values that belong to one product).
+ * A variable that is already set, by the shell or the root `.env`, is kept as is.
+ */
+export async function loadProductEnv(dir: string): Promise<void> {
+  const file = join(dir, ".env");
+  if (!(await fileExists(file))) return;
+  let values: Record<string, string>;
+  try {
+    values = parseEnv(await readFile(file, "utf8")) as Record<string, string>;
+  } catch (error) {
+    throw new DemoForgeError("CONFIG_INVALID", `Could not read ${file}: ${(error as Error).message}`, { cause: error });
+  }
+  for (const [name, value] of Object.entries(values)) {
+    if (process.env[name] === undefined) process.env[name] = value;
+  }
+}
+
 export async function loadProduct(productsDir: string, id: string, overrides?: ProviderOverrides): Promise<LoadedProduct> {
   const dir = join(productsDir, id);
   const file = join(dir, "product.yaml");
@@ -119,6 +138,7 @@ export async function loadProduct(productsDir: string, id: string, overrides?: P
       hint: "Run `demoforge products list` to see configured products, or `demoforge init` to create one.",
     });
   }
+  await loadProductEnv(dir);
   const config = applyOverrides(await readProductConfig(file), overrides);
   if (config.product.id !== id) {
     throw new DemoForgeError(

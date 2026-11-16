@@ -64,6 +64,23 @@ describe("product configuration", () => {
     await expect(scaffoldProduct(dir, { id: "shop", name: "x", baseUrl: "http://x.test", description: "x", aiProvider: "openai", ttsProvider: "openai" })).rejects.toThrow(/already exists/);
   });
 
+  it("loads the product's own .env without overriding values already set", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "df-"));
+    await mkdir(join(dir, "acme"));
+    await writeFile(join(dir, "acme", "product.yaml"), JSON.stringify(minimal));
+    await writeFile(join(dir, "acme", ".env"), "DF_TEST_USER=from-product\nDF_TEST_PASS='p@ss word'\n");
+    process.env.DF_TEST_USER = "from-shell";
+    delete process.env.DF_TEST_PASS;
+    try {
+      await loadProduct(dir, "acme");
+      expect(process.env.DF_TEST_USER).toBe("from-shell");
+      expect(process.env.DF_TEST_PASS).toBe("p@ss word");
+    } finally {
+      delete process.env.DF_TEST_USER;
+      delete process.env.DF_TEST_PASS;
+    }
+  });
+
   it("requires the folder name to match product.id", async () => {
     const dir = await mkdtemp(join(tmpdir(), "df-"));
     await mkdir(join(dir, "other"));

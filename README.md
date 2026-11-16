@@ -12,7 +12,7 @@ The goal is to make product demo creation repeatable and largely automated. Inst
 demo-forge/
 ├── products/     👉 your products: one folder each (every option explained in products/README.md)
 ├── output/       👉 finished videos and reports
-├── .env          👉 your API keys and login passwords (copy from .env.example)
+├── .env          👉 your API keys (copy from .env.example); logins go in products/<id>/.env
 ├── docs/         guides: start with docs/getting-started.md
 └── engine/       DemoForge itself — no need to touch it to make videos
 ```

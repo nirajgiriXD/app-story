@@ -11,13 +11,17 @@ products/
     ├── instructions.md  tips for the AI: where to click, what to avoid
     ├── knowledge/       background facts about the product (*.md)
     ├── scenarios/       saved demos you reviewed and approved (*.yaml)
-    └── adapter.ts       optional code hooks, e.g. reset demo data before a run
+    ├── adapter.ts       optional code hooks, e.g. reset demo data before a run
+    └── .env             this product's login (ignored by git; see .env.example)
 ```
 
 `example/` is a complete, working product for the practice app (`npm run example-app`).
 Copy it as a starting point, or use the references below.
 
-Login passwords go in the `.env` file at the repository root, never in these files.
+Logins and other secret values go in the product's own `.env`, never in `product.yaml`.
+`product.yaml` only names the variables (`username_env: MY_APP_USER`). A value that is
+already set in the shell or the root `.env` wins over the product's `.env`.
+
 Folders whose name starts with `_` or `.` are not treated as products.
 
 ---
@@ -54,7 +58,7 @@ authentication:
   #   storage_state_path: .secrets/my-app-state.json   # create with `demoforge browser inspect --save-auth`
   # form:
   #   login_path: /login
-  #   username_env: MY_APP_USER     # values come from .env, never from this file
+  #   username_env: MY_APP_USER     # values come from this product's .env, never from this file
   #   password_env: MY_APP_PASSWORD
   #   username_label: Email
   #   password_label: Password

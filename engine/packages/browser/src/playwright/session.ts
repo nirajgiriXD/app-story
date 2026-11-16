@@ -204,7 +204,7 @@ async function formLogin(controller: PlaywrightController, page: Page, config: P
   } catch (error) {
     throw new DemoForgeError("AUTH_FAILED", `Login at ${auth.login_path} did not succeed.`, {
       cause: error,
-      hint: `Check ${auth.username_env}/${auth.password_env} in .env and the field labels in product.yaml.`,
+      hint: `Check ${auth.username_env}/${auth.password_env} in products/${config.product.id}/.env and the field labels in product.yaml.`,
     });
   }
 }

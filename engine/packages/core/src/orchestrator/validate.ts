@@ -63,7 +63,7 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
   } else if (auth.strategy === "form") {
     for (const env of [auth.username_env, auth.password_env]) {
       if (process.env[env]) ok(`login variable ${env} is set`);
-      else error(`login variable ${env} is not set`);
+      else error(`login variable ${env} is not set; add it to products/${product.id}/.env`);
     }
   }
 

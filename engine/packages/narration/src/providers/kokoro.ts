@@ -1,6 +1,6 @@
-import { rm, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { resolveKokoroVoice, type TtsConfig } from "@showrun/contracts";
-import { ShowrunError, runFfmpeg } from "@showrun/shared";
+import { ShowrunError } from "@showrun/shared";
 import type { KokoroTTS as KokoroModel } from "kokoro-js";
 import type { TTSProvider } from "./tts";
 
@@ -77,13 +77,8 @@ export class KokoroTTS implements TTSProvider {
     }
     if (chunks.length === 0) throw new ShowrunError("TTS_ERROR", `Kokoro produced no audio for: "${text.slice(0, 80)}"`);
 
-    const wav = `${outPath}.wav`;
-    await writeFile(wav, encodeWav(chunks, sampleRate));
-    try {
-      await runFfmpeg(["-i", wav, "-c:a", "libmp3lame", "-b:a", "192k", outPath]);
-    } finally {
-      await rm(wav, { force: true });
-    }
+    // Uncompressed: the clip is normalised next and encoded only once, in the final video.
+    await writeFile(outPath, encodeWav(chunks, sampleRate));
   }
 }
 

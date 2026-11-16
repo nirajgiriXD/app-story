@@ -10,7 +10,7 @@ export interface TTSProvider {
   readonly model: string;
   /** True when the provider writes silence instead of speech (captions-only videos). */
   readonly silent?: boolean;
-  /** Write speech audio (MP3) for `text` to `outPath`. */
+  /** Write speech audio for `text` to `outPath`, in any format FFmpeg reads (WAV preferred: no loss). */
   synthesize(text: string, outPath: string): Promise<void>;
 }
 
@@ -82,7 +82,7 @@ export class OpenAITTS implements TTSProvider {
         model: this.model,
         voice: this.voice,
         input: text,
-        response_format: "mp3",
+        response_format: "wav",
         instructions: this.model.startsWith("tts-1") ? undefined : (this.config.style ?? OPENAI_TTS_DEFAULTS.style),
         ...(this.config.speed !== 1 ? { speed: this.config.speed } : {}),
       });
@@ -115,7 +115,7 @@ export class SilentTTS implements TTSProvider {
   async synthesize(text: string, outPath: string): Promise<void> {
     const words = text.trim().split(/\s+/).filter(Boolean).length;
     const seconds = Math.max(1.5, words / SILENT_WORDS_PER_SECOND + 0.4);
-    await runFfmpeg(["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", seconds.toFixed(2), "-c:a", "libmp3lame", "-b:a", "128k", outPath]);
+    await runFfmpeg(["-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", seconds.toFixed(2), "-c:a", "pcm_s16le", "-f", "wav", outPath]);
   }
 }
 

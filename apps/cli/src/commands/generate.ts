@@ -1,7 +1,14 @@
 import { Command, Option } from "commander";
 import { generateDemo } from "@demoforge/core";
-import { loadScenario } from "@demoforge/products";
-import { DemoForgeError, mapWithConcurrency } from "@demoforge/shared";
+import {
+  defaultFeaturesPath,
+  loadFeatures,
+  loadScenario,
+  objectiveForAllFeatures,
+  objectiveForFeature,
+  type LoadedProduct,
+} from "@demoforge/products";
+import { DemoForgeError, mapWithConcurrency, slugify } from "@demoforge/shared";
 import { globals, openProduct, type ProviderFlags } from "../context";
 import { dim, exitCodeFor, printJob, yellow } from "../output";
 
@@ -10,6 +17,8 @@ interface GenerateOptions extends ProviderFlags {
   objective?: string;
   scenario?: string;
   all?: boolean;
+  features?: string | boolean;
+  each?: boolean;
   template?: string;
   duration?: string;
   audience?: string;
@@ -28,24 +37,29 @@ export function providerFlags(cmd: Command): Command {
 
 export function generateCommand(): Command {
   const cmd = new Command("generate")
-    .description("Generate a demo video from an objective (AI-planned) or a saved scenario")
+    .description("Generate a demo video from your feature file, an objective (AI-planned) or a saved scenario")
     .requiredOption("--product <id>", "product id")
     .option("--objective <text>", "what to demonstrate, in plain language (Mode A)")
     .option("--scenario <id>", "saved scenario to replay (Mode B)")
     .option("--all", "generate every approved scenario of the product")
+    .option("--features [file]", "make the video from the feature/changelog file (default: products/<id>/features.md)")
+    .option("--each", "with --features: one video per feature instead of one video for all of them")
     .option("--template <name>", "video template (minimal, modern-saas, product-update, tutorial, feature-highlight)")
     .option("--duration <seconds>", "target video length in seconds")
     .option("--audience <text>", "who the video is for")
     .option("--save-scenario", "save the AI-planned workflow as an unapproved scenario for review")
     .option("--allow-unapproved", "allow a scenario that has not been approved (review runs only)")
     .option("--headed", "show the browser window while working")
-    .option("--concurrency <n>", "parallel jobs with --all", "1");
+    .option("--concurrency <n>", "parallel jobs with --all or --features --each", "1");
   providerFlags(cmd);
 
   return cmd.action(async (opts: GenerateOptions, command: Command) => {
-    const chosen = [opts.objective, opts.scenario, opts.all].filter(Boolean).length;
+    const chosen = [opts.objective, opts.scenario, opts.all, opts.features].filter(Boolean).length;
     if (chosen !== 1) {
-      throw new DemoForgeError("CONFIG_INVALID", "Use exactly one of --objective, --scenario or --all.");
+      throw new DemoForgeError("CONFIG_INVALID", "Use exactly one of --features, --objective, --scenario or --all.");
+    }
+    if (opts.each && !opts.features) {
+      throw new DemoForgeError("CONFIG_INVALID", "--each only works together with --features.");
     }
     const { outputDir, logLevel } = globals(command);
     const product = await openProduct(command, opts.product, opts);
@@ -77,8 +91,31 @@ export function generateCommand(): Command {
       return;
     }
 
+    if (opts.features) {
+      const jobs = await featureJobs(product, opts.features, Boolean(opts.each));
+      const results = await mapWithConcurrency(jobs, Math.max(1, Number(opts.concurrency)), (job) =>
+        generateDemo({ ...common, ...job, saveScenario: opts.saveScenario }),
+      );
+      results.forEach(printJob);
+      process.exitCode = results.every((m) => exitCodeFor(m) === 0) ? 0 : 1;
+      return;
+    }
+
     const metadata = await generateDemo({ ...common, objective: opts.objective, scenarioId: opts.scenario, saveScenario: opts.saveScenario });
     printJob(metadata);
     process.exitCode = exitCodeFor(metadata);
   });
+}
+
+/** Turn the feature file into one job (all features) or one job per feature. */
+async function featureJobs(product: LoadedProduct, file: string | boolean, each: boolean): Promise<{ objective: string; name: string }[]> {
+  const features = await loadFeatures(typeof file === "string" ? file : defaultFeaturesPath(product));
+  // A file passed on the command line replaces products/<id>/features.md as AI context too.
+  product.features = features;
+  const count = features.features.length;
+  console.log(dim(`Read ${count} feature(s) from ${features.file}`));
+  if (each) {
+    return features.features.map((f) => ({ objective: objectiveForFeature(f), name: slugify(f.title) }));
+  }
+  return [{ objective: objectiveForAllFeatures(features), name: slugify(features.title ?? (count === 1 ? features.features[0]!.title : "features")) }];
 }

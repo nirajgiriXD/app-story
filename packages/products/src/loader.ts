@@ -11,6 +11,7 @@ import {
 } from "@demoforge/contracts";
 import { DemoForgeError, fileExists } from "@demoforge/shared";
 import { genericAdapter, type ProductAdapter } from "./adapter";
+import { defaultFeaturesPath, parseFeatures, type FeatureFile } from "./features";
 
 export interface KnowledgeDoc {
   file: string;
@@ -23,6 +24,8 @@ export interface LoadedProduct {
   config: ProductConfig;
   instructions: string | undefined;
   knowledge: KnowledgeDoc[];
+  /** `features.md` in the product folder (or a file chosen with `generate --features <file>`). */
+  features: FeatureFile | undefined;
   scenarios: string[];
   adapter: ProductAdapter;
   adapterPath: string | undefined;
@@ -130,6 +133,8 @@ export async function loadProduct(productsDir: string, id: string, overrides?: P
   }
   const scenarios = (await listFiles(join(dir, "scenarios"), [".yaml", ".yml"])).map((f) => basename(f, extname(f)));
   const { adapter, path: adapterPath } = await loadAdapter(dir);
+  const featuresFile = defaultFeaturesPath({ dir });
+  const features = (await fileExists(featuresFile)) ? parseFeatures(await readFile(featuresFile, "utf8"), featuresFile) : undefined;
 
   return {
     id,
@@ -137,6 +142,7 @@ export async function loadProduct(productsDir: string, id: string, overrides?: P
     config,
     instructions: await readOptional(join(dir, "instructions.md")),
     knowledge,
+    features: features?.features.length ? features : undefined,
     scenarios,
     adapter,
     adapterPath,

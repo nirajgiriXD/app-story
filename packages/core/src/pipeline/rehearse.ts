@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { Workflow } from "@demoforge/contracts";
 import { runRehearsal, type ProductContext, type RehearsalOutcome } from "@demoforge/ai";
 import type { LoadedProduct } from "@demoforge/products";
-import { workflowToYaml } from "@demoforge/products";
+import { FEATURES_FILE, workflowToYaml } from "@demoforge/products";
 import { DemoForgeError, writeJson, writeText, type ErrorCode } from "@demoforge/shared";
 import type { Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
@@ -14,7 +14,10 @@ export function productContext(product: LoadedProduct): ProductContext {
     description: product.config.product.description,
     baseUrl: product.config.product.base_url,
     instructions: product.instructions,
-    knowledge: product.knowledge,
+    // The feature file is what the videos are about, so the AI always sees it.
+    knowledge: product.features
+      ? [{ file: `${FEATURES_FILE} (features to demonstrate)`, content: product.features.content }, ...product.knowledge]
+      : product.knowledge,
   };
 }
 

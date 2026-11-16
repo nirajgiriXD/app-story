@@ -25,6 +25,7 @@ configuration for it (`products/example`).
 ```bash
 pnpm example-app                                   # terminal 1: http://localhost:4310
 pnpm demoforge validate --product example          # terminal 2
+pnpm demoforge generate --product example --features
 pnpm demoforge run --product example --scenario create-project --dry-run
 pnpm demoforge generate --product example --objective "Demonstrate how to create a new project"
 pnpm demoforge generate --product example --objective "..." --ai-provider openai
@@ -58,6 +59,30 @@ pnpm demoforge discover --product <id>              # optional: read-only explor
 Then describe the product in `instructions.md` and `knowledge/*.md`. See
 `templates/product/product.yaml` and `templates/scenario/scenario.yaml` for every option.
 
+## From a feature file (changelog) to a video
+
+Describe what to demo in `products/<id>/features.md`. A template is in
+`templates/features/features.md`.
+
+```markdown
+# Release 2.4 — what's new        <- optional title
+
+## Bulk export                    <- one "##" section per feature
+Where it is, which buttons to click, and what the user sees when it worked.
+
+## Dark mode
+...
+```
+
+```bash
+pnpm demoforge generate --product <id> --features                  # one video, all features
+pnpm demoforge generate --product <id> --features --each           # one video per feature
+pnpm demoforge generate --product <id> --features path/to/CHANGELOG.md
+```
+
+The AI reads the file, plans the clicks in the real app, verifies each feature works,
+and writes the narration from it. Add `--save-scenario` to keep the plan for review.
+
 ## From objective to repeatable scenario
 
 1. `generate --objective "..." --save-scenario` plans and records a demo, and saves the
@@ -73,7 +98,7 @@ Then describe the product in `instructions.md` and `knowledge/*.md`. See
 | `products list` / `products inspect <id>` | see configured products and scenarios |
 | `validate --product <id>` | config, scenarios, credentials, FFmpeg, Chromium |
 | `discover --product <id>` | read-only exploration and demo suggestions |
-| `generate --product <id> --objective/--scenario/--all` | make videos |
+| `generate --product <id> --features/--objective/--scenario/--all` | make videos |
 | `run --product <id> --scenario/--objective --dry-run` | run in the browser, no video |
 | `browser inspect --product <id> [--save-auth]` | open the app in a visible browser |
 | `history` | recent jobs |

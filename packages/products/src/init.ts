@@ -47,6 +47,22 @@ export async function scaffoldProduct(productsDir: string, options: InitProductO
     "utf8",
   );
   await writeFile(
+    join(dir, "features.md"),
+    [
+      `# ${options.name} — what's new`,
+      "",
+      "<!-- One `## Feature name` section per feature: what it does, where it is in the app, how to use it,",
+      `     and what the user sees when it worked. Then run: demoforge generate --product ${options.id} --features -->`,
+      "",
+      "## Example feature",
+      "",
+      "Replace this with a real feature: which page it is on, which buttons to click,",
+      "and what the user sees when it worked.",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+  await writeFile(
     join(dir, "auth", "README.md"),
     "Authentication state lives in `.secrets/` (git-ignored).\n\n" +
       "To save a logged-in session, run:\n\n    demoforge browser inspect --product " +

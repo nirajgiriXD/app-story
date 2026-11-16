@@ -19,6 +19,8 @@ export interface GenerateRequest {
   objective?: string;
   /** Mode B: saved scenario id. */
   scenarioId?: string;
+  /** Job folder name; defaults to the scenario id or a slug of the objective. */
+  name?: string;
   allowUnapproved?: boolean;
   /** Save the AI-planned workflow as an (unapproved) scenario in the product folder. */
   saveScenario?: boolean;
@@ -44,7 +46,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   const job = await createJob({
     outputDir: request.outputDir,
     productId: product.id,
-    name: request.scenarioId ?? slugify(request.objective as string),
+    name: request.name ?? request.scenarioId ?? slugify(request.objective as string),
     mode: request.scenarioId ? "scenario" : "guided",
     objective: request.objective ?? null,
     scenarioId: request.scenarioId ?? null,

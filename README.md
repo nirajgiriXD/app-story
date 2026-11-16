@@ -174,8 +174,8 @@ engine/
 │   ├── products/     reads the product files in products/
 │   ├── contracts/    the shape of every config and result file
 │   └── shared/       small helpers used everywhere
-├── data/           the SQLite database and scratch folders of running jobs (git-ignored)
-├── example-app/    a tiny fake app to practise on (npm run example-app)
+├── data/           the SQLite database and scratch folders of running jobs (git-ignored),
+│                   and example-app/: a tiny fake app to practise on (npm run example-app)
 ├── tests/          unit, integration (real browser) and e2e (real AI) tests, fixtures
 ├── scripts/        helper that starts the tests
 ├── tsconfig*.json  TypeScript settings
@@ -768,8 +768,8 @@ demoforge/
 │   │   ├── contracts/
 │   │   └── shared/
 │   │
-│   ├── data/                 SQLite database and scratch folders (git-ignored)
-│   ├── example-app/          tiny fake app for practice and tests
+│   ├── data/                 SQLite database and scratch folders (git-ignored),
+│   │                         example-app/ (tiny fake app for practice and tests)
 │   ├── tests/                unit/, integration/, e2e/, support/, fixtures/
 │   ├── scripts/
 │   ├── tsconfig.json, tsconfig.base.json

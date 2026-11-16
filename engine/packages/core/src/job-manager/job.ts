@@ -1,4 +1,4 @@
-import { appendFile, readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { JobMetadataSchema, type JobError, type JobMetadata, type JobStatus } from "@demoforge/contracts";
 import { UsageTracker } from "@demoforge/ai";
@@ -6,7 +6,6 @@ import {
   createJobId,
   createLogger,
   ensureDir,
-  fileExists,
   redactSecrets,
   slugify,
   toDemoForgeError,
@@ -140,12 +139,11 @@ export function recordError(job: Job, error: unknown, phase?: string, stepId?: s
   return entry;
 }
 
-export async function finishJob(job: Job, status: JobStatus, outputDir: string): Promise<JobMetadata> {
+export async function finishJob(job: Job, status: JobStatus): Promise<JobMetadata> {
   job.metadata.status = status;
   job.metadata.finished_at = new Date().toISOString();
   await saveMetadata(job);
   if (job.metadata.errors.length) await writeJson(job.paths.errorsLog, job.metadata.errors);
-  await appendHistory(outputDir, job.metadata);
   return job.metadata;
 }
 
@@ -166,10 +164,42 @@ export interface HistoryEntry {
   cost_usd: number | null;
 }
 
-const historyFile = (outputDir: string) => join(outputDir, "history.jsonl");
+/** Folders one level down, or none when `dir` does not exist. */
+async function subdirs(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  return entries.filter((e) => e.isDirectory()).map((e) => join(dir, e.name));
+}
 
-async function appendHistory(outputDir: string, m: JobMetadata): Promise<void> {
-  const entry: HistoryEntry = {
+/**
+ * Finished jobs, newest first. Read from each job's own metadata.json
+ * (`<output>/<product>/<demo>/<job-id>/`), so there is no separate index to keep in
+ * sync: deleting a job folder also removes it from the history.
+ */
+export async function readHistory(outputDir: string, options: { limit?: number; productId?: string } = {}): Promise<HistoryEntry[]> {
+  const products = options.productId ? [join(outputDir, options.productId)] : await subdirs(outputDir);
+  const jobDirs = (await Promise.all(products.map(subdirs))).flat();
+  const jobs = (await Promise.all(jobDirs.map(subdirs))).flat();
+  const entries: HistoryEntry[] = [];
+  await Promise.all(
+    jobs.map(async (dir) => {
+      const raw = await readFile(join(dir, "metadata.json"), "utf8").catch(() => undefined);
+      if (!raw) return;
+      let parsed;
+      try {
+        parsed = JobMetadataSchema.safeParse(JSON.parse(raw));
+      } catch {
+        return; // a half-written or hand-edited file: skip it
+      }
+      // Jobs still running (or killed mid-run) have no finish time yet.
+      if (parsed.success && parsed.data.finished_at) entries.push(toHistoryEntry(parsed.data));
+    }),
+  );
+  entries.sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return options.limit ? entries.slice(0, options.limit) : entries;
+}
+
+function toHistoryEntry(m: JobMetadata): HistoryEntry {
+  return {
     job_id: m.job_id,
     product_id: m.product_id,
     scenario_id: m.scenario_id,
@@ -183,18 +213,4 @@ async function appendHistory(outputDir: string, m: JobMetadata): Promise<void> {
     output_dir: m.output_dir,
     cost_usd: m.usage?.estimated_cost_usd ?? null,
   };
-  await ensureDir(outputDir);
-  await appendFile(historyFile(outputDir), `${JSON.stringify(redactSecrets(entry))}\n`, "utf8");
-}
-
-export async function readHistory(outputDir: string, options: { limit?: number; productId?: string } = {}): Promise<HistoryEntry[]> {
-  const file = historyFile(outputDir);
-  if (!(await fileExists(file))) return [];
-  const entries = (await readFile(file, "utf8"))
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => JSON.parse(line) as HistoryEntry)
-    .filter((e) => !options.productId || e.product_id === options.productId)
-    .reverse();
-  return options.limit ? entries.slice(0, options.limit) : entries;
 }

@@ -59,11 +59,11 @@ export async function discoverProduct(request: DiscoverRequest): Promise<Discove
     const reportFile = join(job.paths.root, "discovery.md");
     await writeJson(join(job.paths.root, "discovery.json"), result);
     await writeText(reportFile, discoveryMarkdown(product, result.report, result.visited));
-    const metadata = await finishJob(job, "success", request.outputDir);
+    const metadata = await finishJob(job, "success");
     return { metadata, report: result.report, reportFile };
   } catch (error) {
     recordError(job, error, "discovery");
-    return { metadata: await finishJob(job, statusForError(error), request.outputDir) };
+    return { metadata: await finishJob(job, statusForError(error)) };
   }
 }
 

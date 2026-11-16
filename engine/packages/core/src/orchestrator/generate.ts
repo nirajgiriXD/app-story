@@ -136,11 +136,11 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     } else {
       status = job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
     }
-    return await finishJob(job, status, request.outputDir);
+    return await finishJob(job, status);
   } catch (error) {
     recordError(job, error, phase);
     job.log.error({ phase, error: (error as Error).message }, "job failed");
-    return finishJob(job, statusForError(error), request.outputDir);
+    return finishJob(job, statusForError(error));
   }
 }
 

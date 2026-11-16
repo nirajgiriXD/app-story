@@ -13,6 +13,7 @@ output/<product>/<demo>/<job-id>/
 └── logs/                  details for troubleshooting
 ```
 
-`npx demoforge history` lists recent jobs. Everything in this folder except this file is
-ignored by git, so it is safe to delete old jobs. Change the location with
+`npx demoforge history` lists recent jobs, read from each job's `metadata.json`.
+Everything in this folder except this file is ignored by git, so it is safe to delete
+old job folders; they drop out of `history` too. Change the location with
 `--output-dir` or `DEMOFORGE_OUTPUT_DIR`.

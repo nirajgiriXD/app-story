@@ -79,10 +79,10 @@ export async function dryRun(request: DryRunRequest): Promise<DryRunResult> {
       const failed = report?.steps.find((s) => s.status === "failed");
       if (failed) recordError(job, new DemoForgeError("WORKFLOW_FAILED", `Step ${failed.step_id}: ${failed.error}`), "dry_run", failed.step_id);
     }
-    const metadata = await finishJob(job, ok ? (job.metadata.warnings.length ? "success_with_warnings" : "success") : "workflow_failure", request.outputDir);
+    const metadata = await finishJob(job, ok ? (job.metadata.warnings.length ? "success_with_warnings" : "success") : "workflow_failure");
     return { metadata, workflow, report, validation };
   } catch (error) {
     recordError(job, error, "dry_run");
-    return { metadata: await finishJob(job, statusForError(error), request.outputDir) };
+    return { metadata: await finishJob(job, statusForError(error)) };
   }
 }

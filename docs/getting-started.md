@@ -118,8 +118,11 @@ and writes the narration from it. Add `--save-scenario` to keep the plan for rev
 | `browser inspect --product <id> [--save-auth]` | open the app in a visible browser |
 | `history` | recent jobs |
 
-Global flags: `--products-dir`, `--output-dir`, `--log-level`. Provider flags on
-`generate`, `run` and `discover`: `--ai-provider`, `--ai-model`, `--tts-provider`.
+Global flag: `--log-level`. Provider flags on `generate`, `run` and `discover`:
+`--ai-provider`, `--ai-model`, `--tts-provider`.
+
+Products always live in `products/` and jobs in `output/`, both at the top of the
+repository, wherever you run the command from. The root `.env` is read from there too.
 
 ## Environment variables
 
@@ -129,7 +132,6 @@ Global flags: `--products-dir`, `--output-dir`, `--log-level`. Provider flags on
 | `OPENAI_API_KEY` | OpenAI models, and the optional OpenAI voice |
 | `ELEVENLABS_API_KEY` | optional; ElevenLabs text-to-speech |
 | `DEMOFORGE_AI_PROVIDER`, `DEMOFORGE_AI_MODEL`, `DEMOFORGE_TTS_PROVIDER` | override product.yaml (CLI flags win) |
-| `DEMOFORGE_PRODUCTS_DIR`, `DEMOFORGE_OUTPUT_DIR` | folder locations |
 | `DEMOFORGE_LOG_LEVEL` | `debug`, `info`, `warn`, ... |
 | product-specific, e.g. `EXAMPLE_APP_USER` | login credentials named in product.yaml; put them in `products/<id>/.env` |
 

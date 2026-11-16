@@ -38,10 +38,6 @@ export interface ProviderOverrides {
   ttsProvider?: TtsProviderName;
 }
 
-export function resolveProductsDir(dir?: string): string {
-  return resolve(dir ?? process.env.DEMOFORGE_PRODUCTS_DIR ?? "products");
-}
-
 export async function readProductConfig(file: string): Promise<ProductConfig> {
   let raw: unknown;
   try {

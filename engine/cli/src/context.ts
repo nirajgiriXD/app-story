@@ -1,17 +1,16 @@
 import type { Command } from "commander";
-import { loadProduct, resolveProductsDir, type LoadedProduct, type ProviderOverrides } from "@demoforge/products";
-import { resolveOutputDir } from "@demoforge/core";
+import { loadProduct, type LoadedProduct, type ProviderOverrides } from "@demoforge/products";
+import { OUTPUT_DIR, PRODUCTS_DIR } from "@demoforge/shared";
 import type { AiProviderName, TtsProviderName } from "@demoforge/contracts";
 
 export interface GlobalOptions {
-  productsDir?: string;
-  outputDir?: string;
   logLevel?: string;
 }
 
+/** Products always live in <repo>/products and jobs in <repo>/output. */
 export function globals(cmd: Command): { productsDir: string; outputDir: string; logLevel?: string } {
   const opts = cmd.optsWithGlobals<GlobalOptions>();
-  return { productsDir: resolveProductsDir(opts.productsDir), outputDir: resolveOutputDir(opts.outputDir), logLevel: opts.logLevel };
+  return { productsDir: PRODUCTS_DIR, outputDir: OUTPUT_DIR, logLevel: opts.logLevel };
 }
 
 export interface ProviderFlags {

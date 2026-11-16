@@ -1,5 +1,5 @@
 import { readFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { JobMetadataSchema, type JobError, type JobMetadata, type JobStatus } from "@demoforge/contracts";
 import { UsageTracker } from "@demoforge/ai";
 import {
@@ -47,10 +47,6 @@ export interface Job {
   metadata: JobMetadata;
   log: Logger;
   usage: UsageTracker;
-}
-
-export function resolveOutputDir(dir?: string): string {
-  return resolve(dir ?? process.env.DEMOFORGE_OUTPUT_DIR ?? "output");
 }
 
 export function jobPaths(root: string): JobPaths {

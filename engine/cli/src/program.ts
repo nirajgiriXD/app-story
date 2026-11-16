@@ -12,8 +12,6 @@ export function buildProgram(): Command {
   return new Command("demoforge")
     .description("Generate product demo videos from real web applications")
     .version("0.1.0")
-    .option("--products-dir <dir>", "where product folders live (default: ./products)")
-    .option("--output-dir <dir>", "where jobs are written (default: ./output)")
     .option("--log-level <level>", "trace, debug, info, warn, error")
     .showHelpAfterError()
     .addCommand(initCommand())

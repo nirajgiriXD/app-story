@@ -1,5 +1,5 @@
 /**
- * Error codes map onto the job outcomes the README requires AppStory to distinguish
+ * Error codes map onto the job outcomes the design brief (docs/design.md) requires AppStory to distinguish
  * (application unavailable, authentication failure, unsupported workflow, ...).
  */
 export type ErrorCode =

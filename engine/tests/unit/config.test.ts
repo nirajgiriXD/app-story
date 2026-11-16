@@ -168,10 +168,10 @@ describe("products folder", () => {
     expect(product.brief).toContain("## Release notes");
   });
 
-  it("keeps the product file examples in README.md valid", async () => {
-    const readme = await readFile("README.md", "utf8");
-    const examples = [...readme.matchAll(/```markdown\r?\n(---[\s\S]*?)```/g)].map((m) => m[1] as string);
-    expect(examples.length).toBeGreaterThanOrEqual(2);
+  it("keeps the product file examples in README.md and docs/design.md valid", async () => {
+    const docs = (await readFile("README.md", "utf8")) + (await readFile("docs/design.md", "utf8"));
+    const examples = [...docs.matchAll(/```markdown\r?\n(---[\s\S]*?)```/g)].map((m) => m[1] as string);
+    expect(examples.length).toBeGreaterThanOrEqual(3);
     for (const example of examples) expect(() => parse(example)).not.toThrow();
   });
 });

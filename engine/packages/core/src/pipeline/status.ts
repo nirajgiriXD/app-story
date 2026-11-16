@@ -13,7 +13,7 @@ const STATUS_BY_CODE: Partial<Record<ErrorCode, JobStatus>> = {
   PROVIDER_RATE_LIMIT: "recoverable_failure",
 };
 
-/** Map an error to the job outcome the README asks AppStory to distinguish. */
+/** Map an error to the job outcome the design brief (docs/design.md) asks AppStory to distinguish. */
 export function statusForError(error: unknown): JobStatus {
   const e = toAppStoryError(error);
   const mapped = STATUS_BY_CODE[e.code];

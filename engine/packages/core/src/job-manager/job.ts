@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import type { JobError, JobMetadata, JobStatus } from "@app-story/contracts";
 import { UsageTracker } from "@app-story/ai";
 import type { LoginState } from "@app-story/browser";
-import { createJobId, createLogger, dataDirFor, ensureDir, redactSecrets, slugify, toAppStoryError, type Logger } from "@app-story/shared";
+import { createJobId, createLogger, dataDirFor, ensureDir, fileExists, redactSecrets, slugify, toAppStoryError, type Logger } from "@app-story/shared";
 import { Store, type RecordKind } from "../store/store";
 
 /**
@@ -19,6 +19,8 @@ export interface JobPaths {
   narrationDir: string;
   videoDir: string;
   finalVideo: string;
+  /** Captions for the finished video (SRT), delivered next to it. */
+  finalCaptions: string;
   thumbnail: string;
   assetsDir: string;
   logsDir: string;
@@ -52,6 +54,7 @@ export function jobPaths(root: string): JobPaths {
     narrationDir: p("narration"),
     videoDir: p("video"),
     finalVideo: p("video", "final.mp4"),
+    finalCaptions: p("video", "final.srt"),
     thumbnail: p("video", "thumbnail.png"),
     assetsDir: p("assets"),
     logsDir: p("logs"),
@@ -132,6 +135,8 @@ export async function deliverVideo(job: Job): Promise<string> {
     await copyFile(job.paths.finalVideo, dest);
   });
   if (job.metadata.video) job.metadata.video.path = dest;
+  // Captions go next to the video with the same name, so players and YouTube pick them up.
+  if (await fileExists(job.paths.finalCaptions)) await copyFile(job.paths.finalCaptions, dest.replace(/\.mp4$/, ".srt"));
   return dest;
 }
 

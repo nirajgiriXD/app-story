@@ -46,7 +46,7 @@ AppStory works in your project folder:
 your-project/
 ├── products/          👉 your products: one file each, e.g. products/acme.md (see "Product files")
 │   └── acme.plans/    the saved click-plans of acme, one YAML file per video: commit them
-├── output/            👉 finished videos, nothing else (see "Output")
+├── output/            👉 finished videos and their captions (see "Output")
 ├── .env               👉 your AI key, voice choices, and passwords read with env:NAME
 └── .app-story/        AppStory's records: history, cache and kept recordings (git ignores it by itself)
 ```
@@ -196,13 +196,16 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
 
 ## Output
 
-`output/` holds only the finished videos:
+`output/` holds only the finished videos, each with its captions (`.srt`, when captions are on)
+for players and video sites:
 
 ```text
 output/
 └── acme/
     ├── 20261116-134205-a1b2c3-whats-new-2-4.mp4
-    └── 20261116-141010-d4e5f6-bulk-export.mp4
+    ├── 20261116-134205-a1b2c3-whats-new-2-4.srt
+    ├── 20261116-141010-d4e5f6-bulk-export.mp4
+    └── 20261116-141010-d4e5f6-bulk-export.srt
 ```
 
 The saved plans are in `products/<product>.plans/` (see above). Everything else is in

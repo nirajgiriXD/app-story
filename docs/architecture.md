@@ -74,7 +74,7 @@ at login time and registered as secrets.
 
 ## Storage
 
-`output/` receives only the finished MP4. A plan made by the AI is saved, after its video
+`output/` receives only the finished MP4 and its captions (`.srt`). A plan made by the AI is saved, after its video
 passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`, see
 `pipeline/plans.ts`), so it can be committed, reviewed and shared. Everything else is in
 `.app-story/` in the user's project, which ignores itself in git:

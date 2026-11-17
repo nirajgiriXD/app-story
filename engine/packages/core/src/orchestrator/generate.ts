@@ -207,7 +207,7 @@ export async function renderTake(job: Job, product: LoadedProduct, take: Take, o
       recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
     return "failed";
   }
-  // The video is the only file in output/.
+  // Only the video (and its captions) go to output/.
   await deliverVideo(job);
   return job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
 }

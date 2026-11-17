@@ -1,4 +1,4 @@
-import { copyFile, readFile } from "node:fs/promises";
+import { copyFile, readFile, writeFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Workflow } from "@app-story/contracts";
 import { buildCues, toSrt, toVtt } from "@app-story/captions";
@@ -57,6 +57,8 @@ export async function composeVideo(
   if (config.captions.enabled) {
     saveRecord(job, "captions_srt", toSrt(cues));
     saveRecord(job, "captions_vtt", toVtt(cues));
+    await ensureDir(job.paths.videoDir);
+    await writeFile(job.paths.finalCaptions, toSrt(cues), "utf8");
   }
 
   const props = buildRenderProps({

@@ -26,25 +26,46 @@ export function chunkText(text: string, maxChars: number): string[] {
       chunks.push(sentence);
       continue;
     }
-    // Break long sentences at commas first, then at word boundaries.
-    const parts = sentence.split(/(?<=,)\s+/);
-    let current = "";
-    for (const part of parts) {
-      for (const word of part.split(" ")) {
-        const next = current ? `${current} ${word}` : word;
-        if (next.length > maxChars && current) {
-          chunks.push(current);
-          current = word;
-        } else current = next;
-      }
-      if (current.length > maxChars * 0.6) {
-        chunks.push(current);
-        current = "";
-      }
-    }
-    if (current) chunks.push(current);
+    chunks.push(...splitEvenly(sentence, maxChars));
   }
   return chunks;
+}
+
+/**
+ * Split a long sentence into as few chunks as fit, of about equal length, so no chunk is a
+ * lonely last few words. Breaks after a comma are preferred when they are close to even.
+ */
+function splitEvenly(sentence: string, maxChars: number): string[] {
+  const words = sentence.split(" ");
+  // Where each word ends, counting the spaces before it.
+  const ends: number[] = [];
+  let length = 0;
+  for (const [i, word] of words.entries()) {
+    length += word.length + (i > 0 ? 1 : 0);
+    ends.push(length);
+  }
+  for (let count = Math.ceil(sentence.length / maxChars); count <= words.length; count++) {
+    const breaks: number[] = []; // index of the last word of each chunk but the last
+    for (let k = 1; k < count; k++) {
+      const ideal = (sentence.length * k) / count;
+      let best = -1;
+      let bestScore = Number.POSITIVE_INFINITY;
+      for (let i = (breaks[breaks.length - 1] ?? -1) + 1; i < words.length - (count - k); i++) {
+        const comma = /[,;:]$/.test(words[i] as string) ? maxChars * 0.15 : 0;
+        const score = Math.abs((ends[i] as number) - ideal) - comma;
+        if (score < bestScore) [best, bestScore] = [i, score];
+      }
+      breaks.push(best);
+    }
+    const chunks: string[] = [];
+    let from = 0;
+    for (const end of [...breaks, words.length - 1]) {
+      chunks.push(words.slice(from, end + 1).join(" "));
+      from = end + 1;
+    }
+    if (chunks.every((c) => c.length <= maxChars)) return chunks;
+  }
+  return words; // a single word longer than a caption: show it on its own
 }
 
 /** Wrap a chunk into at most `maxLines` balanced lines. */

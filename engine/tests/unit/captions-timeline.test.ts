@@ -10,6 +10,16 @@ describe("captions", () => {
     expect(chunks.join(" ")).toContain("well past the limit.");
   });
 
+  it("splits a long sentence into even chunks, never a lonely last few words", () => {
+    const text = "The confirmation shows the project was created, and it's highlighted at the top of the list, ready for your team.";
+    const chunks = chunkText(text, 104);
+    expect(chunks).toHaveLength(2);
+    expect(chunks.join(" ")).toBe(text);
+    const [a, b] = chunks.map((c) => c.length) as [number, number];
+    expect(Math.min(a, b) / Math.max(a, b)).toBeGreaterThan(0.6);
+    expect(chunks[0]).toMatch(/,$/);
+  });
+
   it("wraps long chunks into two balanced lines", () => {
     const text = "This is the Projects page where you can see everything";
     const wrapped = wrapLines(text, 40);

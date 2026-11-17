@@ -153,8 +153,8 @@ export function cursorAt(t: number, points: readonly CursorPoint[]): { x: number
 }
 
 /** The pointer hides after this long without moving, as screen-recording editors do. */
-const CURSOR_IDLE_MS = 2500;
-const CURSOR_FADE_MS = 400;
+export const CURSOR_IDLE_MS = 2500;
+export const CURSOR_FADE_MS = 400;
 
 /**
  * How visible the pointer is at `t` (0-1): shown while it moves and for a while after,

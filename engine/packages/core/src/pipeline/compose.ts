@@ -135,6 +135,7 @@ export async function composeVideo(
     thumbnailFile: main ? job.paths.thumbnail : undefined,
     thumbnailAtMs: thumbAt,
     log: job.log,
+    cacheDir: renderCacheDir(job),
   });
   const thumbnail = main ? await readFile(job.paths.thumbnail).catch(() => undefined) : undefined;
   if (thumbnail) saveRecord(job, "thumbnail", thumbnail);
@@ -157,7 +158,7 @@ export async function renderExtras(job: Job, product: LoadedProduct, composed: C
         await renderGif(job.paths.finalVideo, file, composed.props.recording);
       } else {
         const props = reshapeProps(composed.props, format);
-        await job.runtime.heavy(() => renderVideo({ publicDir: job.paths.root, props, outputFile: file, log: job.log }));
+        await job.runtime.heavy(() => renderVideo({ publicDir: job.paths.root, props, outputFile: file, log: job.log, cacheDir: renderCacheDir(job) }));
       }
       extras.push({ file, suffix });
       job.log.info({ format }, "extra format ready");
@@ -215,6 +216,11 @@ export async function renderLanguages(
     }
   }
   return extras;
+}
+
+/** Drawn video chunks, kept across jobs: a re-render (the AI review's, a redo's) only draws what changed. */
+function renderCacheDir(job: Job): string {
+  return join(job.store.dataDir, "render-cache");
 }
 
 /** A still of the app as the take opens, for the intro card. Optional: the intro works without it. */

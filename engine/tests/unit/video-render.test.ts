@@ -17,6 +17,8 @@ import {
   spring,
   sourceFrame,
   splitFrames,
+  chunkKey,
+  chunksOf,
   toOutput,
   toSource,
 } from "@app-story/video";
@@ -234,5 +236,100 @@ describe("the editor's pass", () => {
     );
     const map = planEdit(20_000, active);
     expect(toOutput(map, 20_000)).toBeLessThan(20_000);
+  });
+});
+
+describe("render cache", () => {
+  const template = getTemplate("modern-saas");
+  const base: RenderProps = {
+    width: 1920,
+    height: 1080,
+    fps: 30,
+    durationMs: 40_000,
+    template,
+    brand: { productName: "Acme", logo: null, primary: "#2563EB", accent: "#0F172A", font: "Inter", host: "acme.test" },
+    title: "Create a project",
+    subtitle: null,
+    hero: null,
+    intro: { startMs: 0, endMs: 3000 },
+    outro: { startMs: 36_000, endMs: 40_000 },
+    recording: { src: "recording/raw.mp4", startMs: 2500, durationMs: 34_000, viewport: { width: 1600, height: 900 } },
+    sections: [],
+    focus: [
+      { startMs: 2000, endMs: 4000, box: { x: 100, y: 100, width: 300, height: 200 } },
+      { startMs: 25_000, endMs: 27_000, box: { x: 900, y: 500, width: 300, height: 200 } },
+    ],
+    cuts: [],
+    cursor: [
+      { t: 0, x: 800, y: 450 },
+      { t: 2000, x: 200, y: 200, click: true },
+      { t: 25_000, x: 1000, y: 600, click: true },
+    ],
+    urls: [{ atMs: 0, url: "https://acme.test/" }],
+    audio: [{ src: "narration/seg-01.wav", startMs: 3000, durationMs: 2000 }],
+    captions: { enabled: true, fontSize: 38, position: "bottom", cues: [{ startMs: 3000, endMs: 5000, text: "Open the form." }] },
+    music: null,
+  };
+  const inputs = { page: "page", files: "files", encoding: ["x264"] };
+  const chunks = chunksOf(Math.round((base.durationMs / 1000) * base.fps), base.fps);
+  const keys = (p: RenderProps) => chunks.map((c) => chunkKey(p, c, inputs));
+  const changed = (a: string[], b: string[]) => a.flatMap((k, i) => (k === b[i] ? [] : [i]));
+
+  it("cuts the video into two-second chunks that cover it once", () => {
+    expect(chunks).toHaveLength(20);
+    expect(chunks[0]).toEqual({ index: 0, from: 0, to: 60 });
+    expect(chunks.at(-1)?.to).toBe(1200);
+  });
+
+  it("redraws only the chunks a change of framing can reach", () => {
+    const moved = {
+      ...base,
+      focus: [base.focus[0], { ...(base.focus[1] as RenderProps["focus"][number]), box: { x: 0, y: 0, width: 200, height: 200 } }],
+    } as RenderProps;
+    const diff = changed(keys(base), keys(moved));
+    expect(diff.length).toBeGreaterThan(0);
+    expect(diff.length).toBeLessThan(10);
+    // Around 27.5s of the video (the window plays from 2.5s into the recording, 25s in).
+    expect(diff.every((i) => i >= 9 && i <= 17)).toBe(true);
+  });
+
+  it("gives every chunk of the video its own key, even where nothing moves", () => {
+    expect(new Set(keys(base)).size).toBe(chunks.length);
+  });
+
+  it("redraws nothing for a change of sound, and everything for a change of look", () => {
+    const louder = { ...base, audio: [], music: { src: "assets/music.mp3", volume: 0.2 }, sfx: [{ kind: "click" as const, atMs: 100 }] };
+    expect(changed(keys(base), keys(louder))).toEqual([]);
+    const otherLook = { ...base, template: getTemplate("minimal") };
+    expect(changed(keys(base), keys(otherLook))).toHaveLength(chunks.length);
+    expect(
+      changed(
+        keys(base),
+        chunks.map((c) => chunkKey(base, c, { ...inputs, page: "new page code" })),
+      ),
+    ).toHaveLength(chunks.length);
+  });
+
+  it("redraws the chunks whose caption changed", () => {
+    const reworded = { ...base, captions: { ...base.captions, cues: [{ startMs: 3000, endMs: 5000, text: "Open the new form." }] } };
+    expect(changed(keys(base), keys(reworded))).toEqual([1, 2]);
+  });
+
+  it("redraws the chunks whose recording frames changed with the edit", () => {
+    const edited = {
+      ...base,
+      recording: {
+        ...base.recording,
+        timeMap: [
+          [0, 0],
+          [10_000, 10_000],
+          [12_000, 18_000],
+          [34_000, 40_000],
+        ] as [number, number][],
+      },
+    };
+    const diff = changed(keys(base), keys(edited));
+    expect(diff[0]).toBe(6); // from 12.5s of the video on
+    expect(diff).not.toContain(0);
   });
 });

@@ -10,5 +10,6 @@ export { HANDOVER_SPLIT, handoverIn, handoverOut } from "./compositions/handover
 export * from "./edit";
 export { keyLabels } from "./keys";
 export { renderGif, reshapeProps, type FrameFormat } from "./formats";
+export { chunkKey, chunksOf, chunkView, pruneRenderCache, type Chunk } from "./render-cache";
 
 export { toOtio } from "./otio";

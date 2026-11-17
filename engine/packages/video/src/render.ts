@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { availableParallelism, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,7 @@ import { buildAudioMix, MASTER_LOUDNESS, masterChain } from "./audio";
 import { sourceFrame } from "./edit";
 import { RecordingFrames } from "./frames";
 import type { RenderProps } from "./props";
+import { chunkKey, chunksOf, hashFile, pruneRenderCache, renderCacheLimitBytes, sha256, touch, type Chunk } from "./render-cache";
 
 /*
  * How a video is made:
@@ -43,6 +44,11 @@ export interface RenderVideoOptions {
   /** Global time (ms) to use for the thumbnail frame. */
   thumbnailAtMs?: number;
   log: Logger;
+  /**
+   * Where drawn chunks are kept for reuse (see render-cache.ts). Without it, or with
+   * APP_STORY_RENDER_CACHE_MB=0, every frame is drawn.
+   */
+  cacheDir?: string;
 }
 
 let prepared: Promise<string> | undefined;
@@ -111,29 +117,49 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
   try {
     const script = await prepareRenderer();
     workDir = await mkdtemp(join(tmpdir(), "app-story-render-"));
-    const ranges = splitFrames(total, workerCount());
-    log.info({ frames: total, workers: ranges.length }, "rendering video");
+    const chunks = chunksOf(total, props.fps);
+    const limit = renderCacheLimitBytes();
+    const cacheDir = options.cacheDir && limit > 0 ? options.cacheDir : undefined;
+    // Each chunk's file: in the cache under its key (drawn only if missing), or in the scratch folder.
+    const fileOf = new Map<number, string>();
+    let todo: Chunk[] = chunks;
+    if (cacheDir) {
+      await ensureDir(cacheDir);
+      const inputs = { page: sha256(script), files: await filesHash(options), encoding: deliveryEncoding(props.fps) };
+      todo = [];
+      for (const chunk of chunks) {
+        const file = join(cacheDir, `${chunkKey(props, chunk, inputs)}.mp4`);
+        fileOf.set(chunk.index, file);
+        if (existsSync(file)) await touch(file);
+        else todo.push(chunk);
+      }
+    } else {
+      for (const chunk of chunks) fileOf.set(chunk.index, join(workDir, `chunk-${chunk.index}.mp4`));
+    }
+    const toDraw = todo.reduce((sum, c) => sum + c.to - c.from, 0);
+    const groups = splitChunks(todo, workerCount());
+    log.info({ frames: total, toDraw, reused: total - toDraw, workers: groups.length }, "rendering video");
 
     let done = 0;
     let lastLogged = -1;
     const onFrame = () => {
       done++;
-      const pct = Math.floor((done / total) * 10) * 10;
+      const pct = Math.floor((done / Math.max(1, toDraw)) * 10) * 10;
       if (pct !== lastLogged) {
         lastLogged = pct;
         log.info(`rendering video ${pct}%`);
       }
     };
-    const parts = ranges.map((_, i) => join(workDir as string, `part-${i}.mp4`));
     const state = { failed: false };
     await Promise.all(
-      ranges.map((range, i) =>
-        renderRange({ script, options, range, outFile: parts[i] as string, onFrame, state }).catch((error: unknown) => {
+      groups.map((group) =>
+        renderChunks({ script, options, chunks: group, fileOf: (c) => fileOf.get(c.index) as string, onFrame, state }).catch((error: unknown) => {
           state.failed = true;
           throw error;
         }),
       ),
     );
+    const parts = chunks.map((c) => fileOf.get(c.index) as string);
 
     await ensureDir(dirname(options.outputFile));
     const list = join(workDir, "parts.ffconcat");
@@ -178,6 +204,8 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
       options.outputFile,
     ]);
 
+    if (cacheDir) await pruneRenderCache(cacheDir, limit).catch((error: Error) => log.warn({ error: error.message }, "could not prune the render cache"));
+
     if (options.thumbnailFile) {
       // The thumbnail is a frame of the finished video: no second render needed.
       const lastSec = (total - 1) / props.fps;
@@ -207,43 +235,72 @@ async function launchBrowser(): Promise<Browser> {
   }
 }
 
-interface RangeJob {
+/** Split the chunks to draw into at most `workers` runs of neighbouring chunks, each worth a browser of its own. */
+export function splitChunks(chunks: readonly Chunk[], workers: number): Chunk[][] {
+  const frames = chunks.reduce((sum, c) => sum + c.to - c.from, 0);
+  const count = Math.max(1, Math.min(workers, chunks.length, Math.ceil(frames / MIN_FRAMES_PER_WORKER)));
+  const groups: Chunk[][] = [];
+  for (let i = 0; i < count; i++) {
+    const group = chunks.slice(Math.round((chunks.length * i) / count), Math.round((chunks.length * (i + 1)) / count));
+    if (group.length) groups.push(group);
+  }
+  return groups;
+}
+
+/** The hash of the files a frame can show: the recording, the logo and the intro's still. */
+async function filesHash(options: RenderVideoOptions): Promise<string> {
+  const { props, publicDir } = options;
+  const files = [props.recording.src, props.brand.logo, props.hero].map((src) => (src ? hashFile(fileIn(publicDir, src)) : Promise.resolve(null)));
+  return sha256(JSON.stringify(await Promise.all(files)));
+}
+
+interface ChunksJob {
   script: string;
   options: RenderVideoOptions;
-  range: [number, number];
-  outFile: string;
+  chunks: Chunk[];
+  /** Where each chunk's video goes. */
+  fileOf: (chunk: Chunk) => string;
   onFrame: () => void;
   /** Set when another worker failed, so the rest stop early. */
   state: { failed: boolean };
 }
 
-/** Draw, capture and encode frames [from, to) in a browser of its own. */
-async function renderRange(job: RangeJob): Promise<void> {
-  const { props, publicDir } = job.options;
-  const [from, to] = job.range;
+/** The recording's frames a stretch of the video shows, read in order (or nothing, before and after the recording). */
+function recordingFramesFor(props: RenderProps, publicDir: string, from: number, to: number): RecordingFrames | undefined {
   // The recording's place in frames, exactly as the composition computes it.
   const recordingFirst = Math.max(0, Math.round((props.recording.startMs / 1000) * props.fps));
   const recordingCount = Math.max(1, Math.round((props.recording.durationMs / 1000) * props.fps));
   const first = Math.max(from, recordingFirst);
   const last = Math.min(to, recordingFirst + recordingCount);
+  if (last <= first) return undefined;
   // The take's frames this stretch shows, through the edit (exactly as the composition asks for them).
   const map = props.recording.timeMap;
   const takeFirst = sourceFrame(map, first - recordingFirst, props.fps);
   const takeLast = sourceFrame(map, last - 1 - recordingFirst, props.fps);
-  const recording = last > first ? new RecordingFrames(fileIn(publicDir, props.recording.src), props.fps, takeFirst, takeLast - takeFirst + 1) : undefined;
+  return new RecordingFrames(fileIn(publicDir, props.recording.src), props.fps, takeFirst, takeLast - takeFirst + 1);
+}
 
+/**
+ * Draw, capture and encode chunks in a browser of its own, each chunk to its own file. A
+ * run of neighbouring chunks shares one reader of the recording. A chunk is written next to
+ * its file and renamed into place once complete, so a cached chunk is never half written.
+ */
+async function renderChunks(job: ChunksJob): Promise<void> {
+  if (job.chunks.length === 0) return;
+  const { props, publicDir } = job.options;
+  const holder: { recording?: RecordingFrames } = {};
   let browser: Browser | undefined;
   let encoder: FrameEncoder | undefined;
+  let partial: string | undefined;
   let serveError: unknown;
   try {
     browser = await launchBrowser();
     if (job.state.failed) return;
     const context = await browser.newContext({ viewport: { width: props.width, height: props.height }, deviceScaleFactor: 1 });
-    encoder = new FrameEncoder(props.fps, job.outFile);
     const page = await context.newPage();
     await page.route("**/*", async (route) => {
       try {
-        await serve(route, job, recording);
+        await serve(route, job, holder.recording);
       } catch (error) {
         serveError ??= error;
         await route.abort().catch(() => undefined);
@@ -252,24 +309,43 @@ async function renderRange(job: RangeJob): Promise<void> {
     await page.goto(`${ORIGIN}/`);
     await page.evaluate((p) => window.appStory.setup(p), props);
     const cdp = await context.newCDPSession(page);
-    for (let frame = from; frame < to; frame++) {
-      if (job.state.failed) return;
-      await page.evaluate((n) => window.appStory.renderFrame(n), frame);
-      if (serveError) throw serveError;
-      const shot = (await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 100 })) as { data: string };
-      await encoder.write(Buffer.from(shot.data, "base64"));
-      job.onFrame();
+    for (const [i, chunk] of job.chunks.entries()) {
+      // The start of a run of neighbouring chunks: read the recording from there.
+      if (i === 0 || (job.chunks[i - 1] as Chunk).index !== chunk.index - 1) {
+        holder.recording?.close();
+        let end = i;
+        while (end + 1 < job.chunks.length && (job.chunks[end + 1] as Chunk).index === (job.chunks[end] as Chunk).index + 1) end++;
+        holder.recording = recordingFramesFor(props, publicDir, chunk.from, (job.chunks[end] as Chunk).to);
+      }
+      const file = job.fileOf(chunk);
+      partial = `${file}.${process.pid}.part`;
+      encoder = new FrameEncoder(props.fps, partial);
+      for (let frame = chunk.from; frame < chunk.to; frame++) {
+        if (job.state.failed) return;
+        await page.evaluate((n) => window.appStory.renderFrame(n), frame);
+        if (serveError) throw serveError;
+        const shot = (await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 100 })) as { data: string };
+        await encoder.write(Buffer.from(shot.data, "base64"));
+        job.onFrame();
+      }
+      await encoder.finish();
+      encoder = undefined;
+      // Another job may have stored the same chunk meanwhile: then this copy is not needed.
+      if (existsSync(file)) await rm(partial, { force: true });
+      else await rename(partial, file);
+      partial = undefined;
     }
-    await encoder.finish();
   } finally {
-    recording?.close();
+    holder.recording?.close();
     encoder?.kill();
+    // A chunk cut short is never left in the cache.
+    if (partial) await rm(partial, { force: true }).catch(() => undefined);
     await browser?.close().catch(() => undefined);
   }
 }
 
 /** Answer the render page's requests: the page, its script, job files and recording frames. */
-async function serve(route: Route, job: RangeJob, recording: RecordingFrames | undefined): Promise<void> {
+async function serve(route: Route, job: Pick<ChunksJob, "script" | "options">, recording: RecordingFrames | undefined): Promise<void> {
   const url = new URL(route.request().url());
   if (url.origin !== ORIGIN) return route.abort();
   const { props, publicDir } = job.options;
@@ -277,7 +353,7 @@ async function serve(route: Route, job: RangeJob, recording: RecordingFrames | u
   if (url.pathname === "/main.js") return route.fulfill({ contentType: "text/javascript; charset=utf-8", body: job.script });
   const frame = /^\/recording\/(\d+)\.jpg$/.exec(url.pathname);
   if (frame) {
-    if (!recording) throw new Error(`recording frame ${frame[1]} was asked for outside this worker's stretch`);
+    if (!recording) throw new Error(`recording frame ${frame[1]} was asked for outside this worker's chunks`);
     return route.fulfill({ contentType: "image/jpeg", body: await recording.frame(Number(frame[1])) });
   }
   if (url.pathname.startsWith("/files/")) {
@@ -365,6 +441,8 @@ class FrameEncoder {
         "bt709",
         "-color_range",
         "tv",
+        "-f",
+        "mp4",
         outFile,
       ],
       { windowsHide: true },

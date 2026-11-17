@@ -23,8 +23,8 @@ describe("Playwright locators as targets", () => {
 
 describe("importing a Playwright trace", () => {
   it("turns a real test's trace into a plan, without its login or its password", async () => {
-    // Recorded with Playwright 1.65.1 from a test of the practice app (engine/tests/example-app).
-    const { workflow, notes } = planFromTrace(await readFile("engine/tests/fixtures/playwright-trace.zip"));
+    // Recorded with Playwright 1.65.1 from a test of the practice app (tests/example-app).
+    const { workflow, notes } = planFromTrace(await readFile("tests/fixtures/playwright-trace.zip"));
     expect(workflow.title).toBe("Create a project");
     expect(workflow.objective).toBe("Show how to create a project");
     expect(workflow.steps.map((s) => [s.action, s.description])).toEqual([

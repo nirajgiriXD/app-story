@@ -51,7 +51,7 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
 - Run the integration tests when you touch the browser, recording, narration or video.
   They take several minutes, and the first run downloads the voice model (~330 MB).
 - `npm run test:e2e` makes a real video with real AI answers recorded once in
-  `engine/tests/fixtures/ai-answers/<provider>.json`, so replaying them is free and needs
+  `tests/fixtures/ai-answers/<provider>.json`, so replaying them is free and needs
   no key. Record them (needs the key, costs a little) with
   `APP_STORY_RECORD_AI=1 npm run test:e2e`, and commit the new files; do it again after
   changing a prompt, the AI tools or the practice app. Without recorded answers the e2e
@@ -60,15 +60,15 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
 ## Writing code
 
 - **Tests.** Add or update tests for the behavior you change: unit tests in
-  `engine/tests/unit/`, browser tests in `engine/tests/integration/`. Fakes for the AI,
-  the voice and the browser are in `engine/tests/support/`. Unit tests run on Linux and
+  `tests/unit/`, browser tests in `tests/integration/`. Fakes for the AI,
+  the voice and the browser are in `tests/support/`. Unit tests run on Linux and
   Windows in CI.
-- **Database.** To change the tables in `engine/packages/core/src/store/store.ts`, add a
+- **Database.** To change the tables in `packages/core/src/store/store.ts`, add a
   new entry to `MIGRATIONS`; never edit one that has shipped.
-- **AI prompts** live in `engine/packages/ai/src/prompts/` as `name.vN.md`. When you
+- **AI prompts** live in `packages/ai/src/prompts/` as `name.vN.md`. When you
   change what a prompt means, add a new version file and bump it in `PROMPT_VERSIONS`
   (`prompts/index.ts`), instead of editing the old one.
-- **Safety.** Do not weaken the browser's guards (`engine/packages/browser/src/security/`)
+- **Safety.** Do not weaken the browser's guards (`packages/browser/src/security/`)
   or let website text act as instructions. Treat everything on a page as untrusted.
 - **No secrets or real data.** Never put passwords, API keys or real customer data in
   code, tests, fixtures, product files or screenshots. Use `env:NAME` and made-up data.
@@ -80,7 +80,7 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
 The npm package and the Docker image are published by GitHub Actions
 (`.github/workflows/release.yml`) when a version tag is pushed:
 
-1. Set the new version in `engine/cli/package.json` and in `engine/cli/src/program.ts`.
+1. Set the new version in `cli/package.json` and in `cli/src/program.ts`.
 2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
 
 Publishing to npm needs an `NPM_TOKEN` secret in the repository settings. The image goes

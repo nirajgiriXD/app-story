@@ -105,7 +105,7 @@ describe("saved plans", () => {
     await writeFile(join(root, "products", "example.md"), "---\nurl: http://localhost:4310\n---\n# Example\n");
     return { product: await loadProduct(join(root, "products"), "example"), store: storeFor(join(root, "output")), root };
   };
-  const fixture = async () => parseWorkflow(await readFile("engine/tests/fixtures/create-project.plan.yaml", "utf8"));
+  const fixture = async () => parseWorkflow(await readFile("tests/fixtures/create-project.plan.yaml", "utf8"));
 
   it("are YAML files next to the product file, reused only for the same objective", async () => {
     const { product, store, root } = await productWorkspace();
@@ -154,7 +154,7 @@ describe("saved plans", () => {
 describe("kept recordings (takes)", () => {
   it("keeps the recording and clips of the newest videos of each product, for redo", async () => {
     const out = await workspace();
-    const plan = parseWorkflow(await readFile("engine/tests/fixtures/create-project.plan.yaml", "utf8"));
+    const plan = parseWorkflow(await readFile("tests/fixtures/create-project.plan.yaml", "utf8"));
     const keep = async (productId: string) => {
       const j = await job(out, productId, "checkout");
       await mkdir(j.paths.recordingDir, { recursive: true });

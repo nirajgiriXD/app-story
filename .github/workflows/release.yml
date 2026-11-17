@@ -1,7 +1,7 @@
 name: Release
 
 # Push a version tag (e.g. v0.2.0) to publish the npm package and the Docker image.
-# The tag must match the version in engine/cli/package.json.
+# The tag must match the version in cli/package.json.
 on:
   push:
     tags: ["v*"]
@@ -27,7 +27,7 @@ jobs:
       - run: npm install -g npm@12
       - run: npm ci
       - name: Check the tag matches the version
-        run: test "v$(node -p "require('./engine/cli/package.json').version")" = "$GITHUB_REF_NAME"
+        run: test "v$(node -p "require('./cli/package.json').version")" = "$GITHUB_REF_NAME"
       - run: npm run build
       - run: npm publish ./dist/app-story --provenance --access public
         env:

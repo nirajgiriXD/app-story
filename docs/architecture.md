@@ -1,6 +1,6 @@
 # Architecture
 
-All code lives in `engine/`: the CLI in `engine/cli`, the packages in `engine/packages/`.
+The CLI is in `cli/`, the packages in `packages/`, the tests in `tests/`.
 
 ```text
 cli ──► core (orchestrator, pipeline stages, rehearsal agent, job manager, QA, SQLite store)
@@ -17,7 +17,7 @@ cli ──► core (orchestrator, pipeline stages, rehearsal agent, job manager,
 
 Packages export TypeScript sources directly and run through `tsx`, so working on them needs
 no build step. The npm package `app-story` is built by `npm run build`
-(`engine/scripts/build-package.ts`): esbuild bundles the CLI and the engine's packages
+(`scripts/build-package.ts`): esbuild bundles the CLI and the engine's packages
 into one file, with the render page bundled ahead of time and the prompts and the
 Chatterbox Python helper next to it; everything from npm stays a dependency. The Docker
 image (`Dockerfile`) installs that package with FFmpeg, Chromium, the Kokoro voice model
@@ -128,7 +128,7 @@ passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`
 `.app-story/` in the user's project, which ignores itself in git:
 
 - `app-story.db`, one SQLite file through Node's built-in `node:sqlite` (`Store` in
-  `engine/packages/core/src/store/`): a `jobs` table with each job's metadata,
+  `packages/core/src/store/`): a `jobs` table with each job's metadata,
   `job_records` with everything a job produces (settings used, plan, practice run,
   narration, captions, reports, quality checks, the AI's visual review, log, thumbnail),
   and `cache` with results that are identical for identical inputs: the feature list of a
@@ -167,7 +167,7 @@ These were chosen deliberately (and agreed before building):
 
 ## AI providers
 
-`AIProvider` (in `engine/packages/ai/src/contracts/types.ts`) has `generateText`,
+`AIProvider` (in `packages/ai/src/contracts/types.ts`) has `generateText`,
 `generateStructuredOutput` (Zod in, validated object out) and `startAgentSession`
 (tools as Zod schemas, strict mode on both providers, normalised tool calls).
 

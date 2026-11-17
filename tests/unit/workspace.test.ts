@@ -35,6 +35,6 @@ describe("the user's project folder", () => {
 });
 
 it("the command reports the package's version", () => {
-  const { version } = JSON.parse(readFileSync("engine/cli/package.json", "utf8")) as { version: string };
+  const { version } = JSON.parse(readFileSync("cli/package.json", "utf8")) as { version: string };
   expect(buildProgram().version()).toBe(version);
 });

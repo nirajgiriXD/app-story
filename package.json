@@ -3,25 +3,25 @@
   "private": true,
   "license": "MIT",
   "workspaces": [
-    "engine/cli",
-    "engine/packages/*"
+    "cli",
+    "packages/*"
   ],
   "type": "module",
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
-    "app-story": "tsx engine/cli/src/index.ts",
-    "build": "tsx engine/scripts/build-package.ts",
-    "typecheck": "tsc -p engine/tsconfig.json --noEmit",
+    "app-story": "tsx cli/src/index.ts",
+    "build": "tsx scripts/build-package.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "test": "node engine/scripts/vitest.mjs run --project unit",
-    "test:integration": "node engine/scripts/vitest.mjs run --project integration",
-    "test:e2e": "node engine/scripts/vitest.mjs run --project e2e",
-    "test:all": "node engine/scripts/vitest.mjs run",
-    "example-app": "node engine/tests/example-app/server.mjs",
+    "test": "node scripts/vitest.mjs run --project unit",
+    "test:integration": "node scripts/vitest.mjs run --project integration",
+    "test:e2e": "node scripts/vitest.mjs run --project e2e",
+    "test:all": "node scripts/vitest.mjs run",
+    "example-app": "node tests/example-app/server.mjs",
     "browsers:install": "playwright install chromium"
   },
   "devDependencies": {

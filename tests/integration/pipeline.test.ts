@@ -28,7 +28,7 @@ beforeAll(async () => {
   // The practice product, pointed at this test's app instance.
   const text = (await readFile("products/example.md", "utf8")).replaceAll("4310", String(PORT));
   await writeFile(join(productsDir, "example.md"), text);
-  plan = parseWorkflow(await readFile("engine/tests/fixtures/create-project.plan.yaml", "utf8"));
+  plan = parseWorkflow(await readFile("tests/fixtures/create-project.plan.yaml", "utf8"));
 });
 
 afterAll(() => app?.stop());

@@ -568,8 +568,8 @@ app-story resume <product> [video]  # finish a failed video without planning aga
 
 # 8. Project Structure
 
-Use an npm workspaces monorepo. What users touch stays at the top level; everything else
-lives in `engine/`.
+Use an npm workspaces monorepo. What users touch (`products/`, `output/`) and the code sit
+side by side at the top level.
 
 ```text
 app-story/
@@ -581,32 +581,31 @@ app-story/
 ├── .app-story/               database, kept recordings, scratch folders (ignores itself in git)
 ├── docs/
 │
-├── engine/                   AppStory itself
-│   ├── cli/                  the app-story command
-│   ├── packages/
-│   │   ├── core/             orchestrator, pipeline, rehearsal agent, plans, takes, job-manager, runtime, SQLite store
-│   │   ├── ai/               providers, tool loop, prompts, factory
-│   │   ├── browser/          playwright session and auto login, controller, recording, security
-│   │   ├── workflow/         executor, validators, workflow assembly
-│   │   ├── products/         product file reader, plan YAML
-│   │   ├── narration/        script writer, voices (incl. a Python helper for Chatterbox), word timing, pacer
-│   │   ├── video/            compositions (React), templates, edit and timeline maths, render, audio, OpenTimelineIO
-│   │   ├── captions/
-│   │   ├── contracts/
-│   │   └── shared/
-│   │
-│   ├── tests/                unit/, integration/, e2e/, support/, fixtures/,
-│   │                         example-app/ (tiny fake app for practice and tests)
-│   ├── scripts/              test runner and npm package build
-│   ├── tsconfig.json, tsconfig.base.json
-│   └── vitest.config.ts
+├── cli/                      the app-story command
+├── packages/
+│   ├── core/                 orchestrator, pipeline, rehearsal agent, plans, takes, job-manager, runtime, SQLite store
+│   ├── ai/                   providers, tool loop, prompts, factory
+│   ├── browser/              playwright session and auto login, controller, recording, security
+│   ├── workflow/             executor, validators, workflow assembly
+│   ├── products/             product file reader, plan YAML
+│   ├── narration/            script writer, voices (incl. a Python helper for Chatterbox), word timing, pacer
+│   ├── video/                compositions (React), templates, edit and timeline maths, render, audio, OpenTimelineIO
+│   ├── captions/
+│   ├── contracts/
+│   └── shared/
+│
+├── tests/                    unit/, integration/, e2e/, support/, fixtures/,
+│                             example-app/ (tiny fake app for practice and tests)
+├── scripts/                  test runner and npm package build
+├── tsconfig.json, tsconfig.base.json
+├── vitest.config.ts
 │
 ├── .env.example
 ├── .gitattributes            LF line endings everywhere
 ├── .gitignore
 ├── Dockerfile                the image with Node, Chromium, FFmpeg and the voice models
 ├── biome.jsonc               lint and format settings
-├── package.json              npm workspaces: engine/cli, engine/packages/*
+├── package.json              npm workspaces: cli, packages/*
 └── README.md
 ```
 

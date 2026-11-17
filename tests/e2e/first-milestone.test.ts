@@ -12,7 +12,7 @@ import { startExampleApp } from "../support/example-app";
 /*
  * The full flow with real AI answers, on the practice app.
  *
- *   npm run test:e2e                         replays the answers saved in engine/tests/fixtures/ai-answers/
+ *   npm run test:e2e                         replays the answers saved in tests/fixtures/ai-answers/
  *                                            (no key, no cost, the same every time)
  *   APP_STORY_RECORD_AI=1 npm run test:e2e   asks the real AI (needs the key, costs money) and saves its answers
  *
@@ -41,7 +41,7 @@ const PROVIDERS = ["anthropic", "openai"] as const;
 
 for (const provider of PROVIDERS) {
   const key = provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY;
-  const answers = `engine/tests/fixtures/ai-answers/${provider}.json`;
+  const answers = `tests/fixtures/ai-answers/${provider}.json`;
   const mode = isRecordingAI() ? (key ? "record" : undefined) : hasCassette(answers) ? "replay" : undefined;
 
   describe.skipIf(!mode)(`full flow with ${provider} (${mode ?? "no"} answers)`, () => {
@@ -77,9 +77,9 @@ for (const provider of PROVIDERS) {
 
 // On CI the full flow must run: without recorded answers every suite above is skipped,
 // and a run that tested nothing would still pass.
-const replayable = PROVIDERS.some((p) => hasCassette(`engine/tests/fixtures/ai-answers/${p}.json`));
+const replayable = PROVIDERS.some((p) => hasCassette(`tests/fixtures/ai-answers/${p}.json`));
 describe.runIf(process.env.CI && !isRecordingAI() && !replayable)("recorded AI answers", () => {
   it("exist for at least one provider", () => {
-    throw new Error("No recorded AI answers in engine/tests/fixtures/ai-answers/. Run `APP_STORY_RECORD_AI=1 npm run test:e2e` and commit them.");
+    throw new Error("No recorded AI answers in tests/fixtures/ai-answers/. Run `APP_STORY_RECORD_AI=1 npm run test:e2e` and commit them.");
   });
 });

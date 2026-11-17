@@ -303,13 +303,13 @@ and kept when it fails so you can see what happened (the path is printed).
 video file is safe; deleting `.app-story/` forgets the history and the kept recordings,
 but not the saved plans.
 
-## Engine
+## The code
 
-`engine/` is AppStory itself. You do not need to change anything there to make videos:
-your work happens in `products/`, and the videos land in `output/`.
+AppStory itself is the rest of this repository. You do not need to change anything there
+to make videos: your work happens in `products/`, and the videos land in `output/`.
 
 ```text
-engine/
+app-story/
 ├── cli/            the `app-story` command (npx app-story ...)
 ├── packages/       the building blocks
 │   ├── core/         runs every step of a job, in order; the AI's practice run that plans the clicks; the SQLite database

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { build, type Plugin } from "esbuild";
 import { bundleRenderPage } from "@app-story/video";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "dist", "app-story");
 const dist = join(out, "dist");
 
@@ -33,7 +33,7 @@ await rm(out, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 
 await build({
-  entryPoints: [join(root, "engine", "cli", "src", "index.ts")],
+  entryPoints: [join(root, "cli", "src", "index.ts")],
   outfile: join(dist, "cli.mjs"),
   bundle: true,
   platform: "node",
@@ -44,17 +44,14 @@ await build({
   logLevel: "warning",
 });
 await writeFile(join(dist, "render-page.js"), await bundleRenderPage());
-await cp(join(root, "engine", "packages", "ai", "src", "prompts"), join(dist, "prompts"), { recursive: true, filter: (f) => !f.endsWith(".ts") });
+await cp(join(root, "packages", "ai", "src", "prompts"), join(dist, "prompts"), { recursive: true, filter: (f) => !f.endsWith(".ts") });
 // The Chatterbox voice's Python helper.
-await cp(join(root, "engine", "packages", "narration", "python"), join(dist, "python"), { recursive: true });
+await cp(join(root, "packages", "narration", "python"), join(dist, "python"), { recursive: true });
 
 // The package's dependencies: what the engine's packages use from npm.
 const readJson = async (file: string) => JSON.parse(await readFile(file, "utf8"));
-const cli = await readJson(join(root, "engine", "cli", "package.json"));
-const manifests = [
-  cli,
-  ...(await Promise.all((await readdir(join(root, "engine", "packages"))).map((p) => readJson(join(root, "engine", "packages", p, "package.json"))))),
-];
+const cli = await readJson(join(root, "cli", "package.json"));
+const manifests = [cli, ...(await Promise.all((await readdir(join(root, "packages"))).map((p) => readJson(join(root, "packages", p, "package.json")))))];
 const dependencies: Record<string, string> = {};
 for (const manifest of manifests) {
   for (const [name, range] of Object.entries<string>(manifest.dependencies ?? {})) {

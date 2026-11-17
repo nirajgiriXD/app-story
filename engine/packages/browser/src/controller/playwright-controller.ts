@@ -37,6 +37,7 @@ const LOADING_TYPES = new Set(["document", "xhr", "fetch", "script", "stylesheet
 export class PlaywrightController implements BrowserController {
   readonly issues: BrowserIssue[];
   readonly cursor: CursorPoint[] = [];
+  readonly navigations: { t: number; url: string }[] = [];
   private origin = Date.now();
   private presentation = false;
   private mouse = { x: 0, y: 0 };
@@ -57,6 +58,12 @@ export class PlaywrightController implements BrowserController {
     const done = (r: Request) => this.inflight.delete(r);
     page.on("requestfinished", done);
     page.on("requestfailed", done);
+    // The address bar in the video changes when the page does, not when the step ends.
+    page.on("framenavigated", (frame) => {
+      if (frame === page.mainFrame() && frame.url() !== this.navigations[this.navigations.length - 1]?.url) {
+        this.navigations.push({ t: this.now(), url: frame.url() });
+      }
+    });
   }
 
   get baseUrl(): string {
@@ -71,6 +78,8 @@ export class PlaywrightController implements BrowserController {
     this.origin = epochMs;
     this.cursor.length = 0;
     this.cursor.push({ t: this.now(), x: this.mouse.x, y: this.mouse.y });
+    this.navigations.length = 0;
+    this.navigations.push({ t: this.now(), url: this.page.url() });
   }
 
   setPresentationMode(enabled: boolean): void {

@@ -71,6 +71,7 @@ export async function composeVideo(
     results: recorded.report.steps,
     cursor: recorded.report.cursor,
     startUrl: recorded.startUrl,
+    navigations: recorded.report.navigations,
     placements,
     cues,
     logoSrc: await copyAsset(job, product, config.branding.logo, "logo"),

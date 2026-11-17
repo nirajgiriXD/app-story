@@ -64,6 +64,8 @@ export interface BuildPropsInput {
   results: StepResult[];
   cursor: CursorPoint[];
   startUrl: string;
+  /** Address changes as they happened; without them, each step's address is used from its end. */
+  navigations?: { t: number; url: string }[];
   placements: NarrationPlacement[];
   cues: { start_ms: number; end_ms: number; text: string }[];
   logoSrc?: string;
@@ -92,6 +94,14 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       focus.push({ startMs: result.started_ms, endMs: Math.max(hold, result.started_ms + 600), box: result.box });
     }
     if (result.url_after && result.url_after !== urls[urls.length - 1]?.url) urls.push({ atMs: result.ended_ms, url: result.url_after });
+  }
+  if (input.navigations?.length) {
+    // Exact times: the address bar changes with the page, not when the step has finished waiting.
+    urls.length = 0;
+    urls.push({ atMs: 0, url: input.startUrl });
+    for (const n of input.navigations) {
+      if (n.url !== urls[urls.length - 1]?.url) urls.push({ atMs: Math.max(0, n.t), url: n.url });
+    }
   }
 
   return {

@@ -42,6 +42,8 @@ export const ExecutionReportSchema = z.object({
   steps: z.array(StepResultSchema),
   cursor: z.array(CursorPointSchema),
   issues: z.array(BrowserIssueSchema),
+  /** Every change of the page's address, when it happened (ms on the recording clock). */
+  navigations: z.array(z.object({ t: z.number(), url: z.string() })).optional(),
   final_url: z.string().optional(),
   duration_ms: z.number(),
 });

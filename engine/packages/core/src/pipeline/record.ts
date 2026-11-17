@@ -75,7 +75,12 @@ export async function recordWorkflow(
       });
       if (report.ok) await pacer.finish();
       const recording = await session.stopRecording(job.paths.rawRecording);
-      return { report: { ...report, cursor: [...controller.cursor], issues: [...controller.issues] }, recording, placed: pacer.placed, startUrl };
+      return {
+        report: { ...report, cursor: [...controller.cursor], issues: [...controller.issues], navigations: [...controller.navigations] },
+        recording,
+        placed: pacer.placed,
+        startUrl,
+      };
     },
   );
 

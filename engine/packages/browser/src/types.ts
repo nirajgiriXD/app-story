@@ -34,6 +34,8 @@ export interface BrowserController {
   readonly baseUrl: string;
   readonly issues: BrowserIssue[];
   readonly cursor: CursorPoint[];
+  /** Address changes of the page, timed on the same clock as `now()`. */
+  readonly navigations?: { t: number; url: string }[];
   /** Milliseconds since the clock origin (recording start). */
   now(): number;
   setClockOrigin(epochMs: number): void;

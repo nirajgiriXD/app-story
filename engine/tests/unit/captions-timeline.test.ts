@@ -132,3 +132,10 @@ describe("video timeline", () => {
     expect(cursorAt(400, points)).toEqual({ x: 100, y: 50, sinceClickMs: 250 });
   });
 });
+
+describe("caption lines", () => {
+  it("breaks two lines where they come out closest in length", () => {
+    const [a, b] = wrapLines("Set up a project in a few seconds and see it on your team's list.", 52).split("\n") as [string, string];
+    expect(Math.abs(a.length - b.length)).toBeLessThanOrEqual(8);
+  });
+});

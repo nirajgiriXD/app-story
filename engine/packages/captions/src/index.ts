@@ -72,14 +72,18 @@ function splitEvenly(sentence: string, maxChars: number): string[] {
 export function wrapLines(text: string, maxCharsPerLine: number): string {
   if (text.length <= maxCharsPerLine) return text;
   const words = text.split(" ");
-  const target = text.length / 2;
-  let first = "";
-  for (const word of words) {
-    const next = first ? `${first} ${word}` : word;
-    if (next.length > target && first) break;
-    first = next;
+  // Break at the space that makes the two lines closest in length (a slightly longer
+  // second line reads better than a longer first one).
+  let best = 1;
+  let bestScore = Number.POSITIVE_INFINITY;
+  let first = 0;
+  for (let i = 1; i < words.length; i++) {
+    first += (words[i - 1] as string).length + (i > 1 ? 1 : 0);
+    const second = text.length - first - 1;
+    const score = Math.abs(first - second) + (first > second ? 2 : 0);
+    if (score < bestScore) [best, bestScore] = [i, score];
   }
-  return `${first}\n${text.slice(first.length).trim()}`;
+  return `${words.slice(0, best).join(" ")}\n${words.slice(best).join(" ")}`;
 }
 
 /** Turn timed narration into caption cues; time is shared out by character count. */

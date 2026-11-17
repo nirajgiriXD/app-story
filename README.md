@@ -127,7 +127,9 @@ length: 60                                 # longest video, in seconds (default:
 template: product-update                   # the video's look (default: picked per video, see below)
 fps: 60                                    # 60 (smooth, default) | 30 (renders in half the time)
 resolution: 1080p                          # 1080p (default) | 1440p | 4k: sharper text, slower render
-language: en                               # Kokoro speaks English only
+language: en                               # or several: en, de, fr (one video each; needs the openai or elevenlabs voice)
+formats: vertical, gif                     # also make a 9:16 and/or 1:1 (square) version, and a GIF
+blur: ".api-key, #customer-email"          # CSS selectors blurred on screen (quote them when one starts with #)
 logo: acme-logo.png                        # next to this file
 color: "#4F46E5"                           # in quotes
 allow: delete, emails                      # risky actions are blocked unless listed here
@@ -142,6 +144,15 @@ allow: delete, emails                      # risky actions are blocked unless li
   account settings or invites users. List any of `delete, payments, emails, publishing,
   account settings, invite users, production data` to allow them.
 - **ai**: with keys for both providers, the other one is used as a backup if the first fails.
+- **language**: the first language paces the recording. Each other one is translated by
+  the AI, voiced, captioned and rendered over the *same* recording: `…-name.de.mp4` and
+  `…-name.de.srt` next to the main video. Kokoro and Chatterbox speak English only, so
+  more languages need `voice: openai`, `voice: elevenlabs` or `voice: none`.
+- **formats**: `vertical` (9:16, for Reels, Shorts and TikTok), `square` (1:1) and `gif`
+  (the app part, silent, sped up to at most 30 seconds, for a README). Made for the first language.
+- **blur**: anything matching these CSS selectors is blurred in the page itself, so the
+  recording, screenshots and video never show it readable: API keys, customer emails.
+  YAML reads ` #` as a comment, so put the selectors in quotes when one starts with `#`.
 - **template**: the video's look. Only the look changes; clicks, narration and length do not.
 
   | Template | Look | Picked by itself for |
@@ -178,7 +189,50 @@ not treated as products. Product names are lowercase letters, numbers and dashes
   narration of a replayed plan, and every line already spoken in the same voice.
 - Fits the narration to the clicks: each line is about as long as its steps take on
   screen, so the video never stands still waiting for the voice. `length` is the
-  longest a video may be; a short flow makes a short video.
+  longest a video may be; a short flow makes a short video. When a line covers several
+  steps, a click lands on the word that names it ("…then **save** it").
+- Saves the narration (and every translation) in the plan file, so the next video of the
+  plan, on any machine, needs no AI at all.
+- Shows keys pressed on camera as keycaps (`Ctrl` `K`), and tells the AI up front which
+  buttons the safety rules block, so it does not waste a turn trying them.
+
+## Plans as tests, CI and Playwright
+
+A saved plan is a proven path through your app, so it can do more than make a video.
+
+```bash
+npx app-story test acme                    # does every saved plan still work? (fast: no video, no AI)
+npx app-story replay acme                  # make every saved plan's video again, with no AI
+npx app-story import acme trace.zip        # a Playwright test becomes a plan
+```
+
+- **test** replays each plan at full speed and checks every expected outcome. When the
+  app changes under a demo, it names the step that broke, with a screenshot, before the
+  video goes stale. It exits with 1 when a plan fails, so CI can stop on it.
+- **replay** makes the videos again exactly as planned, with the narration saved in each
+  plan: the same video every time, no AI key needed. A plan that no longer works fails
+  instead of being planned again.
+- **import** reads a trace from `npx playwright test --trace on` (in `test-results/`): its
+  clicks, typing and `expect()` checks become a plan. The test's own login is left out
+  (AppStory logs in with `login:`) and passwords are never copied. Run `replay` once with
+  an AI key to write its narration, then commit the plan.
+
+In GitHub Actions, the action in this repository runs the Docker image for you:
+
+```yaml
+- uses: nirajgiriXD/app-story@main
+  with:
+    products: acme
+    command: replay          # or: test
+    version: 0.1.0           # the AppStory version to run
+    env-vars: ACME_PASSWORD  # passwords your product files read with env:NAME
+  env:
+    ACME_PASSWORD: ${{ secrets.ACME_PASSWORD }}
+```
+
+The videos are uploaded as a workflow artifact. Your app must be running on the runner
+(start it in an earlier step); the container shares the runner's network, so
+`localhost` works. A full example is in [docs/ci.md](docs/ci.md).
 
 ## Voice
 
@@ -209,7 +263,8 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice; Chatte
 ## Output
 
 `output/` holds only the finished videos, each with its captions (`.srt`, when captions are on)
-for players and video sites:
+for players and video sites, plus any other languages and formats the product file asks for
+(`….de.mp4`, `….vertical.mp4`, `….gif`):
 
 ```text
 output/
@@ -228,6 +283,8 @@ The saved plans are in `products/<product>.plans/` (see above). Everything else 
 ├── app-story.db       history, records and cache (SQLite)
 ├── takes/<job>/       the recording, spoken clips and timeline of a recent video, for redo,
 │                      and timeline.otio: the edit, to finish in DaVinci Resolve or another editor
+├── render-cache/      drawn two-second chunks of recent videos: a re-render only draws what changed
+├── tests/             screenshots of plans that failed `npx app-story test`
 └── work/<job>/        scratch files of a video being made
 ```
 

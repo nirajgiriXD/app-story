@@ -125,6 +125,9 @@ npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
 | `npx app-story history [product]` | recent videos, with their ids |
 | `npx app-story redo <product> [video]` | make a video again from its kept recording (option: `--template`) |
 | `npx app-story resume <product> [video]` | finish a failed video without planning it again (option: `--headed`) |
+| `npx app-story replay <product> [plans...]` | make the videos of saved plans again, with their saved narration: no AI (for CI) |
+| `npx app-story test <product> [plans...]` | check the saved plans still work in the app: fast, no recording, voice or AI; exits with 1 if one broke |
+| `npx app-story import <product> <trace.zip>` | turn a Playwright test's trace into a saved plan (options: `--name`, `--title`, `--force`) |
 
 `--headed` shows the browser while it works. `--log-level` sets how much is printed.
 
@@ -142,6 +145,7 @@ SQLite database `.app-story/app-story.db` (see "Output" in the README):
 | `captions_srt`, `captions_vtt` | subtitles |
 | `execution`, `browser_issues`, `quality` | step results, console/network problems, quality checks |
 | `visual_review` | the AI's look at the finished video: which shots missed their subject |
+| `narration_translations` | the narration in the product's other languages (`language: en, de`) |
 | `log`, `thumbnail` | the full log, and a PNG cover image |
 
 A failed video keeps its scratch folder, `.app-story/work/<job>/`, with the raw recording,
@@ -170,6 +174,7 @@ sqlite3 .app-story/app-story.db "SELECT created_at, product_id, status, video_pa
 | `APP_STORY_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
 | `APP_STORY_HOME` | your project folder, when it is not found by itself |
 | `APP_STORY_RENDER_WORKERS` | how many render workers run at once, each its own headless browser (default: one per two CPU cores, up to 8) |
+| `APP_STORY_RENDER_CACHE_MB` | how much the render cache in `.app-story/render-cache/` may hold (default: 2048); `0` turns it off |
 | anything a product file names, e.g. `ACME_PASSWORD` | `login: demo@acme.com / env:ACME_PASSWORD` |
 
 All of them go in your project's `.env` (`APP_STORY_HOME` must be set outside it). Keep

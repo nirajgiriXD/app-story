@@ -46,16 +46,25 @@ at login time and registered as secrets.
    guarded tools, recovers from mistakes, verifies the outcome, then picks the successful
    steps to keep. The result is a versioned workflow (the `plan` record).
 2. **Static validation.** Domains, sensitive actions and at least one verification.
-3. **Narration.** Script from the verified steps (AI, or the plan's own `narration` lines
-   when every step has one). The writer sees what each step types and proves, and roughly how long it is on
+3. **Narration.** Script from the verified steps: the one saved in the plan file (see
+   below), else the cache, else the AI (or the plan's own `narration` lines when every step
+   has one). The writer sees what each step types and proves, and roughly how long it is on
    screen (`estimateStepMs`), so each line fits its steps and the recording never freezes
    waiting for the voice; `length` is only an upper bound. Then text-to-speech per line,
    cleaned up (low cut, de-esser, gentle compression), two-pass loudness-normalised, kept
    as WAV until the final encode, and measured. A local speech model (Whisper) then times
    every spoken word, matched to the script's words, so captions start and end with the voice.
+   A line that covers several steps may carry `{{@s4}}` markers before the word a later step
+   should land on (`narration/src/synchronization/anchors.ts`); they are taken out before
+   the voice reads the line and timed by that word. With more languages (`language: en, de`),
+   each other language is translated line for line (`prepareTranslations`, keeping the
+   markers), voiced and measured too; word timing is English only.
 4. **Recording.** A fresh browser replays the workflow at presentation speed: a pointer
    that moves in a gentle arc, typed input, minimum dwell per step, and each narration line starts with its
-   first step while the next line waits for the previous one to finish. Every step is
+   first step while the next line waits for the previous one to finish (in every language:
+   the recording waits for the longest translation of each line). A step anchored to a word
+   starts that word's time minus the pointer's glide (`actionLeadMs`), so the click lands on
+   it. Every step is
    verified again. After every action the controller waits until the page stops changing
    (no DOM mutations or loading requests for 300 ms, capped at 2.5 s); off-screen elements
    glide into view. For every action the controller also measures the area the element
@@ -87,8 +96,23 @@ at login time and registered as secrets.
    misses its subject are shown wide and the video is rendered once more. The edit is
    also saved as an OpenTimelineIO timeline (`timeline.otio`) next to the take, for anyone
    who wants to finish it in an editor such as DaVinci Resolve.
+   Frames are drawn in two-second chunks (one keyframe interval each), stored in
+   `.app-story/render-cache/` under a hash of what can change their pixels: the render
+   page's code, the files shown and the props as that chunk sees them (`render-cache.ts`).
+   A re-render (the review's, a redo's) only draws the chunks that changed.
 6. **Quality checks** and **metadata**. A plan made by the AI is saved for reuse only
-   after its video passed. Videos are never published automatically.
+   after its video passed, with its narration, translations, the kind of video and the
+   review's framing fixes (`planToSave`), so the next video of it needs no AI at all.
+   Then the extras: the same cut in 9:16 or 1:1 (`reshapeProps`) and a GIF (`formats:`),
+   and the video in each other language over the same recording (`renderLanguages`).
+   Videos are never published automatically.
+
+Saved plans also serve without an AI: `replay` makes their videos again exactly
+(`replayPlans`; a plan that fails is not planned again), `test` runs them at full speed
+without recording and reports the step that broke (`testPlans`), and `import` turns a
+Playwright `trace.zip` into a plan (`import/playwright-trace.ts`: locators and `expect()`
+checks carried over, the test's login and any password left out). `action.yml` runs
+`replay` or `test` in GitHub Actions, on the Docker image.
 
 Several videos can be made at once (`--each` makes two at a time). Their heavy phases
 (speech, recording, rendering) take turns in the job's `Runtime` (`core/src/runtime.ts`),
@@ -171,7 +195,12 @@ These were chosen deliberately (and agreed before building):
   account settings, invites); a product file can allow some with `allow:`. A read-only
   mode blocks all typing and button clicks.
 - Page snapshots are wrapped as `<page_content>` untrusted data; the prompts tell the
-  model never to follow instructions found there, and the guards apply regardless.
+  model never to follow instructions found there, and the guards apply regardless. Next
+  to each snapshot, outside it, AppStory lists the page's elements the guard would refuse
+  (`offLimitsElements`), so the planner does not try them.
+- `blur:` selectors are blurred by a style added to every page before its own scripts, so
+  the recording, screenshots and video never hold them readable; a selector the browser
+  cannot read stops the job.
 - Secrets come from the environment, are registered for redaction, and are scrubbed
   from logs, metadata and screenshots (password fields are masked).
 - Timeouts: per action, per agent run (`max_duration_s`), iteration caps and a recording cap.

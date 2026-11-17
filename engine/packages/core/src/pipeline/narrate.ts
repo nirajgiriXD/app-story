@@ -83,9 +83,9 @@ function readCachedScript(job: Job, key: string): NarrationScript | undefined {
 
 /** Finished clips by voice and text, so the same line in the same voice is never spoken twice. */
 function speechCache(job: Job, tts: TTSProvider, settings: LoadedProduct["config"]["providers"]["tts"]): SpeechCache {
-  // Bump `format` when the stored clip format changes (now: normalised 48 kHz mono WAV).
+  // Bump `format` when the stored clip format changes (now: voice chain, normalised 48 kHz mono WAV).
   const voice = {
-    format: 1,
+    format: 2,
     provider: tts.name,
     voice: tts.voice,
     model: tts.model,

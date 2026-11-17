@@ -14,6 +14,18 @@ export interface SpeechCache {
 const LOUDNORM = "loudnorm=I=-16:TP=-1.5:LRA=11";
 
 /**
+ * A light voice-over chain, as an audio engineer would put on a narrator: cut rumble below
+ * 80 Hz, tame sharp "s" sounds, even out loud and quiet words, and lift the presence range
+ * a little so the voice reads clearly over music. Loudness is set after it.
+ */
+export const VOICE_CHAIN = [
+  "highpass=f=80",
+  "deesser=i=0.35:m=0.5:f=0.5",
+  "acompressor=threshold=-22dB:ratio=2.5:attack=8:release=120:knee=4",
+  "equalizer=f=3200:t=q:w=1.0:g=1.5",
+].join(",");
+
+/**
  * Speak the intro, every segment and the outro as separate clips, normalise loudness,
  * and measure each clip's real duration so the recording can be paced to it. Clips stay
  * uncompressed (WAV) until the final render, which encodes the audio once.
@@ -59,10 +71,10 @@ export async function synthesizeNarration(script: NarrationScript, tts: TTSProvi
  * A single pass works on the fly and pumps the volume up and down inside short clips.
  */
 async function normalize(input: string, output: string): Promise<void> {
-  const measure = await runProcess("ffmpeg", ["-hide_banner", "-i", input, "-af", `${LOUDNORM}:print_format=json`, "-f", "null", "-"]);
+  const measure = await runProcess("ffmpeg", ["-hide_banner", "-i", input, "-af", `${VOICE_CHAIN},${LOUDNORM}:print_format=json`, "-f", "null", "-"]);
   const json = /\{[^{}]*"input_i"[^{}]*\}/.exec(measure.stderr)?.[0];
   if (measure.code !== 0 || !json) throw new Error("could not measure loudness");
   const m = JSON.parse(json) as Record<string, string>;
   const measured = `measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}`;
-  await runFfmpeg(["-i", input, "-af", `${LOUDNORM}:${measured}:linear=true`, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", output]);
+  await runFfmpeg(["-i", input, "-af", `${VOICE_CHAIN},${LOUDNORM}:${measured}:linear=true`, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", output]);
 }

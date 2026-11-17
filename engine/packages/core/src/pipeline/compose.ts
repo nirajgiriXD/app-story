@@ -4,7 +4,7 @@ import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Wor
 import { buildCues, toSrt, toVtt } from "@app-story/captions";
 import { resolveProductPath, type LoadedProduct } from "@app-story/products";
 import { ensureDir, fileExists, toPosixRelative } from "@app-story/shared";
-import { buildRenderProps, getTemplate, placeNarration, renderVideo, type TimelinePlan } from "@app-story/video";
+import { activeStretches, buildRenderProps, editTimes, getTemplate, placeNarration, planEdit, renderVideo, type TimelinePlan } from "@app-story/video";
 import { saveRecord, type Job } from "../job-manager/job";
 import type { RecordingOutcome } from "./record";
 
@@ -41,12 +41,26 @@ export async function composeVideo(
   job.log.info({ template: templateName, chosen: config.demo.template ? "product file" : `suits a ${options.kind ?? "general"} video` }, "video template");
   const toSrc = (path: string) => toPosixRelative(job.paths.root, path);
 
+  // The editor's pass: idle stretches of the take are fast-forwarded; every time moves with them.
+  const take = {
+    durationMs: recorded.recording.durationMs,
+    steps: recorded.report.steps,
+    cursor: recorded.report.cursor,
+    navigations: recorded.report.navigations,
+    voice: recorded.placed,
+  };
+  const timeMap = planEdit(take.durationMs, activeStretches(take));
+  const edited = editTimes(timeMap, take);
+  if (edited.durationMs < take.durationMs - 500) {
+    job.log.info({ fromS: (take.durationMs / 1000).toFixed(1), toS: (edited.durationMs / 1000).toFixed(1) }, "fast-forwarded idle stretches");
+  }
+
   const { plan, placements } = placeNarration({
     template,
-    recordingMs: recorded.recording.durationMs,
+    recordingMs: edited.durationMs,
     intro: clips.find((c) => c.kind === "intro"),
     outro: clips.find((c) => c.kind === "outro"),
-    segments: recorded.placed,
+    segments: edited.voice,
     toSrc,
   });
 
@@ -68,12 +82,13 @@ export async function composeVideo(
     title: workflow.title,
     subtitle: workflow.summary,
     recordingSrc: toSrc(recorded.recording.path),
-    recordingMs: recorded.recording.durationMs,
+    recordingMs: edited.durationMs,
+    timeMap,
     workflowSteps: workflow.steps,
-    results: recorded.report.steps,
-    cursor: recorded.report.cursor,
+    results: edited.steps,
+    cursor: edited.cursor,
     startUrl: recorded.startUrl,
-    navigations: recorded.report.navigations,
+    navigations: edited.navigations,
     placements,
     cues,
     logoSrc: await copyAsset(job, product, config.branding.logo, "logo"),
@@ -81,8 +96,8 @@ export async function composeVideo(
   });
 
   // Thumbnail: the moment the outcome is verified.
-  const verified = [...recorded.report.steps].reverse().find((s) => s.status === "passed" && s.verified && s.action === "assert");
-  const thumbAt = plan.recordingStartMs + (verified?.started_ms ?? recorded.recording.durationMs / 2) + 400;
+  const verified = [...edited.steps].reverse().find((s) => s.status === "passed" && s.verified && s.action === "assert");
+  const thumbAt = plan.recordingStartMs + (verified?.started_ms ?? edited.durationMs / 2) + 400;
 
   await renderVideo({
     publicDir: job.paths.root,

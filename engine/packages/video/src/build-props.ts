@@ -1,5 +1,6 @@
 import type { AudioClip, Box, CursorPoint, PlacedClip, ProductConfig, Step, StepResult, WordTiming } from "@app-story/contracts";
 import { RESOLUTIONS } from "@app-story/contracts";
+import type { TimeMap } from "./edit";
 import type { RenderProps } from "./props";
 import type { VideoTemplate } from "./templates";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
@@ -87,7 +88,10 @@ export interface BuildPropsInput {
   title: string;
   subtitle?: string;
   recordingSrc: string;
+  /** Length of the recording as shown (after the edit). */
   recordingMs: number;
+  /** The edit: which moment of the take is shown when. Every other time here is already edited. */
+  timeMap?: TimeMap;
   workflowSteps: Step[];
   results: StepResult[];
   cursor: CursorPoint[];
@@ -158,6 +162,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       src: input.recordingSrc,
       startMs: plan.recordingStartMs,
       durationMs: input.recordingMs,
+      timeMap: input.timeMap,
       viewport: config.browser.viewport,
     },
     sections,

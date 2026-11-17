@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Route } from "playwright";
 import { AppStoryError, ensureDir, extractFrame, measureLoudness, runFfmpeg, type Logger } from "@app-story/shared";
 import { buildAudioMix, MASTER_LOUDNESS, masterChain } from "./audio";
+import { sourceFrame } from "./edit";
 import { RecordingFrames } from "./frames";
 import type { RenderProps } from "./props";
 
@@ -235,7 +236,11 @@ async function renderRange(job: RangeJob): Promise<void> {
   const recordingCount = Math.max(1, Math.round((props.recording.durationMs / 1000) * props.fps));
   const first = Math.max(from, recordingFirst);
   const last = Math.min(to, recordingFirst + recordingCount);
-  const recording = last > first ? new RecordingFrames(fileIn(publicDir, props.recording.src), props.fps, first - recordingFirst, last - first) : undefined;
+  // The take's frames this stretch shows, through the edit (exactly as the composition asks for them).
+  const map = props.recording.timeMap;
+  const takeFirst = sourceFrame(map, first - recordingFirst, props.fps);
+  const takeLast = sourceFrame(map, last - 1 - recordingFirst, props.fps);
+  const recording = last > first ? new RecordingFrames(fileIn(publicDir, props.recording.src), props.fps, takeFirst, takeLast - takeFirst + 1) : undefined;
 
   const context = await job.browser.newContext({ viewport: { width: props.width, height: props.height }, deviceScaleFactor: 1 });
   const encoder = new FrameEncoder(props.fps, job.outFile);

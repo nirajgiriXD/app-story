@@ -1,4 +1,5 @@
 import type { Box, CursorPoint } from "@app-story/contracts";
+import type { TimeMap } from "./edit";
 import type { VideoTemplate } from "./templates";
 
 /** Everything the render page needs to draw the video. JSON-serialisable; all times are global ms unless noted. Every `src` is relative to the job folder. */
@@ -25,7 +26,10 @@ export interface RenderProps {
     src: string;
     /** Global time at which recording t=0 is shown. */
     startMs: number;
+    /** How long the recording is shown, after the edit. */
     durationMs: number;
+    /** The edit: [shown ms, take ms] pairs (see edit.ts). Without it the take plays as recorded. */
+    timeMap?: TimeMap;
     viewport: { width: number; height: number };
   };
   /** Recording-relative times below. */

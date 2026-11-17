@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { VOICE_CHAIN } from "@app-story/narration";
 import {
+  activeStretches,
   buildAudioMix,
   deliveryEncoding,
   getTemplate,
@@ -11,9 +12,13 @@ import {
   interpolate,
   jpegEnd,
   musicVolumeExpression,
+  planEdit,
   type RenderProps,
   spring,
+  sourceFrame,
   splitFrames,
+  toOutput,
+  toSource,
 } from "@app-story/video";
 
 describe("animation helpers", () => {
@@ -163,5 +168,71 @@ describe("delivery encoding", () => {
     expect(args).toEqual(expect.arrayContaining(["libx264", "slow", "high"]));
     expect(args[args.indexOf("-g") + 1]).toBe("120");
     expect(args[args.indexOf("-x264-params") + 1]).toContain("aq-mode=3");
+  });
+});
+
+describe("the editor's pass", () => {
+  it("plays a take as recorded when something always happens", () => {
+    const map = planEdit(10_000, [[0, 10_000]]);
+    expect(toOutput(map, 7000)).toBe(7000);
+    expect(sourceFrame(map, 90, 60)).toBe(90);
+    expect(sourceFrame(undefined, 90, 60)).toBe(90);
+  });
+
+  it("fast-forwards an idle stretch, keeping a moment at normal speed at each end", () => {
+    // Voice until 3 s, then a 6 s spinner, then action again.
+    const map = planEdit(12_000, [
+      [0, 3000],
+      [9000, 12_000],
+    ]);
+    const idleShown = toOutput(map, 9000) - toOutput(map, 3000);
+    expect(idleShown).toBeCloseTo(400 + (6000 - 800) / 4 + 400);
+    expect(toOutput(map, 3400)).toBeCloseTo(3400); // normal speed just after the action
+    expect(toOutput(map, 12_000) - toOutput(map, 9000)).toBeCloseTo(3000);
+    for (const out of [0, 2500, 3600, 5000, 6900, 8000]) expect(toOutput(map, toSource(map, out))).toBeCloseTo(out);
+    // Frames never go backwards.
+    let last = -1;
+    for (let f = 0; f < 600; f++) {
+      const src = sourceFrame(map, f, 60);
+      expect(src).toBeGreaterThanOrEqual(last);
+      last = src;
+    }
+  });
+
+  it("leaves short pauses alone", () => {
+    expect(
+      planEdit(5000, [
+        [0, 2000],
+        [3000, 5000],
+      ]),
+    ).toEqual([
+      [0, 0],
+      [5000, 5000],
+    ]);
+  });
+
+  it("counts voice, pointer moves, clicks, typing and page changes as something happening", () => {
+    const active = activeStretches({
+      durationMs: 20_000,
+      steps: [{ step_id: "s", action: "fill", description: "", status: "passed", started_ms: 4000, ended_ms: 6000, attempts: 1, verified: true }],
+      cursor: [
+        { t: 1000, x: 0, y: 0 },
+        { t: 1500, x: 100, y: 100 },
+        { t: 1600, x: 100, y: 100, click: true },
+      ],
+      navigations: [{ t: 8000, url: "https://acme.test/x" }],
+      voice: [{ start_ms: 10_000, duration_ms: 2000 }],
+    });
+    expect(active).toEqual(
+      expect.arrayContaining([
+        [1000, 1500],
+        [1300, 2800],
+        [4000, 6000],
+        [7800, 8700],
+        [9850, 12_150],
+      ]),
+    );
+    const map = planEdit(20_000, active);
+    expect(toOutput(map, 20_000)).toBeLessThan(20_000);
   });
 });

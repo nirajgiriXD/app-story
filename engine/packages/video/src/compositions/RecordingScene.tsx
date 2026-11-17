@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
 import { cameraAt, cameraTransform, cursorAt, latestAt, mergeFocusWindows } from "../timeline";
+import { sourceFrame } from "../edit";
 import { handoverIn, handoverOut } from "./handover";
 import { fontStack, isDark, px, recordingFrame } from "./theme";
 
@@ -54,7 +55,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
           position: "relative",
         }}
       >
-        <Img src={recordingFrame(frame)} style={{ width: viewport.width, height: viewport.height, display: "block" }} />
+        <Img src={recordingFrame(sourceFrame(p.recording.timeMap, frame, fps))} style={{ width: viewport.width, height: viewport.height, display: "block" }} />
         {cursor ? <Cursor p={p} x={cursor.x} y={cursor.y} sinceClickMs={cursor.sinceClickMs} zoom={view.scale} /> : null}
       </div>
     </div>

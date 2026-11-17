@@ -3,6 +3,7 @@ import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import type { AudioClip, NarrationScript } from "@app-story/contracts";
 import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, runProcess, type Logger } from "@app-story/shared";
 import type { TTSProvider } from "../providers/tts";
+import { anchorTimes, parseAnchors } from "../synchronization/anchors";
 import { timeWords, wordTimingEnabled } from "../synchronization/words";
 
 /** Finished clips for lines that were spoken before, keyed by the line's text. */
@@ -39,7 +40,11 @@ export async function synthesizeNarration(script: NarrationScript, tts: TTSProvi
     ...script.segments.map((s, i): Item => ({ id: `seg-${String(i + 1).padStart(2, "0")}`, kind: "segment", text: s.text, step_ids: s.step_ids })),
     { id: "outro", kind: "outro", text: script.outro, step_ids: [] },
   ];
-  const items = all.filter((item) => item.text.trim().length > 0);
+  // Anchor markers are never spoken or captioned: each line is read without them.
+  const parsed = new Map(all.map((item) => [item.id, parseAnchors(item.text, item.step_ids)]));
+  const items = all
+    .map((item) => ({ ...item, text: (parsed.get(item.id) as ReturnType<typeof parseAnchors>).text }))
+    .filter((item) => item.text.trim().length > 0);
 
   return mapWithConcurrency(items, 3, async (item) => {
     const path = join(dir, `${item.id}.wav`);
@@ -71,7 +76,9 @@ export async function synthesizeNarration(script: NarrationScript, tts: TTSProvi
             return undefined;
           });
     log.info({ clip: item.id, seconds: probe.durationSec.toFixed(1), cached: Boolean(cached), words: words?.length ?? 0 }, "narration clip ready");
-    return { ...item, path, duration_ms: Math.round(probe.durationSec * 1000), ...(words ? { words } : {}) };
+    const duration_ms = Math.round(probe.durationSec * 1000);
+    const anchors = anchorTimes(parsed.get(item.id) as ReturnType<typeof parseAnchors>, duration_ms, words);
+    return { ...item, path, duration_ms, ...(words ? { words } : {}), ...(anchors.length ? { anchors } : {}) };
   });
 }
 

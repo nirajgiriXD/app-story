@@ -32,7 +32,10 @@ export const AudioClipSchema = z.object({
   duration_ms: z.number(),
   /** Every word of `text` with when it is spoken, when word timing ran. */
   words: z.array(WordTimingSchema).optional(),
+  /** Later steps of the line that land on a word: when, in ms from the clip's start (see narration's anchors.ts). */
+  anchors: z.array(z.object({ step_id: z.string(), at_ms: z.number() })).optional(),
 });
+
 export type AudioClip = z.infer<typeof AudioClipSchema>;
 
 /** A narration clip placed on the recording timeline. */

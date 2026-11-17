@@ -12,8 +12,26 @@ export interface StepPacing {
  * reacting). Narration uses it to size each line to its steps, so the voice and the action
  * end together instead of the screen freezing while the narrator catches up.
  */
+/** Steps whose action shows when the pointer arrives on their element. */
+const POINTER_ACTIONS = new Set<Step["action"]>(["click", "fill", "select", "check", "uncheck", "hover"]);
+
+/** About how long the pointer takes to glide to an element and settle before the click. */
+function glideMs(pacing: Pick<StepPacing, "cursorMoveMs">): number {
+  return Math.round(pacing.cursorMoveMs * 0.8) + 120;
+}
+
+/**
+ * How long after a step starts its action shows on screen: the pointer's glide for a click
+ * or a field, nothing for a key press or a check. A step anchored to a spoken word starts
+ * this much earlier, so the click lands on the word.
+ */
+export function actionLeadMs(step: Pick<Step, "action">, pacing: Pick<StepPacing, "cursorMoveMs">): number {
+  return POINTER_ACTIONS.has(step.action) ? glideMs(pacing) : 0;
+}
+
 export function estimateStepMs(step: Step, pacing: StepPacing): number {
-  const glide = Math.round(pacing.cursorMoveMs * 0.8) + 120;
+  const glide = glideMs(pacing);
+
   let ms: number;
   switch (step.action) {
     case "navigate":

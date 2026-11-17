@@ -3,7 +3,7 @@ import type { AudioClip, ExecutionReport, PlacedClip, Workflow } from "@app-stor
 import type { RecorderResult } from "@app-story/browser";
 import { NarrationPacer } from "@app-story/narration";
 import type { LoadedProduct } from "@app-story/products";
-import { runSteps } from "@app-story/workflow";
+import { actionLeadMs, runSteps } from "@app-story/workflow";
 import { AppStoryError } from "@app-story/shared";
 import { saveRecord, type Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
@@ -63,7 +63,9 @@ export async function recordWorkflow(
           now: () => controller.now(),
           wait: (ms) => controller.wait(ms),
         },
+        { leadMs: (step) => actionLeadMs(step, { cursorMoveMs: config.recording.cursor_move_ms }) },
       );
+
       const report = await runSteps(controller, workflow.steps, {
         phase: "recording",
         log: job.log,

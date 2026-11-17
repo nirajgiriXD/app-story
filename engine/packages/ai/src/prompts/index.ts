@@ -9,7 +9,7 @@ const promptDir = existsSync(join(here, "prompts")) ? join(here, "prompts") : he
 /** Prompt versions in use. Bump the file suffix (and this table) when a prompt changes meaningfully. */
 export const PROMPT_VERSIONS = {
   rehearsal: "v3",
-  narration: "v2",
+  narration: "v3",
   "release-notes": "v2",
   review: "v1",
 } as const;

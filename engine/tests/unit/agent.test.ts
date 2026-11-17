@@ -5,7 +5,8 @@ import { describe, expect, it } from "vitest";
 import { UsageTracker, type AIProvider } from "@app-story/ai";
 import { runRehearsal } from "@app-story/core";
 import { ProductConfigSchema, type AudioClip } from "@app-story/contracts";
-import { NarrationPacer, closingLine, normalizeScript, writeNarrationScript } from "@app-story/narration";
+import { NarrationPacer, anchorTimes, closingLine, normalizeScript, parseAnchors, stripAnchors, writeNarrationScript } from "@app-story/narration";
+
 import { createJob } from "@app-story/core";
 import { AppStoryError, createSilentLogger } from "@app-story/shared";
 import { FakeController } from "../support/fake-controller";
@@ -155,13 +156,13 @@ describe("narration", () => {
       path: `${id}.mp3`,
       duration_ms: duration,
     });
-    const pacer = new NarrationPacer([clip("a", ["s1", "s2"], 3000), clip("b", ["s3"], 1000)], clock, 300);
-    await pacer.beforeStep({ id: "s1" });
+    const pacer = new NarrationPacer([clip("a", ["s1", "s2"], 3000), clip("b", ["s3"], 1000)], clock, { gapMs: 300 });
+    await pacer.beforeStep({ id: "s1", action: "click" });
     now += 500; // s1 runs
-    await pacer.beforeStep({ id: "s2" }); // same segment: no wait
+    await pacer.beforeStep({ id: "s2", action: "click" }); // same segment: no wait
     expect(now).toBe(500);
     now += 500;
-    await pacer.beforeStep({ id: "s3" }); // waits for "a" (3000ms + 300ms gap)
+    await pacer.beforeStep({ id: "s3", action: "click" }); // waits for "a" (3000ms + 300ms gap)
     expect(now).toBe(3300);
     await pacer.finish(1000);
     expect(now).toBe(3300 + 1000 + 300 + 1000);
@@ -169,6 +170,56 @@ describe("narration", () => {
       ["a", 0],
       ["b", 3300],
     ]);
+  });
+
+  it("holds an anchored step back until just before its word, and never hurries one", async () => {
+    let now = 0;
+    const clock = {
+      now: () => now,
+      wait: async (ms: number) => {
+        now += ms;
+      },
+    };
+    const line: AudioClip = {
+      id: "a",
+      kind: "segment",
+      text: "Pick a status, then save it.",
+      step_ids: ["s1", "s2", "s3"],
+      path: "a.wav",
+      duration_ms: 4000,
+      anchors: [
+        { step_id: "s2", at_ms: 600 },
+        { step_id: "s3", at_ms: 2500 },
+      ],
+    };
+    const pacer = new NarrationPacer([line], clock, { leadMs: (step) => (step.action === "click" ? 400 : 0) });
+    await pacer.beforeStep({ id: "s1", action: "click" });
+    now += 1000; // s1 took longer than s2's word: s2 goes at once
+    await pacer.beforeStep({ id: "s2", action: "select" });
+    expect(now).toBe(1000);
+    now += 300;
+    await pacer.beforeStep({ id: "s3", action: "click" }); // its click lands at 2500: it starts 400ms before
+    expect(now).toBe(2100);
+  });
+});
+
+describe("narration anchors", () => {
+  it("takes the markers out of the line and remembers the word each one stands before", () => {
+    const parsed = parseAnchors("Pick a status, {{@s2}}then {{ @s3 }}save it. {{@s9}}{{@s1}}", ["s1", "s2", "s3"]);
+    expect(parsed.text).toBe("Pick a status, then save it.");
+    // s9 is not in the line and s1 starts with it: both are dropped.
+    expect(parsed.anchors).toEqual([
+      { step_id: "s2", word: 3 },
+      { step_id: "s3", word: 4 },
+    ]);
+    expect(stripAnchors("Save {{@s4}}it.")).toBe("Save it.");
+  });
+
+  it("times each anchor by its spoken word, or by its place in the line without word timing", () => {
+    const parsed = parseAnchors("Pick a status, {{@s2}}then save it.", ["s1", "s2"]);
+    const words = ["Pick", "a", "status,", "then", "save", "it."].map((text, i) => ({ text, start_ms: i * 400, end_ms: i * 400 + 350 }));
+    expect(anchorTimes(parsed, 2600, words)).toEqual([{ step_id: "s2", at_ms: 1200 }]);
+    expect(anchorTimes(parsed, 3000)).toEqual([{ step_id: "s2", at_ms: 1500 }]);
   });
 });
 

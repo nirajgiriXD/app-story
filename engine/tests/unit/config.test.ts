@@ -86,6 +86,15 @@ describe("product file", () => {
     expect(config.safety.allow).toMatchObject({ delete: true, invite_users: true, payments: false });
   });
 
+  it("reads blur as one CSS selector list or as a YAML list", () => {
+    expect(parse(file("url: https://acme.test")).config.browser.blur).toEqual([]);
+    expect(parse(file('url: https://acme.test\nblur: ".api-key, #email"')).config.browser.blur).toEqual([".api-key, #email"]);
+    // Unquoted, YAML would read "#email" as a comment and leave the email readable.
+    expect(errorOf(() => parse(file("url: https://acme.test\nblur: .api-key, #email"))).hint).toContain('blur: ".api-key, #email"');
+
+    expect(parse(file('url: https://acme.test\nblur:\n  - .api-key\n  - "[data-private]"')).config.browser.blur).toEqual([".api-key", "[data-private]"]);
+  });
+
   it("uses the template set in the file, or picks one that suits the kind of video", () => {
     const set = parse(file("url: https://acme.test\ntemplate: minimal")).config.demo.template;
     expect(set).toBe("minimal");

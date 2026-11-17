@@ -65,6 +65,27 @@ describe("browser safety in a real Chromium", () => {
     expect(isAppStoryError(error) && error.code).toBe("AUTH_FAILED");
   });
 
+  it("blurs what the product file says to blur, on every page, and rejects a broken selector", async () => {
+    const product = await loadProduct(productsDir, "example");
+    product.config.browser.blur = [".sub", "td:nth-child(3)"];
+    await withBrowser(product, { workDir: join(outputDir, "b5"), log }, async (session) => {
+      const filterOf = (selector: string) =>
+        session.page
+          .locator(selector)
+          .first()
+          .evaluate((el) => getComputedStyle(el).filter);
+      expect(await filterOf(".sub")).toBe("blur(10px)");
+      expect(await filterOf("td:nth-child(3)")).toBe("blur(10px)");
+      expect(await filterOf("h1")).toBe("none");
+      // A new document (a full page load) is blurred too.
+      await session.controller.navigate("/projects/new");
+      expect(await filterOf(".sub")).toBe("blur(10px)");
+    });
+    product.config.browser.blur = ["td:nth-child("];
+    const error = await withBrowser(product, { workDir: join(outputDir, "b6"), log }, async () => "unreachable").catch((e) => e);
+    expect(isAppStoryError(error) && error.code).toBe("CONFIG_INVALID");
+  });
+
   it("read-only mode cannot type or submit", async () => {
     const product = await loadProduct(productsDir, "example");
     await withBrowser(product, { workDir: join(outputDir, "b4"), log, mode: "read_only" }, async (session) => {

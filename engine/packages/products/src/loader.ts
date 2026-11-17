@@ -82,6 +82,7 @@ const SettingsSchema = z
       .regex(/^#[0-9a-fA-F]{6}$/, 'use a 6-digit hex color in quotes, e.g. color: "#4F46E5"')
       .optional(),
     allow: z.union([z.string(), z.array(z.string())]).optional(),
+    blur: z.union([z.string().min(1), z.array(z.string().min(1))], { error: "blur is a CSS selector (or a list of them), e.g. blur: .api-key" }).optional(),
   })
   .strict();
 type Settings = z.infer<typeof SettingsSchema>;
@@ -170,7 +171,20 @@ function hasKey(provider: AiProviderName): boolean {
   return provider === "anthropic" ? Boolean(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN) : Boolean(env.OPENAI_API_KEY);
 }
 
+/**
+ * YAML reads ` #` as the start of a comment, so `blur: .card, #email` would quietly drop
+ * `#email` and leave it readable in the video. An unquoted `#` on the blur line is an error.
+ */
+function checkBlurNotCommented(text: string, file: string): void {
+  const line = /^blur:[ \t]*(.*)$/m.exec(text.replace(/\r\n/g, "\n"))?.[1]?.trim() ?? "";
+  if (/^["']/.test(line) || !/(^|\s)#/.test(line)) return;
+  throw new AppStoryError("CONFIG_INVALID", `In ${file}, the blur: line has an unquoted '#', which YAML reads as the start of a comment.`, {
+    hint: `Put the selectors in quotes, e.g. blur: "${line}"`,
+  });
+}
+
 /** Turn a product file's text into the engine's full configuration. */
+
 export function parseProductFile(text: string, file: string, id: string): { config: ProductConfig; brief: string } {
   const { settings: raw, brief } = splitProductFile(text, file);
   const parsed = SettingsSchema.safeParse(raw);
@@ -180,6 +194,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
     });
   }
   const s = parsed.data;
+  checkBlurNotCommented(text, file);
   const url = new URL(s.url);
   const login = s.login ? parseLogin(s.login, file) : undefined;
   const { name, description } = describe(brief, id);
@@ -193,7 +208,13 @@ export function parseProductFile(text: string, file: string, id: string): { conf
     product: { id, name, description, base_url: url.origin, start_path: s["start page"] ?? `${url.pathname}${url.search}` },
     // A 16:9 viewport with comfortably large UI, recorded at 2x (3200x1800): the video zooms
     // in up to ~1.9x on screen, and at 1080p that needs about two pixels per CSS pixel to stay sharp.
-    browser: { viewport: { width: 1600, height: 900 }, device_scale_factor: 2, allowed_domains: [url.host] },
+    browser: {
+      viewport: { width: 1600, height: 900 },
+      device_scale_factor: 2,
+      allowed_domains: [url.host],
+      blur: s.blur === undefined ? [] : Array.isArray(s.blur) ? s.blur : [s.blur],
+    },
+
     authentication: login ? { strategy: "auto", ...login, login_path: s["login page"] } : { strategy: "none" },
     demo: { default_language: s.language, default_duration: s.length, template: s.template, fps: s.fps, default_resolution: s.resolution },
     branding: { logo: s.logo, primary_color: s.color },

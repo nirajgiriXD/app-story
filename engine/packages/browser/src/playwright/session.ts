@@ -3,6 +3,8 @@ import { chromium, type Browser, type BrowserContext, type Page } from "playwrig
 import type { BrowserIssue, ProductConfig } from "@app-story/contracts";
 import { AppStoryError, ensureDir, resolveCredential, type Logger } from "@app-story/shared";
 import { PlaywrightController } from "../controller/playwright-controller";
+import { inPage } from "./in-page";
+
 import { ActionGuard } from "../security/action-guard";
 import { isAllowedUrl } from "../security/url-guard";
 import { CdpScreencastRecorder, type Recorder, type RecorderResult } from "../recording/cdp-recorder";
@@ -93,6 +95,9 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
     await context.tracing.start({ screenshots: !options.record, snapshots: true, sources: false });
   }
 
+  const blurred = config.browser.blur.join(", ");
+  if (blurred) await context.addInitScript(inPage(blurInPage), blurCss(blurred));
+
   let page = await context.newPage();
   attachCollectors(page, issues, log);
 
@@ -149,6 +154,7 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
       controller = makeController(page);
       await controller.navigate(config.product.start_path);
     }
+    if (blurred) await checkBlurSelectors(page, config.browser.blur);
     if (options.initBrowser) await options.initBrowser(page, context);
 
     const pageCreatedAt = Date.now();
@@ -291,4 +297,50 @@ function attachCollectors(page: Page, issues: BrowserIssue[], log: Logger): void
     log.warn({ type: dialog.type(), message: dialog.message() }, "dismissed a browser dialog");
     await dialog.dismiss().catch(() => undefined);
   });
+}
+
+/** The style that blurs the product file's `blur:` selectors: unreadable, but the layout stays. */
+export function blurCss(selectors: string): string {
+  return `${selectors} { filter: blur(10px) !important; }`;
+}
+
+/**
+ * Runs in every page before its own scripts: adds the blur style as a constructed style
+ * sheet, which the page's own markup cannot remove, and adds it again if the page replaced
+ * the document's sheets while loading.
+ */
+function blurInPage(css: string): void {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync(css);
+  const ensure = () => {
+    if (!document.adoptedStyleSheets.includes(sheet)) document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  };
+  ensure();
+  document.addEventListener("DOMContentLoaded", ensure);
+  window.addEventListener("load", ensure);
+}
+
+/**
+ * A selector the browser cannot read would make the whole blur rule silently do nothing,
+ * so each one is tried in the page first; a broken one stops the job before anything is recorded.
+ */
+async function checkBlurSelectors(page: Page, selectors: readonly string[]): Promise<void> {
+  for (const selector of selectors) {
+    const valid = await page.evaluate(
+      inPage((s: string) => {
+        try {
+          document.querySelector(s);
+          return true;
+        } catch {
+          return false;
+        }
+      }),
+      selector,
+    );
+    if (!valid) {
+      throw new AppStoryError("CONFIG_INVALID", `blur: '${selector}' is not a CSS selector the browser understands.`, {
+        hint: "Use CSS selectors, e.g. blur: .api-key, #customer-email, [data-private]",
+      });
+    }
+  }
 }

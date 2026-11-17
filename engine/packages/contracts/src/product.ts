@@ -131,6 +131,12 @@ export const ProductConfigSchema = z.object({
       locale: z.string().default("en-US"),
       timezone: z.string().default("UTC"),
       color_scheme: z.enum(["light", "dark"]).default("light"),
+      /**
+       * CSS selectors of things to blur on screen (an API key, a customer's email). Blurred in
+       * the page itself, so the recording, screenshots and video never hold them readable.
+       */
+      blur: z.array(z.string().min(1)).default([]),
+
       headless: z.boolean().default(true),
       navigation_timeout_ms: z.number().int().positive().default(30_000),
       action_timeout_ms: z.number().int().positive().default(10_000),

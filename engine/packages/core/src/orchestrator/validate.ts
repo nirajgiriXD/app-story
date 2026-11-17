@@ -87,6 +87,8 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
     .map(([name]) => name.replace(/_/g, " "));
   ok(`blocked actions: ${allowed.length ? `all except ${allowed.join(", ")}` : "delete, payments, emails, publishing, account settings, invites"}`);
 
+  if (config.browser.blur.length) ok(`blurred on screen: ${config.browser.blur.join(", ")}`);
+
   for (const path of [config.branding.logo, config.branding.background_music]) {
     if (path && !(await fileExists(resolveProductPath(product, path)))) warn(`file not found: ${path}`);
   }

@@ -118,3 +118,31 @@ export async function hasBinary(command: string): Promise<boolean> {
     return false;
   }
 }
+
+export interface LoudnessMeasure {
+  /** Integrated loudness (LUFS); -Infinity for silence. */
+  i: number;
+  tp: number;
+  lra: number;
+  thresh: number;
+  offset: number;
+}
+
+/** Measure a file's loudness (EBU R128, FFmpeg's loudnorm first pass) against a target. */
+export async function measureLoudness(file: string, target: { i: number; tp: number; lra: number }): Promise<LoudnessMeasure> {
+  const result = await runProcess("ffmpeg", [
+    "-hide_banner",
+    "-i",
+    file,
+    "-af",
+    `loudnorm=I=${target.i}:TP=${target.tp}:LRA=${target.lra}:print_format=json`,
+    "-f",
+    "null",
+    "-",
+  ]);
+  const json = /\{[^{}]*"input_i"[^{}]*\}/.exec(result.stderr)?.[0];
+  if (result.code !== 0 || !json) throw new AppStoryError("RENDER_FAILED", `could not measure the loudness of ${file}`);
+  const m = JSON.parse(json) as Record<string, string>;
+  const num = (v: string | undefined) => (v === undefined || /inf/i.test(v) ? Number.NEGATIVE_INFINITY : Number(v));
+  return { i: num(m.input_i), tp: num(m.input_tp), lra: num(m.input_lra), thresh: num(m.input_thresh), offset: num(m.target_offset) };
+}

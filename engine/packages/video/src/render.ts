@@ -6,8 +6,8 @@ import { availableParallelism, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Route } from "playwright";
-import { AppStoryError, ensureDir, extractFrame, runFfmpeg, type Logger } from "@app-story/shared";
-import { buildAudioMix } from "./audio";
+import { AppStoryError, ensureDir, extractFrame, measureLoudness, runFfmpeg, type Logger } from "@app-story/shared";
+import { buildAudioMix, MASTER_LOUDNESS, masterChain } from "./audio";
 import { RecordingFrames } from "./frames";
 import type { RenderProps } from "./props";
 
@@ -145,7 +145,15 @@ async function render(options: RenderVideoOptions): Promise<void> {
     await ensureDir(dirname(options.outputFile));
     const list = join(workDir, "parts.ffconcat");
     await writeFile(list, ["ffconcat version 1.0", ...parts.map((p) => `file '${p.replace(/\\/g, "/")}'`)].join("\n"), "utf8");
-    const audio = buildAudioMix(props, 1, (src) => fileIn(options.publicDir, src));
+    // The sound: every clip and the music mixed, then mastered to one loudness for the whole video.
+    const duration = (total / props.fps).toFixed(3);
+    const mix = join(workDir, "mix.wav");
+    const audio = buildAudioMix(props, 0, (src) => fileIn(options.publicDir, src));
+    await runFfmpeg([...audio.inputArgs, "-filter_complex", audio.filter, "-map", "[aout]", "-c:a", "pcm_f32le", "-t", duration, mix]);
+    const measured = await measureLoudness(mix, MASTER_LOUDNESS).catch((error: Error) => {
+      log.warn({ error: error.message }, "could not measure the mix; its loudness is left as it is");
+      return undefined;
+    });
     await runFfmpeg([
       "-f",
       "concat",
@@ -153,13 +161,14 @@ async function render(options: RenderVideoOptions): Promise<void> {
       "0",
       "-i",
       list,
-      ...audio.inputArgs,
-      "-filter_complex",
-      audio.filter,
+      "-i",
+      mix,
       "-map",
       "0:v",
       "-map",
-      "[aout]",
+      "1:a",
+      "-af",
+      masterChain(measured),
       "-c:v",
       "copy",
       // Joining the parts drops their BT.709 colour tags; write them back so players do not shift the colours.
@@ -170,7 +179,7 @@ async function render(options: RenderVideoOptions): Promise<void> {
       "-b:a",
       "192k",
       "-t",
-      (total / props.fps).toFixed(3),
+      duration,
       "-movflags",
       "+faststart",
       options.outputFile,

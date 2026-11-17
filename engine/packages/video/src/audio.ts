@@ -66,3 +66,19 @@ function seconds(ms: number): string {
 function num(value: number): string {
   return String(Math.round(value * 1000) / 1000);
 }
+
+/** The finished video's loudness: what YouTube and most players aim for, with headroom for encoding. */
+export const MASTER_LOUDNESS = { i: -14, tp: -1.5, lra: 11 };
+
+/**
+ * The master: the whole mix brought to one loudness with a single gain (from a measurement of
+ * the mix, so nothing pumps), then a limiter that keeps peaks under -1 dBFS. Silence is left alone.
+ */
+export function masterChain(measured: { i: number; tp: number; lra: number; thresh: number; offset: number } | undefined): string {
+  const limiter = "alimiter=limit=0.891:attack=5:release=50:level=false";
+  if (!measured || !Number.isFinite(measured.i) || measured.i < -70) return `aresample=${SAMPLE_RATE},${limiter}`;
+  const t = MASTER_LOUDNESS;
+  const m = `measured_I=${num(measured.i)}:measured_TP=${num(measured.tp)}:measured_LRA=${num(measured.lra)}:measured_thresh=${num(measured.thresh)}:offset=${num(measured.offset)}`;
+  // loudnorm works at 192 kHz; bring it back to the video's rate.
+  return `loudnorm=I=${t.i}:TP=${t.tp}:LRA=${t.lra}:${m}:linear=true,aresample=${SAMPLE_RATE},${limiter}`;
+}

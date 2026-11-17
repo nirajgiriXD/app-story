@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { VOICE_CHAIN } from "@app-story/narration";
 import {
   buildAudioMix,
   getTemplate,
+  MASTER_LOUDNESS,
+  masterChain,
   handoverIn,
   handoverOut,
   interpolate,
@@ -131,5 +134,24 @@ describe("title card handover", () => {
     }
     expect(handoverIn(fade, fade)).toBe(1);
     expect(handoverOut(fade, fade, fade)).toBe(1);
+  });
+});
+
+describe("sound", () => {
+  it("masters the mix with one measured gain and a peak limiter", () => {
+    const chain = masterChain({ i: -17.2, tp: -3.1, lra: 4.2, thresh: -27.5, offset: 0.3 });
+    expect(chain).toContain(`loudnorm=I=${MASTER_LOUDNESS.i}:`);
+    expect(chain).toContain("measured_I=-17.2:");
+    expect(chain).toContain("linear=true");
+    expect(chain).toMatch(/aresample=48000,alimiter=/);
+  });
+
+  it("leaves silence alone instead of turning it up", () => {
+    expect(masterChain({ i: Number.NEGATIVE_INFINITY, tp: Number.NEGATIVE_INFINITY, lra: 0, thresh: -70, offset: 0 })).not.toContain("loudnorm");
+    expect(masterChain(undefined)).not.toContain("loudnorm");
+  });
+
+  it("cleans up the voice before setting its loudness", () => {
+    expect(VOICE_CHAIN).toMatch(/^highpass=f=80,deesser=.*acompressor=.*equalizer=/);
   });
 });

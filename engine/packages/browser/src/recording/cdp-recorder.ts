@@ -149,7 +149,10 @@ export class CdpScreencastRecorder implements Recorder {
     await writeFile(listFile, lines.join("\n"), "utf8");
 
     const { width, height, fps } = this.options;
-    await runFfmpeg(["-f", "concat", "-safe", "0", "-i", listFile, ...intermediateVideoArgs(width, height, fps), outputPath]);
+    // The last image is listed twice (older FFmpeg needs it to show its duration), and newer
+    // FFmpeg then shows it for that duration again: cut the file to the take's exact length.
+    const seconds = ((stoppedAt - this.startedAt) / 1000).toFixed(3);
+    await runFfmpeg(["-f", "concat", "-safe", "0", "-i", listFile, ...intermediateVideoArgs(width, height, fps), "-t", seconds, outputPath]);
     await rm(this.framesDir, { recursive: true, force: true });
     this.options.log.debug({ frames: frames.length }, "screen recording encoded");
     return { path: outputPath, durationMs: stoppedAt - this.startedAt, frames: frames.length, width, height };

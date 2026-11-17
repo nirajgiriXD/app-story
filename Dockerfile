@@ -30,7 +30,7 @@ RUN npm install -g --ignore-scripts /tmp/app-story-*.tgz \
  && rm -rf /var/lib/apt/lists/*
 # Download the voice model now, so the first video needs no download (same model as KOKORO_DEFAULTS).
 RUN cd /usr/local/lib/node_modules/app-story \
- && node --input-type=module -e "const { KokoroTTS } = await import('kokoro-js'); await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'q8', device: 'cpu' });"
+ && node --input-type=module -e "const { KokoroTTS } = await import('kokoro-js'); await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'fp32', device: 'cpu' });"
 WORKDIR /work
 ENTRYPOINT ["app-story"]
 CMD ["--help"]

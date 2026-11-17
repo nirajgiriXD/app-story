@@ -8,6 +8,8 @@ export interface TTSProvider {
   readonly name: string;
   readonly voice: string;
   readonly model: string;
+  /** Anything else that changes how the voice sounds (for example the model's precision). */
+  readonly variant?: string;
   /** True when the provider writes silence instead of speech (captions-only videos). */
   readonly silent?: boolean;
   /** Write speech audio for `text` to `outPath`, in any format FFmpeg reads (WAV preferred: no loss). */

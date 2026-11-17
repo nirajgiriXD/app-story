@@ -6,7 +6,7 @@ import { runRehearsal, type AIProvider, type AgentInput, type AgentTurnResult, t
 import type { Step } from "@app-story/contracts";
 import { frameTimes } from "@app-story/browser";
 import { cacheKey, storeFor } from "@app-story/core";
-import { segmentWordBudget } from "@app-story/narration";
+import { kokoroDtype, segmentWordBudget } from "@app-story/narration";
 import { applyOverrides, parseProductFile } from "@app-story/products";
 import { createSilentLogger } from "@app-story/shared";
 import { estimateStepMs } from "@app-story/workflow";
@@ -136,5 +136,19 @@ describe("screen recording clock", () => {
 
   it("uses arrival times when Chromium gives none, and never goes back in time", () => {
     expect(frameTimes([{ receivedAt: 100 }, { receivedAt: 90 }, { receivedAt: 300 }])).toEqual([100, 100, 300]);
+  });
+});
+
+describe("local voice model", () => {
+  afterEach(() => {
+    delete process.env.APP_STORY_KOKORO_DTYPE;
+  });
+
+  it("loads the full-precision model unless told otherwise", () => {
+    expect(kokoroDtype()).toBe("fp32");
+    process.env.APP_STORY_KOKORO_DTYPE = "Q8";
+    expect(kokoroDtype()).toBe("q8");
+    process.env.APP_STORY_KOKORO_DTYPE = "tiny";
+    expect(() => kokoroDtype()).toThrow(/APP_STORY_KOKORO_DTYPE/);
   });
 });

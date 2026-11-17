@@ -6,7 +6,7 @@
   and FFmpeg and ffprobe on `PATH`.
 - An Anthropic or OpenAI API key. That is all.
   - The voice-over is free and runs on your computer ([Kokoro](https://huggingface.co/hexgrad/Kokoro-82M),
-    via `kokoro-js`). The first run downloads the voice model (~90 MB) once. English only.
+    via `kokoro-js`). The first run downloads the voice model (~330 MB) once. English only.
   - Paid voices are optional (`voice: openai` or `voice: elevenlabs`); `voice: none` makes
     captions-only videos. Female or male, accent, speed and tone are set in `.env`
     (see "Voice" in the README).

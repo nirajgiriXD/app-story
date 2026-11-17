@@ -49,7 +49,7 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
 - `npm run lint:fix` fixes what Biome can fix by itself, and `npm run format` formats
   every file. Biome skips Markdown, so prompts and product files are never reformatted.
 - Run the integration tests when you touch the browser, recording, narration or video.
-  They take several minutes, and the first run downloads the voice model (~90 MB).
+  They take several minutes, and the first run downloads the voice model (~330 MB).
 - `npm run test:e2e` makes a real video with real AI answers that were recorded once
   (`engine/tests/fixtures/ai-answers/`), so it is free and needs no key. After changing a
   prompt, the AI tools or the practice app, record them again (needs the key, costs a

@@ -8,9 +8,23 @@ export const KOKORO_DEFAULTS = {
   voice: "af_heart",
   /** Open-weight (Apache-2.0) 82M-parameter model, run locally on the CPU. */
   model: "onnx-community/Kokoro-82M-v1.0-ONNX",
-  /** 8-bit weights: about 90 MB to download once, fast on a laptop CPU. */
-  dtype: "q8",
+  /**
+   * Full-precision weights: about 330 MB to download once. The 8-bit ones (`q8`, 90 MB) are
+   * faster but add an audible buzz; set APP_STORY_KOKORO_DTYPE=q8 on a slow machine.
+   */
+  dtype: "fp32",
 } as const;
+
+type KokoroDtype = "fp32" | "fp16" | "q8" | "q4" | "q4f16";
+const DTYPES: readonly KokoroDtype[] = ["fp32", "fp16", "q8", "q4", "q4f16"];
+
+/** The weights to load: APP_STORY_KOKORO_DTYPE, else the full ones. */
+export function kokoroDtype(): KokoroDtype {
+  const chosen = process.env.APP_STORY_KOKORO_DTYPE?.trim().toLowerCase();
+  if (!chosen) return KOKORO_DEFAULTS.dtype;
+  if ((DTYPES as readonly string[]).includes(chosen)) return chosen as KokoroDtype;
+  throw new AppStoryError("CONFIG_INVALID", `APP_STORY_KOKORO_DTYPE is '${chosen}'.`, { hint: `Use one of: ${DTYPES.join(", ")}` });
+}
 
 type KokoroModule = typeof import("kokoro-js");
 
@@ -25,11 +39,11 @@ let queue: Promise<unknown> = Promise.resolve();
 
 function loadModel(model: string): Promise<{ tts: KokoroModel; lib: KokoroModule }> {
   loading ??= import("kokoro-js")
-    .then(async (lib) => ({ lib, tts: await lib.KokoroTTS.from_pretrained(model, { dtype: KOKORO_DEFAULTS.dtype, device: "cpu" }) }))
+    .then(async (lib) => ({ lib, tts: await lib.KokoroTTS.from_pretrained(model, { dtype: kokoroDtype(), device: "cpu" }) }))
     .catch((error: unknown) => {
       loading = undefined;
       throw new AppStoryError("TTS_ERROR", `Could not load the Kokoro voice model: ${(error as Error).message}`, {
-        hint: "The first run downloads the model (~90 MB) from huggingface.co, so it needs internet once.",
+        hint: "The first run downloads the model (~330 MB, or ~90 MB with APP_STORY_KOKORO_DTYPE=q8) from huggingface.co, so it needs internet once.",
         cause: error,
       });
     });
@@ -45,11 +59,13 @@ export class KokoroTTS implements TTSProvider {
   readonly name = "kokoro";
   readonly voice: string;
   readonly model: string;
+  readonly variant: string;
 
   constructor(private readonly config: TtsConfig) {
     // "female"/"male" (with the accent) or a voice name; unknown names fail at synthesis with the full list.
     this.voice = resolveKokoroVoice(config.voice, config.accent)?.id ?? config.voice ?? KOKORO_DEFAULTS.voice;
     this.model = config.model ?? KOKORO_DEFAULTS.model;
+    this.variant = kokoroDtype();
   }
 
   synthesize(text: string, outPath: string): Promise<void> {

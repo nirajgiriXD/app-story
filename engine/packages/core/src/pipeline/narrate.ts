@@ -84,7 +84,16 @@ function readCachedScript(job: Job, key: string): NarrationScript | undefined {
 /** Finished clips by voice and text, so the same line in the same voice is never spoken twice. */
 function speechCache(job: Job, tts: TTSProvider, settings: LoadedProduct["config"]["providers"]["tts"]): SpeechCache {
   // Bump `format` when the stored clip format changes (now: normalised 48 kHz mono WAV).
-  const voice = { format: 1, provider: tts.name, voice: tts.voice, model: tts.model, speed: settings.speed, style: settings.style, accent: settings.accent };
+  const voice = {
+    format: 1,
+    provider: tts.name,
+    voice: tts.voice,
+    model: tts.model,
+    variant: tts.variant,
+    speed: settings.speed,
+    style: settings.style,
+    accent: settings.accent,
+  };
   return {
     get: (text) => job.store.getCachedBlob(cacheKey("speech", { ...voice, text })),
     set: (text, audio) => job.store.setCached(cacheKey("speech", { ...voice, text }), "speech", audio),

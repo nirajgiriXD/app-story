@@ -31,6 +31,8 @@ export interface RenderProps {
   /** Recording-relative times below. */
   sections: { title: string; atMs: number }[];
   focus: { startMs: number; endMs: number; box: Box }[];
+  /** When the page changed: the camera never holds a shot across one. */
+  cuts: number[];
   cursor: CursorPoint[];
   urls: { atMs: number; url: string }[];
   /** Global times. */

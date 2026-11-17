@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCues, chunkText, toSrt, toVtt, wrapLines } from "@app-story/captions";
-import { cameraAt, cameraTransform, cursorAt, followPointer, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@app-story/video";
+import { cameraAt, cameraTransform, cursorAt, frameBox, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@app-story/video";
 
 describe("captions", () => {
   it("splits into sentences and screen-sized chunks", () => {
@@ -71,7 +71,8 @@ describe("video timeline", () => {
     const zoom = { scale: 1.4, rampMs: 500 };
     expect(cameraAt(0, groups, viewport, zoom).scale).toBe(1);
     const mid = cameraAt(1500, groups, viewport, zoom);
-    expect(mid.scale).toBeCloseTo(1.4);
+    expect(mid.scale).toBeGreaterThanOrEqual(1.4);
+    expect(mid.scale).toBeLessThanOrEqual(1.4 * 1.04); // a slow push-in while it holds
     expect(mid.x).toBeCloseTo(1300);
     expect(cameraAt(3000, groups, viewport, zoom).scale).toBe(1);
     // The view never leaves the frame.
@@ -80,34 +81,54 @@ describe("video timeline", () => {
     expect(-t.ty).toBeGreaterThanOrEqual(0);
   });
 
-  it("follows the pointer while zoomed in, gliding instead of jumping", () => {
+  it("frames the whole area of a step, not just the element or the pointer", () => {
+    const viewport = { width: 1600, height: 900 };
+    const form = { x: 300, y: 150, width: 700, height: 500 };
+    const groups = mergeFocusWindows([{ startMs: 1000, endMs: 3000, box: form }]);
+    const camera = cameraAt(2000, groups, viewport, { scale: 1.6, rampMs: 500 });
+    expect(camera.scale).toBeGreaterThan(1.1);
+    const view = cameraTransform(camera, viewport);
+    // Every edge of the form is in view.
+    expect(form.x).toBeGreaterThanOrEqual(-view.tx);
+    expect(form.y).toBeGreaterThanOrEqual(-view.ty);
+    expect(form.x + form.width).toBeLessThanOrEqual(-view.tx + viewport.width / view.scale);
+    expect(form.y + form.height).toBeLessThanOrEqual(-view.ty + viewport.height / view.scale);
+    expect(frameBox(form, viewport, 1.6).scale).toBeCloseTo(1.44);
+  });
+
+  it("glides from area to area without jumping", () => {
     const viewport = { width: 1600, height: 900 };
     const zoom = { scale: 1.5, rampMs: 500 };
-    // The pointer rests on one field, then moves across the page to another and stays there.
-    const pointer = [
-      { t: 0, x: 300, y: 200 },
-      { t: 2000, x: 300, y: 200 },
-      { t: 2600, x: 1300, y: 700 },
-    ];
     const groups = mergeFocusWindows([
       { startMs: 1000, endMs: 2000, box: { x: 250, y: 180, width: 100, height: 40 } },
       { startMs: 2000, endMs: 4000, box: { x: 1250, y: 680, width: 100, height: 40 } },
     ]);
-    const follow = followPointer(pointer, 5000);
-    const at = (t: number) => cameraAt(t, groups, viewport, zoom, follow);
+    let last = cameraAt(500, groups, viewport, zoom);
+    for (let t = 500; t <= 5000; t += 1000 / 60) {
+      const camera = cameraAt(t, groups, viewport, zoom);
+      expect(Math.hypot(camera.x - last.x, camera.y - last.y)).toBeLessThan(30);
+      expect(Math.abs(camera.scale - last.scale)).toBeLessThan(0.05);
+      last = camera;
+    }
+    expect(cameraAt(3500, groups, viewport, zoom)).toMatchObject({ x: 1300, y: 700 });
+  });
 
-    expect(at(1800)).toMatchObject({ x: expect.closeTo(300, 0), y: expect.closeTo(200, 0) });
-    expect(at(3800)).toMatchObject({ x: expect.closeTo(1300, 0), y: expect.closeTo(700, 0) });
-    let last = at(1500);
-    for (let t = 1500; t <= 4000; t += 1000 / 30) {
-      const camera = at(t);
-      expect(camera.x).toBeGreaterThanOrEqual(last.x - 0.5); // always on its way, never back
-      expect(Math.hypot(camera.x - last.x, camera.y - last.y)).toBeLessThan(60); // no jumps between frames
-      const view = cameraTransform(camera, viewport);
-      const p = cursorAt(t, pointer) as { x: number; y: number };
-      expect(p.x).toBeGreaterThanOrEqual(-view.tx);
-      expect(p.x).toBeLessThanOrEqual(-view.tx + viewport.width / view.scale); // the pointer stays in view
-      expect(p.y).toBeLessThanOrEqual(-view.ty + viewport.height / view.scale);
+  it("pulls back for a page change, even between close steps", () => {
+    const viewport = { width: 1600, height: 900 };
+    const zoom = { scale: 1.5, rampMs: 500 };
+    const box = { x: 100, y: 100, width: 100, height: 40 };
+    const windows = [
+      { startMs: 1000, endMs: 2000, box },
+      { startMs: 2600, endMs: 4000, box },
+    ];
+    expect(mergeFocusWindows(windows)).toHaveLength(1);
+    const groups = mergeFocusWindows(windows, 1200, [2100]);
+    expect(groups).toHaveLength(2);
+    expect(cameraAt(2300, groups, viewport, zoom).scale).toBe(1);
+    let last = cameraAt(1900, groups, viewport, zoom);
+    for (let t = 1900; t <= 2700; t += 1000 / 60) {
+      const camera = cameraAt(t, groups, viewport, zoom);
+      expect(Math.abs(camera.scale - last.scale)).toBeLessThan(0.05); // the shortened ramps never jump
       last = camera;
     }
   });

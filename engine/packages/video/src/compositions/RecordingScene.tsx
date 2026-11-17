@@ -2,7 +2,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
-import { cameraAt, cameraTransform, cursorAt, followPointer, latestAt, mergeFocusWindows } from "../timeline";
+import { cameraAt, cameraTransform, cursorAt, latestAt, mergeFocusWindows } from "../timeline";
 import { handoverIn, handoverOut } from "./handover";
 import { fontStack, isDark, px, recordingFrame } from "./theme";
 
@@ -30,10 +30,9 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const t = (frame / fps) * 1000;
   const { viewport } = p.recording;
   const L = layout(p);
-  const groups = useMemo(() => mergeFocusWindows(p.focus), [p.focus]);
-  const follow = useMemo(() => followPointer(p.cursor, p.recording.durationMs), [p.cursor, p.recording.durationMs]);
+  const groups = useMemo(() => mergeFocusWindows(p.focus, 1200, p.cuts ?? []), [p.focus, p.cuts]);
 
-  const camera = p.template.zoom.enabled ? cameraAt(t, groups, viewport, p.template.zoom, follow) : { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
+  const camera = p.template.zoom.enabled ? cameraAt(t, groups, viewport, p.template.zoom) : { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
   const view = cameraTransform(camera, viewport);
   const cursor = cursorAt(t, p.cursor);
   const fade = p.template.transitionMs;

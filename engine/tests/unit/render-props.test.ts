@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Step, StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
-import { buildRenderProps, getTemplate, planTimeline, type BuildPropsInput } from "@app-story/video";
+import { buildRenderProps, getTemplate, planTimeline, shotBox, type BuildPropsInput } from "@app-story/video";
 
 const { config } = parseProductFile("---\nurl: https://acme.test\n---\n\n# Acme\n", "acme.md", "acme");
 const template = getTemplate("modern-saas");
@@ -73,5 +73,44 @@ describe("captions on title cards", () => {
       ],
     });
     expect(p.captions.cues.map((c) => c.text)).toEqual(["Open the form."]);
+  });
+});
+
+describe("shots", () => {
+  const form = { x: 300, y: 150, width: 700, height: 500 };
+  const steps = [
+    { id: "s1", description: "open", action: "click", target: { name: "New" } },
+    { id: "s2", description: "name", action: "fill", target: { label: "Name" }, value: "Q3" },
+    { id: "s3", description: "check", action: "assert", expected: { type: "text_present", text: "Created" } },
+  ] as Step[];
+
+  it("frames an action's whole area and a check's verified outcome", () => {
+    expect(
+      shotBox(result({ step_id: "s2", action: "fill", started_ms: 0, ended_ms: 1, box: { x: 320, y: 200, width: 600, height: 40 }, region: form })),
+    ).toEqual(form);
+    const toast = { x: 400, y: 60, width: 300, height: 40 };
+    expect(shotBox(result({ step_id: "s3", action: "assert", started_ms: 0, ended_ms: 1, result_box: toast }))).toEqual(toast);
+    expect(shotBox(result({ step_id: "s3", action: "assert", started_ms: 0, ended_ms: 1 }))).toBeUndefined();
+  });
+
+  it("ends a shot just before the page changes, and gives the result its own shot", () => {
+    const p = props({
+      workflowSteps: steps,
+      results: [
+        result({ step_id: "s1", action: "click", started_ms: 1000, ended_ms: 3000, box: { x: 1300, y: 40, width: 130, height: 40 } }),
+        result({ step_id: "s2", action: "fill", started_ms: 5000, ended_ms: 7000, box: { x: 320, y: 200, width: 600, height: 40 }, region: form }),
+        result({ step_id: "s3", action: "assert", started_ms: 9000, ended_ms: 9100, result_box: { x: 400, y: 60, width: 300, height: 40 } }),
+      ],
+      navigations: [
+        { t: 0, url: "https://acme.test/projects" },
+        { t: 1800, url: "https://acme.test/projects/new" },
+      ],
+    });
+    expect(p.cuts).toEqual([1800]);
+    expect(p.focus.map((f) => [f.startMs, f.endMs])).toEqual([
+      [1000, 1600],
+      [5000, 9000],
+      [9000, 17100],
+    ]);
   });
 });

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runRehearsal, UsageTracker, type AIProvider } from "@app-story/ai";
 import { ProductConfigSchema, type AudioClip } from "@app-story/contracts";
-import { NarrationPacer, normalizeScript, writeNarrationScript } from "@app-story/narration";
+import { NarrationPacer, closingLine, normalizeScript, writeNarrationScript } from "@app-story/narration";
 import { createJob } from "@app-story/core";
 import { AppStoryError, createSilentLogger } from "@app-story/shared";
 import { FakeController } from "../support/fake-controller";
@@ -130,6 +130,12 @@ describe("narration", () => {
     });
     expect(source).toBe("scenario");
     expect(script.segments).toEqual([{ step_ids: ["s1"], text: "Start here." }]);
+    expect(script.outro).toBe("That's it for create a project.");
+  });
+
+  it("writes a grammatical closing line for scenarios", () => {
+    expect(closingLine({ title: "Creating a new project", objective: "Demonstrate how to create a new project" })).toBe("That's how to create a new project.");
+    expect(closingLine({ title: "Creating a new project", objective: "A tour of projects" })).toBe("That's it for creating a new project.");
   });
 
   it("paces steps so each line finishes before the next begins", async () => {

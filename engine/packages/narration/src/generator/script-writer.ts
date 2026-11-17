@@ -50,7 +50,7 @@ export async function writeNarrationScript(request: ScriptRequest): Promise<{ sc
       script: {
         intro: workflow.summary ?? workflow.objective,
         segments: workflow.steps.map((s) => ({ step_ids: [s.id], text: s.narration as string })),
-        outro: `That's how to ${workflow.title.charAt(0).toLowerCase()}${workflow.title.slice(1)}.`,
+        outro: closingLine(workflow),
       },
     };
   }
@@ -86,6 +86,17 @@ export async function writeNarrationScript(request: ScriptRequest): Promise<{ sc
     ),
     source: "ai",
   };
+}
+
+/**
+ * The closing line of a scenario without AI. "That's how to …" only reads well with a verb,
+ * so it is used when the objective says "how to <verb> …"; any title works with "That's it for".
+ */
+export function closingLine(workflow: Pick<Workflow, "title" | "objective">): string {
+  const howTo = /^(?:demonstrate|show|explain)?\s*how\s+to\s+(.+?)[.!]?$/i.exec(workflow.objective.trim());
+  if (howTo?.[1]) return `That's how to ${howTo[1]}.`;
+  const title = workflow.title.trim().replace(/[.!]$/, "");
+  return `That's it for ${title.charAt(0).toLowerCase()}${title.slice(1)}.`;
 }
 
 /**

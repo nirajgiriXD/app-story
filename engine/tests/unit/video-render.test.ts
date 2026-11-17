@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { VOICE_CHAIN } from "@app-story/narration";
 import {
   buildAudioMix,
+  deliveryEncoding,
   getTemplate,
   MASTER_LOUDNESS,
   masterChain,
@@ -153,5 +154,14 @@ describe("sound", () => {
 
   it("cleans up the voice before setting its loudness", () => {
     expect(VOICE_CHAIN).toMatch(/^highpass=f=80,deesser=.*acompressor=.*equalizer=/);
+  });
+});
+
+describe("delivery encoding", () => {
+  it("encodes for sharp screen text with a keyframe every two seconds", () => {
+    const args = deliveryEncoding(60);
+    expect(args).toEqual(expect.arrayContaining(["libx264", "slow", "high"]));
+    expect(args[args.indexOf("-g") + 1]).toBe("120");
+    expect(args[args.indexOf("-x264-params") + 1]).toContain("aq-mode=3");
   });
 });

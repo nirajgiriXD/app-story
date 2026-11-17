@@ -306,6 +306,29 @@ function fileIn(publicDir: string, src: string): string {
 }
 
 /**
+ * H.264 settings for the finished video, tuned for screen content: small UI text and flat
+ * colours. `slow` and a lower CRF keep edges crisp; aq-mode 3 spends bits on dark, flat
+ * areas (no blocky gradients); light deblocking keeps text sharp. A keyframe every two
+ * seconds keeps seeking quick in players. High profile plays everywhere.
+ */
+export function deliveryEncoding(fps: number): string[] {
+  return [
+    "-c:v",
+    "libx264",
+    "-preset",
+    "slow",
+    "-crf",
+    "16",
+    "-profile:v",
+    "high",
+    "-g",
+    String(Math.round(fps * 2)),
+    "-x264-params",
+    "aq-mode=3:deblock=-1,-1",
+  ];
+}
+
+/**
  * Encodes captured frames (JPEG) to H.264 as they arrive. The page is captured in sRGB,
  * which JPEG stores as full-range BT.601; the video is tagged BT.709, like the recording,
  * so players show the same colours.
@@ -334,12 +357,7 @@ class FrameEncoder {
         "-",
         "-vf",
         "scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv,format=yuv420p",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "medium",
-        "-crf",
-        "18",
+        ...deliveryEncoding(fps),
         "-colorspace",
         "bt709",
         "-color_primaries",

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { JobMetadataSchema, type JobMetadata, type Workflow } from "@app-story/contracts";
-import { AppStoryError, dataDirFor, redactSecrets } from "@app-story/shared";
+import { AppStoryError, redactSecrets } from "@app-story/shared";
 
 /** What a job keeps besides its video. Text kinds hold JSON or plain text; `thumbnail` is a PNG. */
 export type RecordKind =
@@ -118,13 +118,6 @@ export function cacheKey(kind: CacheKind, inputs: unknown): string {
   return `${kind}:${createHash("sha256").update(JSON.stringify(inputs)).digest("hex")}`;
 }
 
-const open = new Map<string, Store>();
-
-/** The database that belongs to an output folder (`<parent>/.app-story/app-story.db`). */
-export function storeFor(outputDir: string): Store {
-  return Store.open(dataDirFor(outputDir));
-}
-
 /**
  * Everything AppStory tracks, in one SQLite file (`.app-story/app-story.db` in the user's
  * project): jobs and their metadata, every record a job produces, and the cache. Finished
@@ -136,17 +129,8 @@ export class Store {
   readonly file: string;
   private readonly db: DatabaseSync;
 
-  /** One connection per data folder, shared by the whole process. */
-  static open(dataDir: string): Store {
-    let store = open.get(dataDir);
-    if (!store) {
-      store = new Store(dataDir);
-      open.set(dataDir, store);
-    }
-    return store;
-  }
-
-  private constructor(dataDir: string) {
+  /** Opens a connection; a `Runtime` keeps one per data folder (see `storeFor`). */
+  constructor(dataDir: string) {
     prepareDataDir(dataDir);
     this.dataDir = dataDir;
     this.file = join(dataDir, "app-story.db");
@@ -155,6 +139,10 @@ export class Store {
     migrate(this.db);
     const cutoff = new Date(Date.now() - CACHE_DAYS * 86_400_000).toISOString();
     this.db.prepare("DELETE FROM cache WHERE used_at < ?").run(cutoff);
+  }
+
+  close(): void {
+    this.db.close();
   }
 
   // ----------------------------------------------------------------- cache

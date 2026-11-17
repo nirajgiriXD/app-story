@@ -4,7 +4,8 @@ import type { JobError, JobMetadata, JobStatus } from "@app-story/contracts";
 import { UsageTracker } from "@app-story/ai";
 import type { LoginState } from "@app-story/browser";
 import { createJobId, createLogger, dataDirFor, ensureDir, fileExists, redactSecrets, slugify, toAppStoryError, type Logger } from "@app-story/shared";
-import { Store, type RecordKind } from "../store/store";
+import type { RecordKind, Store } from "../store/store";
+import { defaultRuntime, storeFor, type Runtime } from "../runtime";
 
 /**
  * Scratch files of a running job, in `.app-story/work/<job-id>-<name>/`. Only the finished
@@ -38,6 +39,8 @@ export interface Job {
   log: Logger;
   usage: UsageTracker;
   store: Store;
+  /** What this job shares with the other jobs of its runtime (heavy-phase lane, database). */
+  runtime: Runtime;
   /** The job's log lines (JSON), saved to the database when the job finishes. */
   logLines: string[];
   /** The app login from this job's first browser session, reused by the next ones (memory only). */
@@ -72,6 +75,8 @@ export interface CreateJobInput {
   objective: string | null;
   scenarioId: string | null;
   logLevel?: string;
+  /** Default: the process's runtime. */
+  runtime?: Runtime;
 }
 
 export async function createJob(input: CreateJobInput): Promise<Job> {
@@ -104,7 +109,8 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
     errors: [],
     warnings: [],
   };
-  const job: Job = { id, name, outputDir: input.outputDir, paths, metadata, log, usage: new UsageTracker(), store: Store.open(dataDir), logLines };
+  const runtime = input.runtime ?? defaultRuntime();
+  const job: Job = { id, name, outputDir: input.outputDir, paths, metadata, log, usage: new UsageTracker(), store: runtime.store(dataDir), runtime, logLines };
   await saveMetadata(job);
   return job;
 }
@@ -178,8 +184,8 @@ export interface HistoryEntry {
 }
 
 /** Finished jobs, newest first, from the database next to `outputDir`. */
-export async function readHistory(outputDir: string, options: { limit?: number; productId?: string } = {}): Promise<HistoryEntry[]> {
-  return Store.open(dataDirFor(outputDir)).listJobs(options).map(toHistoryEntry);
+export async function readHistory(outputDir: string, options: { limit?: number; productId?: string; runtime?: Runtime } = {}): Promise<HistoryEntry[]> {
+  return storeFor(outputDir, options.runtime).listJobs(options).map(toHistoryEntry);
 }
 
 function toHistoryEntry(m: JobMetadata): HistoryEntry {

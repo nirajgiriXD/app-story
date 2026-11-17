@@ -19,6 +19,7 @@ import {
   MIGRATIONS,
   planFile,
   readHistory,
+  Runtime,
   saveRecord,
   savePlan,
   storeFor,
@@ -226,5 +227,37 @@ describe("database migrations", () => {
     const db = await tempDb();
     db.exec("PRAGMA user_version = 99");
     expect(() => migrate(db)).toThrow(/newer AppStory/);
+  });
+});
+
+describe("runtime", () => {
+  it("gives each runtime its own heavy-phase lane", async () => {
+    const [a, b] = [new Runtime(), new Runtime()];
+    let release: () => void = () => undefined;
+    const blocked = a.heavy(() => new Promise<void>((resolve) => (release = resolve)));
+    expect(await b.heavy(async () => "not waiting")).toBe("not waiting");
+    release();
+    await blocked;
+  });
+
+  it("puts a job in its runtime's database, and closes it on close()", async () => {
+    const out = await workspace();
+    const runtime = new Runtime();
+    const created = await createJob({
+      outputDir: out,
+      productId: "shop",
+      name: "x",
+      mode: "guided",
+      objective: null,
+      scenarioId: null,
+      logLevel: "silent",
+      runtime,
+    });
+    expect(created.runtime).toBe(runtime);
+    expect(created.store).toBe(storeFor(out, runtime));
+    expect(created.store).not.toBe(storeFor(out));
+    runtime.close();
+    expect(() => created.store.getJob(created.id)).toThrow();
+    expect(storeFor(out, runtime).getJob(created.id)?.job_id).toBe(created.id);
   });
 });

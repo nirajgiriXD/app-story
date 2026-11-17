@@ -12,4 +12,5 @@ export * from "./pipeline/takes";
 export * from "./orchestrator/validate";
 export * from "./orchestrator/release-notes";
 export * from "./store/store";
+export * from "./runtime";
 export * from "./qa/visual-review";

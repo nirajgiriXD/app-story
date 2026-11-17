@@ -3,7 +3,8 @@ import { FeaturePlanSchema, type AiProviderConfig, type FeaturePlan } from "@app
 import type { LoadedProduct } from "@app-story/products";
 import { AppStoryError, createLogger, isAppStoryError } from "@app-story/shared";
 import type { ProviderOverrides } from "../pipeline/providers";
-import { cacheKey, storeFor } from "../store/store";
+import { cacheKey } from "../store/store";
+import { storeFor, type Runtime } from "../runtime";
 
 export interface PickFeaturesRequest {
   product: LoadedProduct;
@@ -13,6 +14,8 @@ export interface PickFeaturesRequest {
   outputDir?: string;
   /** Ask the AI again even if this product file was read before. */
   fresh?: boolean;
+  /** Default: the process's runtime. */
+  runtime?: Runtime;
 }
 
 export interface PickFeaturesResult {
@@ -41,7 +44,7 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
   const context = { name: config.product.name, description: config.product.description, baseUrl: config.product.base_url };
 
   // The same product file gives the same features: reuse the earlier answer.
-  const store = request.outputDir ? storeFor(request.outputDir) : undefined;
+  const store = request.outputDir ? storeFor(request.outputDir, request.runtime) : undefined;
   const key = cacheKey("features", { context, brief: product.brief, prompt: PROMPT_VERSIONS["release-notes"] });
   const saved = request.fresh ? undefined : store?.getCachedText(key);
   if (saved) {

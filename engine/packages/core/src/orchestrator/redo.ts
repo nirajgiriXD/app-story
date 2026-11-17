@@ -7,7 +7,7 @@ import { prepareRenderer } from "@app-story/video";
 import { createJob, finishJob, recordError, saveMetadata, saveRecord } from "../job-manager/job";
 import { statusForError } from "../pipeline/status";
 import { listTakes, loadTake, type Take } from "../pipeline/takes";
-import { storeFor } from "../store/store";
+import { storeFor, type Runtime } from "../runtime";
 import { renderTake } from "./generate";
 
 export interface RedoRequest {
@@ -19,6 +19,8 @@ export interface RedoRequest {
   template?: TemplateName;
   logLevel?: string;
   onJobCreated?: (job: { id: string; paths: { root: string } }) => void;
+  /** Default: the process's runtime. */
+  runtime?: Runtime;
 }
 
 /**
@@ -28,7 +30,7 @@ export interface RedoRequest {
  */
 export async function redoVideo(request: RedoRequest): Promise<JobMetadata> {
   const { product } = request;
-  const dataDir = storeFor(request.outputDir).dataDir;
+  const dataDir = storeFor(request.outputDir, request.runtime).dataDir;
   const jobId = request.jobId ?? (await listTakes(dataDir, product.id))[0]?.jobId;
   if (!jobId) {
     throw new AppStoryError("CONFIG_INVALID", `No video of ${product.id} has a kept recording yet.`, {
@@ -48,6 +50,7 @@ export async function redoVideo(request: RedoRequest): Promise<JobMetadata> {
     objective: source.objective,
     scenarioId: null,
     logLevel: request.logLevel,
+    runtime: request.runtime,
   });
   job.metadata.redo_of = jobId;
   const before = job.store.getJob(jobId);

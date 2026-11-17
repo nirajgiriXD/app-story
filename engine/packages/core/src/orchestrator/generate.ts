@@ -8,6 +8,7 @@ import { AppStoryError, isAppStoryError, probeMedia, slugify } from "@app-story/
 import { prepareRenderer, toOtio } from "@app-story/video";
 import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type Job } from "../job-manager/job";
 import { withProviderFallback, type ProviderOverrides } from "../pipeline/providers";
+import type { Runtime } from "../runtime";
 import { rehearseWorkflow } from "../pipeline/rehearse";
 import { prepareNarration } from "../pipeline/narrate";
 import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
@@ -15,7 +16,6 @@ import { composeVideo, type ComposeResult } from "../pipeline/compose";
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
 import { keepTake, type KeptTake, type Take } from "../pipeline/takes";
 import { statusForError } from "../pipeline/status";
-import { exclusive } from "../pipeline/exclusive";
 import { runQualityChecks } from "../qa/quality";
 import { grabFrames, linesToReview, REVIEW_REQUEST, reviewPrompt, stepsToShowWide, visualReviewEnabled } from "../qa/visual-review";
 
@@ -39,6 +39,8 @@ export interface GenerateRequest {
   logLevel?: string;
   providers?: ProviderOverrides;
   onJobCreated?: (job: Job) => void;
+  /** Default: the process's runtime. */
+  runtime?: Runtime;
 }
 
 /** Recording failures that mean "the steps no longer match the app", not "the app is down". */
@@ -61,6 +63,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     objective: request.objective,
     scenarioId: null,
     logLevel: request.logLevel,
+    runtime: request.runtime,
   });
   request.onJobCreated?.(job);
   // Bundle the video compositions while the AI and the browser work (errors resurface at render).
@@ -97,7 +100,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     const narration = await prepareNarration(job, product, workflow, { durationS, kind: request.kind, fresh: request.fresh }, overrides);
     await saveMetadata(job);
     phase = "recording";
-    const recorded = await exclusive(async () => {
+    const recorded = await job.runtime.heavy(async () => {
       // Never record while the renderer is still bundling: the screen capture would drop frames.
       await prepareRenderer().catch(() => undefined);
       return recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless });
@@ -191,7 +194,7 @@ export async function renderTake(
   });
 
   options.onPhase?.("render");
-  let composed = await exclusive(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
+  let composed = await job.runtime.heavy(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
   if (options.review && visualReviewEnabled()) {
     options.onPhase?.("review");
     composed = (await reviewAndFix(job, product, take, composed, options.review.overrides)) ?? composed;
@@ -285,7 +288,7 @@ async function reviewAndFix(
     job.metadata.warnings.push(`AI review re-framed ${stepIds.length} step(s): ${issues.join("; ")}`);
     const wide = new Set(stepIds);
     const workflow = { ...take.workflow, steps: take.workflow.steps.map((s) => (wide.has(s.id) ? { ...s, zoom: false } : s)) };
-    return await exclusive(() => composeVideo(job, product, workflow, take.clips, take.recorded, { kind: take.kind ?? undefined }));
+    return await job.runtime.heavy(() => composeVideo(job, product, workflow, take.clips, take.recorded, { kind: take.kind ?? undefined }));
   } catch (error) {
     job.log.warn({ error: (error as Error).message }, "AI review failed; the video is kept as it is");
     job.metadata.warnings.push(`AI review skipped: ${(error as Error).message}`);

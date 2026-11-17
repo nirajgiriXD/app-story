@@ -82,7 +82,15 @@ export const JobMetadataSchema = z.object({
   tts: z.object({ provider: z.string().nullable(), voice: z.string().nullable(), model: z.string().nullable() }),
   workflow_version: z.number().nullable(),
   recording: z.object({ path: z.string(), duration_s: z.number(), width: z.number(), height: z.number(), engine: z.string() }).nullable(),
-  video: z.object({ path: z.string(), thumbnail: z.string().nullable(), duration_s: z.number() }).nullable(),
+  video: z
+    .object({
+      path: z.string(),
+      thumbnail: z.string().nullable(),
+      duration_s: z.number(),
+      /** The other files made with it: other shapes, a GIF, other languages (see `formats` and `language`). */
+      extras: z.array(z.string()).optional(),
+    })
+    .nullable(),
   usage: UsageSummarySchema.nullable(),
   quality: z.object({ passed: z.boolean(), errors: z.number(), warnings: z.number() }).nullable(),
   approval: z.object({ status: z.enum(["pending_review", "approved", "rejected"]), note: z.string().optional() }),

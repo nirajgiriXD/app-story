@@ -28,7 +28,7 @@ export async function recordWorkflow(
   product: LoadedProduct,
   workflow: Workflow,
   clips: AudioClip[],
-  options: { headless?: boolean },
+  options: { headless?: boolean; holdMs?: ReadonlyMap<string, number> },
 ): Promise<RecordingOutcome> {
   const config = product.config;
   const outcome = await withBrowser(
@@ -63,7 +63,7 @@ export async function recordWorkflow(
           now: () => controller.now(),
           wait: (ms) => controller.wait(ms),
         },
-        { leadMs: (step) => actionLeadMs(step, { cursorMoveMs: config.recording.cursor_move_ms }) },
+        { leadMs: (step) => actionLeadMs(step, { cursorMoveMs: config.recording.cursor_move_ms }), holdMs: options.holdMs },
       );
 
       const report = await runSteps(controller, workflow.steps, {

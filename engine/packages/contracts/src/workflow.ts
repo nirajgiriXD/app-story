@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { NarrationTranslationSchema } from "./narration";
 
 /** Bump when the workflow file format changes in a non-compatible way. */
 export const WORKFLOW_VERSION = 1 as const;
@@ -125,6 +126,8 @@ export const SavedNarrationSchema = z.object({
   intro: z.string(),
   segments: z.array(z.object({ step_ids: z.array(z.string()).min(1), text: z.string() })).min(1),
   outro: z.string(),
+  /** The same narration in the product's other languages, by language code (see `language:`). */
+  translations: z.record(z.string(), NarrationTranslationSchema).optional(),
 });
 export type SavedNarration = z.infer<typeof SavedNarrationSchema>;
 

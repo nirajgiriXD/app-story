@@ -26,6 +26,7 @@ export function printJob(m: JobMetadata): void {
   if (m.ai.provider) console.log(`  AI:        ${m.ai.provider} / ${m.ai.model}${m.ai.fallback_used ? yellow(" (fallback used)") : ""}`);
   if (m.tts.provider) console.log(`  Voice:     ${m.tts.provider} / ${m.tts.voice}`);
   if (ok && m.video) console.log(`  Video:     ${m.video.path} ${dim(`(${m.video.duration_s}s)`)}`);
+  if (ok) for (const extra of m.video?.extras ?? []) console.log(`  Also:      ${extra}`);
   if (m.usage && m.usage.requests > 0) {
     const cost = m.usage.estimated_cost_usd === null ? "n/a" : `$${m.usage.estimated_cost_usd.toFixed(4)}`;
     console.log(`  Tokens:    ${m.usage.input_tokens} in / ${m.usage.output_tokens} out ${dim(`(est. ${cost})`)}`);

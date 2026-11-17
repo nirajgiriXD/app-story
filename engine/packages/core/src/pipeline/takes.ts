@@ -3,6 +3,7 @@ import { basename, join, resolve } from "node:path";
 import type { AudioClip, VideoKind, Workflow } from "@app-story/contracts";
 import { AppStoryError, ensureDir, fileExists } from "@app-story/shared";
 import type { Job } from "../job-manager/job";
+import type { LanguageVoice } from "./narrate";
 import type { RecordingOutcome } from "./record";
 
 /**
@@ -23,6 +24,8 @@ export interface Take {
   clips: AudioClip[];
   recorded: RecordingOutcome;
   silent: boolean;
+  /** The narration in the product's other languages, voiced over the same recording. */
+  languages?: LanguageVoice[];
 }
 
 /** How many takes are kept per product. */
@@ -47,7 +50,7 @@ export async function keepTake(job: Job, take: Take): Promise<KeptTake> {
   await ensureDir(dir);
   await copyFile(take.recorded.recording.path, join(dir, RECORDING));
   const clipFiles = new Map<string, string>();
-  for (const clip of take.clips) {
+  for (const clip of [...take.clips, ...(take.languages ?? []).flatMap((l) => l.clips)]) {
     if (clipFiles.has(clip.path)) continue;
     const name = `clip-${clipFiles.size}-${basename(clip.path)}`;
     await copyFile(clip.path, join(dir, name));
@@ -64,6 +67,7 @@ export async function keepTake(job: Job, take: Take): Promise<KeptTake> {
       recording: { ...take.recorded.recording, path: RECORDING },
       placed: take.recorded.placed.map((c) => ({ ...c, path: relative(c.path) })),
     },
+    languages: take.languages?.map((l) => ({ ...l, clips: l.clips.map((c) => ({ ...c, path: relative(c.path) })) })),
   };
   await writeFile(join(dir, TAKE_FILE), JSON.stringify(stored));
   await pruneTakes(job.store.dataDir, take.product_id);
@@ -91,6 +95,7 @@ export async function loadTake(dataDir: string, jobId: string): Promise<Take & {
       recording: { ...take.recorded.recording, path: abs(take.recorded.recording.path) },
       placed: take.recorded.placed.map((c) => ({ ...c, path: abs(c.path) })),
     },
+    languages: take.languages?.map((l) => ({ ...l, clips: l.clips.map((c) => ({ ...c, path: abs(c.path) })) })),
   };
 }
 

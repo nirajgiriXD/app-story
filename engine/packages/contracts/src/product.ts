@@ -114,6 +114,10 @@ export type SafetyConfig = z.infer<typeof SafetyConfigSchema>;
 export const RESOLUTIONS = { "720p": [1280, 720], "1080p": [1920, 1080], "1440p": [2560, 1440], "4k": [3840, 2160] } as const;
 export const ResolutionSchema = z.enum(["720p", "1080p", "1440p", "4k"]);
 
+/** Extra files made with every video: a 9:16 and a 1:1 version, and a GIF of the app part. */
+export const EXTRA_FORMATS = ["vertical", "square", "gif"] as const;
+export type ExtraFormat = (typeof EXTRA_FORMATS)[number];
+
 export const ProductConfigSchema = z.object({
   version: z.literal(1),
   product: z.object({
@@ -147,12 +151,16 @@ export const ProductConfigSchema = z.object({
   demo: z
     .object({
       default_language: z.string().default("en"),
+      /** More languages, each voiced and rendered over the same recording (the first language paces it). */
+      languages: z.array(z.string().min(2)).default([]),
       default_duration: z.number().int().positive().default(90),
       default_resolution: ResolutionSchema.default("1080p"),
       /** 60 keeps the cursor and the camera's moves smooth; 30 renders in half the time. */
       fps: z.number().int().min(24).max(60).default(60),
       /** Video look. Unset: picked per video (see `pickTemplate`). */
       template: z.enum(TEMPLATE_NAMES).optional(),
+      /** Extra files made with every video, next to the 16:9 one. */
+      formats: z.array(z.enum(EXTRA_FORMATS)).default([]),
       audience: z.string().optional(),
     })
     .prefault({}),

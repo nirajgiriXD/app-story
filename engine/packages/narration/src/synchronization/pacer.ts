@@ -13,6 +13,8 @@ export interface PacerOptions {
    * click). An anchored step starts this much before its word, so the click lands on it.
    */
   leadMs?: (step: Pick<Step, "id" | "action">) => number;
+  /** Hold each line's steps back for at least this long (by clip id), e.g. for a longer translation. */
+  holdMs?: ReadonlyMap<string, number>;
 }
 
 /**
@@ -51,7 +53,7 @@ export class NarrationPacer {
       const start = this.clock.now();
       this.placed.push({ ...clip, start_ms: start });
       this.startedAt.set(clip.id, start);
-      this.busyUntil = start + clip.duration_ms + this.gapMs;
+      this.busyUntil = start + Math.max(clip.duration_ms, this.options.holdMs?.get(clip.id) ?? 0) + this.gapMs;
       return;
     }
     const anchor = this.anchored.get(step.id);

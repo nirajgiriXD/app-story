@@ -10,8 +10,10 @@ const promptDir = existsSync(join(here, "prompts")) ? join(here, "prompts") : he
 export const PROMPT_VERSIONS = {
   rehearsal: "v3",
   narration: "v3",
+
   "release-notes": "v2",
   review: "v1",
+  translation: "v1",
 } as const;
 
 export type PromptName = keyof typeof PROMPT_VERSIONS;

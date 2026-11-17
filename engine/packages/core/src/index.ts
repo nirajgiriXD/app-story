@@ -4,6 +4,7 @@ export * from "./agent/browser-tools";
 export * from "./pipeline/status";
 export * from "./pipeline/browser";
 export * from "./pipeline/plans";
+export { checkTranslation, savedScript } from "./pipeline/narrate";
 export type { ProviderOverrides } from "./pipeline/providers";
 export * from "./qa/quality";
 export * from "./orchestrator/generate";

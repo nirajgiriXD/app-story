@@ -49,6 +49,8 @@ export interface RenderProps {
   sfx?: SoundEffect[];
   /** Keys pressed on camera, shown as keycaps (recording-relative times). */
   keys?: { atMs: number; labels: string[] }[];
+  /** The cards' own words in the video's language: the end card's call to action (`{host}` is the app's address) and the title badge. */
+  labels?: { cta: string; badge: string | null };
 }
 
 export interface SoundEffect {

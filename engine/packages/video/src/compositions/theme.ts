@@ -34,7 +34,12 @@ export function textColor(p: RenderProps): { strong: string; muted: string } {
   return isDark(p) ? { strong: "#F8FAFC", muted: "#CBD5E1" } : { strong: p.brand.accent, muted: "#475569" };
 }
 
-/** Scale design pixels (authored at 1080p) to the output height. */
+/** Scale design pixels (authored for a 1080-pixel short side) to the output's short side. */
 export function px(p: RenderProps, value: number): number {
-  return (value * p.height) / 1080;
+  return (value * Math.min(p.width, p.height)) / 1080;
+}
+
+/** The frame's shape: landscape (16:9), portrait (9:16, for Reels and Shorts) or square. */
+export function shape(p: Pick<RenderProps, "width" | "height">): "wide" | "tall" | "square" {
+  return p.width > p.height * 1.2 ? "wide" : p.height > p.width * 1.2 ? "tall" : "square";
 }

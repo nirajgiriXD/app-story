@@ -9,5 +9,6 @@ export type { RenderProps, SoundEffect } from "./props";
 export { HANDOVER_SPLIT, handoverIn, handoverOut } from "./compositions/handover";
 export * from "./edit";
 export { keyLabels } from "./keys";
+export { renderGif, reshapeProps, type FrameFormat } from "./formats";
 
 export { toOtio } from "./otio";

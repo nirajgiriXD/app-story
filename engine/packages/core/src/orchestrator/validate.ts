@@ -88,6 +88,9 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
   ok(`blocked actions: ${allowed.length ? `all except ${allowed.join(", ")}` : "delete, payments, emails, publishing, account settings, invites"}`);
 
   if (config.browser.blur.length) ok(`blurred on screen: ${config.browser.blur.join(", ")}`);
+  if (config.demo.languages.length)
+    ok(`languages: ${[config.demo.default_language, ...config.demo.languages].join(", ")} (one video each, from one recording)`);
+  if (config.demo.formats.length) ok(`also made with every video: ${config.demo.formats.join(", ")}`);
 
   for (const path of [config.branding.logo, config.branding.background_music]) {
     if (path && !(await fileExists(resolveProductPath(product, path)))) warn(`file not found: ${path}`);

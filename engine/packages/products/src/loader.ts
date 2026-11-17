@@ -4,6 +4,7 @@ import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import {
   AI_PROVIDERS,
+  EXTRA_FORMATS,
   EffortSchema,
   KOKORO_VOICES,
   ProductConfigSchema,
@@ -14,6 +15,7 @@ import {
   formatZodError,
   resolveKokoroVoice,
   type AiProviderName,
+  type ExtraFormat,
   type ProductConfig,
   type SafetyConfig,
   type TtsConfig,
@@ -72,7 +74,7 @@ const SettingsSchema = z
     model: z.string().optional(),
     voice: z.enum(TTS_PROVIDERS).optional(),
     length: z.number({ error: "length is the video length in seconds, e.g. 60" }).int().min(10).max(600).optional(),
-    language: z.string().optional(),
+    language: z.union([z.string(), z.array(z.string())], { error: "language is a language code, or several: language: en, de" }).optional(),
     template: z.enum(TEMPLATE_NAMES, { error: `template must be one of: ${TEMPLATE_NAMES.join(", ")}` }).optional(),
     fps: z.union([z.literal(30), z.literal(60)], { error: "fps is 30 or 60" }).optional(),
     resolution: z.enum(["1080p", "1440p", "4k"], { error: "resolution is 1080p, 1440p or 4k" }).optional(),
@@ -83,6 +85,7 @@ const SettingsSchema = z
       .optional(),
     allow: z.union([z.string(), z.array(z.string())]).optional(),
     blur: z.union([z.string().min(1), z.array(z.string().min(1))], { error: "blur is a CSS selector (or a list of them), e.g. blur: .api-key" }).optional(),
+    formats: z.union([z.string(), z.array(z.string())]).optional(),
   })
   .strict();
 type Settings = z.infer<typeof SettingsSchema>;
@@ -143,6 +146,23 @@ function parseAllow(allow: Settings["allow"], file: string): Partial<SafetyConfi
     out[key] = true;
   }
   return out;
+}
+
+/** `language: en, de, fr`: the first one paces the recording; each other one gets a video of its own. */
+function parseLanguages(language: Settings["language"]): { default_language?: string; languages: string[] } {
+  const items = (Array.isArray(language) ? language : (language ?? "").split(",")).map((s) => s.trim()).filter(Boolean);
+  const [first, ...rest] = [...new Set(items)];
+  return { default_language: first, languages: rest };
+}
+
+function parseFormats(formats: Settings["formats"], file: string): ExtraFormat[] {
+  const items = (Array.isArray(formats) ? formats : (formats ?? "").split(",")).map((s) => s.trim().toLowerCase()).filter(Boolean);
+  for (const item of items) {
+    if (!(EXTRA_FORMATS as readonly string[]).includes(item)) {
+      throw new AppStoryError("CONFIG_INVALID", `Unknown entry '${item}' in formats: in ${file}.`, { hint: `Use any of: ${EXTRA_FORMATS.join(", ")}.` });
+    }
+  }
+  return [...new Set(items)] as ExtraFormat[];
 }
 
 /** The first `# Heading`, and the first plain paragraph under it. */
@@ -216,7 +236,14 @@ export function parseProductFile(text: string, file: string, id: string): { conf
     },
 
     authentication: login ? { strategy: "auto", ...login, login_path: s["login page"] } : { strategy: "none" },
-    demo: { default_language: s.language, default_duration: s.length, template: s.template, fps: s.fps, default_resolution: s.resolution },
+    demo: {
+      ...parseLanguages(s.language),
+      default_duration: s.length,
+      template: s.template,
+      fps: s.fps,
+      default_resolution: s.resolution,
+      formats: parseFormats(s.formats, file),
+    },
     branding: { logo: s.logo, primary_color: s.color },
     providers: {
       ai: { provider: ai, model: s.model },
@@ -267,6 +294,13 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
     next.providers.tts = { ...next.providers.tts, provider: ttsProvider, voice: undefined, model: undefined };
   }
   next.providers.tts = applyVoiceSettings(next.providers.tts);
+  const english = (code: string) => code.toLowerCase().startsWith("en");
+  const others = next.demo.languages.filter((code) => !english(code));
+  if (others.length && (next.providers.tts.provider === "kokoro" || next.providers.tts.provider === "chatterbox")) {
+    throw new AppStoryError("CONFIG_INVALID", `The ${next.providers.tts.provider} voice speaks English only, so it cannot narrate ${others.join(", ")}.`, {
+      hint: "For more languages use voice: openai or voice: elevenlabs (or voice: none for captions only).",
+    });
+  }
   return next;
 }
 

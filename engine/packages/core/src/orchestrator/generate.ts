@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { JobMetadata, JobStatus, NarrationScript, VideoKind, Workflow } from "@app-story/contracts";
+import type { JobMetadata, JobStatus, NarrationScript, NarrationTranslation, VideoKind, Workflow } from "@app-story/contracts";
 
 import { WORKFLOW_VERSION } from "@app-story/contracts";
 import type { LoadedProduct } from "@app-story/products";
@@ -11,9 +11,9 @@ import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveReco
 import { withProviderFallback, type ProviderOverrides } from "../pipeline/providers";
 import type { Runtime } from "../runtime";
 import { rehearseWorkflow } from "../pipeline/rehearse";
-import { prepareNarration } from "../pipeline/narrate";
+import { prepareNarration, prepareTranslations } from "../pipeline/narrate";
 import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
-import { composeVideo, type ComposeResult } from "../pipeline/compose";
+import { composeVideo, renderExtras, renderLanguages, type ComposeResult } from "../pipeline/compose";
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
 import { keepTake, type KeptTake, type Take } from "../pipeline/takes";
 import { statusForError } from "../pipeline/status";
@@ -118,12 +118,23 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       { durationS, kind: request.kind, fresh: request.fresh, replay: request.replay },
       overrides,
     );
+    // The other languages are voiced first too: the recording waits for the longest of each line.
+    const voices = await prepareTranslations(
+      job,
+      product,
+      workflow,
+      narration,
+      { kind: request.kind, fresh: request.fresh, replay: request.replay },
+      overrides,
+    );
+    const holdMs = new Map<string, number>();
+    for (const clip of voices.flatMap((v) => v.clips)) holdMs.set(clip.id, Math.max(holdMs.get(clip.id) ?? 0, clip.duration_ms));
     await saveMetadata(job);
     phase = "recording";
     const recorded = await job.runtime.heavy(async () => {
       // Never record while the renderer is still bundling: the screen capture would drop frames.
       await prepareRenderer().catch(() => undefined);
-      return recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless });
+      return recordWorkflow(job, product, workflow, narration.clips, { headless: request.headless, holdMs });
     });
     job.metadata.recording = {
       path: recorded.recording.path,
@@ -134,7 +145,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     };
     failIfIncomplete(recorded);
     await saveMetadata(job);
-    return { ...narration, recorded };
+    return { ...narration, voices, recorded };
   };
 
   try {
@@ -169,7 +180,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       await check(workflow);
       take = await narrateAndRecord(workflow);
     }
-    const { clips, silent, recorded, script, source } = take;
+    const { clips, silent, recorded, script, source, voices } = take;
     const kept: Take = {
       job_id: job.id,
       product_id: product.id,
@@ -180,6 +191,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       clips,
       recorded,
       silent,
+      languages: voices,
     };
 
     // 4–5. Captions, render and quality checks. A replayed plan whose narration was already
@@ -188,7 +200,8 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     const review = request.replay && source !== "ai" ? undefined : { overrides };
     const rendered = await renderTake(job, product, kept, { onPhase: (p) => (phase = p), review });
     if (rendered.status !== "failed" && keepPlan) {
-      const plan = planToSave(rendered.workflow, { kind: request.kind, language: config.demo.default_language, script });
+      const translations = Object.fromEntries(voices.map((v) => [v.language, v.translation]));
+      const plan = planToSave(rendered.workflow, { kind: request.kind, language: config.demo.default_language, script, translations });
       await savePlan(product, name, plan);
     }
     return await finishJob(job, rendered.status);
@@ -204,8 +217,12 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
  * of video it was made for (its look on replay) and its narration, so the next video of it
  * needs no AI.
  */
-export function planToSave(workflow: Workflow, made: { kind?: VideoKind; language: string; script: NarrationScript }): Workflow {
-  return { ...workflow, kind: made.kind ?? workflow.kind, narration: { language: made.language, ...made.script } };
+export function planToSave(
+  workflow: Workflow,
+  made: { kind?: VideoKind; language: string; script: NarrationScript; translations?: Record<string, NarrationTranslation> },
+): Workflow {
+  const translations = made.translations && Object.keys(made.translations).length ? made.translations : undefined;
+  return { ...workflow, kind: made.kind ?? workflow.kind, narration: { language: made.language, ...made.script, ...(translations ? { translations } : {}) } };
 }
 
 /**
@@ -263,8 +280,11 @@ export async function renderTake(
       recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
     return { status: "failed", workflow: rendered };
   }
-  // Only the video (and its captions) go to output/.
-  await deliverVideo(job);
+  // Only the video, its captions, the extra formats and the other languages go to output/.
+  options.onPhase?.("formats");
+  const formats = await renderExtras(job, product, composed);
+  const languages = await renderLanguages(job, product, rendered, recorded, take.languages ?? [], { kind });
+  await deliverVideo(job, [...formats, ...languages]);
   return { status: job.metadata.warnings.length > 0 ? "success_with_warnings" : "success", workflow: rendered };
 }
 

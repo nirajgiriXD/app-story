@@ -96,6 +96,16 @@ async function copyTakeInto(paths: { rawRecording: string; narrationDir: string 
     await copyFile(clip.path, target);
     moved.set(clip.path, target);
   }
+  // Each language's clips in a folder of its own: their file names are the same in every language.
+  for (const voice of take.languages ?? []) {
+    await ensureDir(join(paths.narrationDir, voice.language));
+    for (const clip of voice.clips) {
+      if (moved.has(clip.path)) continue;
+      const target = join(paths.narrationDir, voice.language, basename(clip.path));
+      await copyFile(clip.path, target);
+      moved.set(clip.path, target);
+    }
+  }
   const at = (path: string) => moved.get(path) ?? path;
   return {
     ...take,
@@ -105,5 +115,6 @@ async function copyTakeInto(paths: { rawRecording: string; narrationDir: string 
       recording: { ...take.recorded.recording, path: paths.rawRecording },
       placed: take.recorded.placed.map((c) => ({ ...c, path: at(c.path) })),
     },
+    languages: take.languages?.map((l) => ({ ...l, clips: l.clips.map((c) => ({ ...c, path: at(c.path) })) })),
   };
 }

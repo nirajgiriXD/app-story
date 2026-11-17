@@ -19,6 +19,22 @@ export const NarrationScriptSchema = z.object({
 });
 export type NarrationScript = z.infer<typeof NarrationScriptSchema>;
 
+/**
+ * The narration and the title cards' words in another language, line for line: `segments[i]`
+ * is the translation of the original's segment i, with its `{{@step}}` anchors kept.
+ * All fields required (nullable where optional), for strict structured outputs.
+ */
+export const NarrationTranslationSchema = z.object({
+  title: z.string().describe("The video's title."),
+  summary: z.string().nullable().describe("The subtitle under the title, or null if the original has none."),
+  intro: z.string(),
+  segments: z.array(z.string()).describe("One per original segment, in the same order."),
+  outro: z.string(),
+  cta: z.string().describe('The end card\'s call to action, keeping the "{host}" placeholder.'),
+  badge: z.string().nullable().describe("The title card's badge (e.g. New), or null if the original has none."),
+});
+export type NarrationTranslation = z.infer<typeof NarrationTranslationSchema>;
+
 /** When a word is spoken, in ms from the start of its clip. */
 export const WordTimingSchema = z.object({ text: z.string(), start_ms: z.number(), end_ms: z.number() });
 export type WordTiming = z.infer<typeof WordTimingSchema>;

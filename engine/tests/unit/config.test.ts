@@ -86,6 +86,14 @@ describe("product file", () => {
     expect(config.safety.allow).toMatchObject({ delete: true, invite_users: true, payments: false });
   });
 
+  it("reads more languages and extra formats, and refuses an English-only voice for other languages", () => {
+    const { config } = parse(file("url: https://acme.test\nvoice: openai\nlanguage: en, de, fr\nformats: vertical, gif"));
+    expect(config.demo).toMatchObject({ default_language: "en", languages: ["de", "fr"], formats: ["vertical", "gif"] });
+    expect(parse(file("url: https://acme.test\nlanguage: de")).config.demo).toMatchObject({ default_language: "de", languages: [] });
+    expect(errorOf(() => applyOverrides(parse(file("url: https://acme.test\nlanguage: en, de")).config)).message).toMatch(/kokoro voice speaks English only/);
+    expect(errorOf(() => parse(file("url: https://acme.test\nformats: vertical, tiktok"))).message).toMatch(/Unknown entry 'tiktok' in formats/);
+  });
+
   it("reads blur as one CSS selector list or as a YAML list", () => {
     expect(parse(file("url: https://acme.test")).config.browser.blur).toEqual([]);
     expect(parse(file('url: https://acme.test\nblur: ".api-key, #email"')).config.browser.blur).toEqual([".api-key, #email"]);

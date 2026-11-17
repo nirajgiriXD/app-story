@@ -1,5 +1,5 @@
 import { copyFile, readFile, writeFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { dirname, extname, join } from "node:path";
 import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Workflow } from "@app-story/contracts";
 import { buildCues, toSrt, toVtt } from "@app-story/captions";
 import { resolveProductPath, type LoadedProduct } from "@app-story/products";
@@ -11,11 +11,14 @@ import {
   getTemplate,
   placeNarration,
   planEdit,
+  renderGif,
   renderVideo,
+  reshapeProps,
   type RenderProps,
   type TimelinePlan,
 } from "@app-story/video";
-import { saveRecord, type Job } from "../job-manager/job";
+import { saveRecord, type ExtraFile, type Job } from "../job-manager/job";
+import type { LanguageVoice } from "./narrate";
 import type { RecordingOutcome } from "./record";
 
 export interface ComposeResult {
@@ -47,8 +50,16 @@ export async function composeVideo(
   workflow: Workflow,
   clips: AudioClip[],
   recorded: RecordingOutcome,
-  options: { kind?: VideoKind },
+  options: {
+    kind?: VideoKind;
+    /** Another language's words for the cards; its clips are `clips` and `recorded.placed`. */
+    language?: { title: string; subtitle?: string; labels: NonNullable<RenderProps["labels"]> };
+    /** Where the video and its captions go. Default: the job's final video; only that one gets a thumbnail and its captions kept. */
+    out?: { video: string; captions: string };
+  },
 ): Promise<ComposeResult> {
+  const main = !options.out;
+  const out = options.out ?? { video: job.paths.finalVideo, captions: job.paths.finalCaptions };
   const config = product.config;
   const templateName = pickTemplate(config.demo.template, options.kind);
   const template = getTemplate(templateName);
@@ -83,18 +94,21 @@ export async function composeVideo(
     { maxCharsPerLine: config.captions.max_chars_per_line, maxLines: 2 },
   );
   if (config.captions.enabled) {
-    saveRecord(job, "captions_srt", toSrt(cues));
-    saveRecord(job, "captions_vtt", toVtt(cues));
-    await ensureDir(job.paths.videoDir);
-    await writeFile(job.paths.finalCaptions, toSrt(cues), "utf8");
+    if (main) {
+      saveRecord(job, "captions_srt", toSrt(cues));
+      saveRecord(job, "captions_vtt", toVtt(cues));
+    }
+    await ensureDir(dirname(out.captions));
+    await writeFile(out.captions, toSrt(cues), "utf8");
   }
 
   const props = buildRenderProps({
     config,
     template,
     plan,
-    title: workflow.title,
-    subtitle: workflow.summary,
+    title: options.language?.title ?? workflow.title,
+    subtitle: options.language ? options.language.subtitle : workflow.summary,
+    labels: options.language?.labels,
     recordingSrc: toSrc(recorded.recording.path),
     recordingMs: edited.durationMs,
     timeMap,
@@ -117,15 +131,90 @@ export async function composeVideo(
   await renderVideo({
     publicDir: job.paths.root,
     props,
-    outputFile: job.paths.finalVideo,
-    thumbnailFile: job.paths.thumbnail,
+    outputFile: out.video,
+    thumbnailFile: main ? job.paths.thumbnail : undefined,
     thumbnailAtMs: thumbAt,
     log: job.log,
   });
-  const thumbnail = await readFile(job.paths.thumbnail).catch(() => undefined);
+  const thumbnail = main ? await readFile(job.paths.thumbnail).catch(() => undefined) : undefined;
   if (thumbnail) saveRecord(job, "thumbnail", thumbnail);
   const lines = edited.voice.map((v) => ({ text: v.text, stepIds: v.step_ids, startMs: plan.recordingStartMs + v.start_ms, durationMs: v.duration_ms }));
   return { plan, cues, lines, props };
+}
+
+/**
+ * The extra formats the product file asks for (`formats:`), made from the finished cut: the
+ * same video in 9:16 or 1:1, and a GIF of its app part. One that fails is a warning: the
+ * main video stands on its own.
+ */
+export async function renderExtras(job: Job, product: LoadedProduct, composed: ComposeResult): Promise<ExtraFile[]> {
+  const extras: ExtraFile[] = [];
+  for (const format of product.config.demo.formats) {
+    const suffix = format === "gif" ? ".gif" : `.${format}.mp4`;
+    const file = join(job.paths.videoDir, `final${suffix}`);
+    try {
+      if (format === "gif") {
+        await renderGif(job.paths.finalVideo, file, composed.props.recording);
+      } else {
+        const props = reshapeProps(composed.props, format);
+        await job.runtime.heavy(() => renderVideo({ publicDir: job.paths.root, props, outputFile: file, log: job.log }));
+      }
+      extras.push({ file, suffix });
+      job.log.info({ format }, "extra format ready");
+    } catch (error) {
+      job.log.warn({ format, error: (error as Error).message }, "an extra format failed");
+      job.metadata.warnings.push(`The ${format} version could not be made: ${(error as Error).message}`);
+    }
+  }
+  return extras;
+}
+
+/**
+ * The video in each of the product's other languages, over the same recording: each line in
+ * that language starts where the first language's line did (the recording was paced to the
+ * longest of them), with that language's captions and card words. One that fails is a warning.
+ */
+export async function renderLanguages(
+  job: Job,
+  product: LoadedProduct,
+  workflow: Workflow,
+  recorded: RecordingOutcome,
+  voices: readonly LanguageVoice[],
+  options: { kind?: VideoKind },
+): Promise<ExtraFile[]> {
+  const extras: ExtraFile[] = [];
+  for (const voice of voices) {
+    const byId = new Map(voice.clips.map((c) => [c.id, c]));
+    const placed = recorded.placed.flatMap((p) => {
+      const clip = byId.get(p.id);
+      return clip ? [{ ...clip, start_ms: p.start_ms }] : [];
+    });
+    const out = { video: join(job.paths.videoDir, `final.${voice.language}.mp4`), captions: join(job.paths.videoDir, `final.${voice.language}.srt`) };
+    const t = voice.translation;
+    try {
+      await job.runtime.heavy(() =>
+        composeVideo(
+          job,
+          product,
+          workflow,
+          voice.clips,
+          { ...recorded, placed },
+          {
+            kind: options.kind,
+            language: { title: t.title, subtitle: t.summary ?? undefined, labels: { cta: t.cta, badge: t.badge } },
+            out,
+          },
+        ),
+      );
+      extras.push({ file: out.video, suffix: `.${voice.language}.mp4` });
+      if (product.config.captions.enabled) extras.push({ file: out.captions, suffix: `.${voice.language}.srt` });
+      job.log.info({ language: voice.language }, "video in another language ready");
+    } catch (error) {
+      job.log.warn({ language: voice.language, error: (error as Error).message }, "a language version failed");
+      job.metadata.warnings.push(`The ${voice.language} version could not be made: ${(error as Error).message}`);
+    }
+  }
+  return extras;
 }
 
 /** A still of the app as the take opens, for the intro card. Optional: the intro works without it. */

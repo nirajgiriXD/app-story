@@ -32,7 +32,16 @@ export const VOICE_CHAIN = [
  * and measure each clip's real duration so the recording can be paced to it. Clips stay
  * uncompressed (WAV) until the final render, which encodes the audio once.
  */
-export async function synthesizeNarration(script: NarrationScript, tts: TTSProvider, dir: string, log: Logger, cache?: SpeechCache): Promise<AudioClip[]> {
+export async function synthesizeNarration(
+  script: NarrationScript,
+  tts: TTSProvider,
+  dir: string,
+  log: Logger,
+  cache?: SpeechCache,
+  options: { language?: string } = {},
+): Promise<AudioClip[]> {
+  // The word timing model understands English only: other languages are timed by text length.
+  const timeTheWords = !tts.silent && wordTimingEnabled() && (options.language ?? "en").toLowerCase().startsWith("en");
   await ensureDir(dir);
   type Item = Omit<AudioClip, "path" | "duration_ms">;
   const all: Item[] = [
@@ -68,13 +77,12 @@ export async function synthesizeNarration(script: NarrationScript, tts: TTSProvi
     }
     const probe = await probeMedia(path);
     // When each word is spoken: exact captions. Optional: without it, captions are timed by length.
-    const words =
-      tts.silent || !wordTimingEnabled()
-        ? undefined
-        : await timeWords(path, item.text).catch((error: Error) => {
-            log.warn({ clip: item.id, error: error.message }, "word timing failed; captions are timed by text length");
-            return undefined;
-          });
+    const words = !timeTheWords
+      ? undefined
+      : await timeWords(path, item.text).catch((error: Error) => {
+          log.warn({ clip: item.id, error: error.message }, "word timing failed; captions are timed by text length");
+          return undefined;
+        });
     log.info({ clip: item.id, seconds: probe.durationSec.toFixed(1), cached: Boolean(cached), words: words?.length ?? 0 }, "narration clip ready");
     const duration_ms = Math.round(probe.durationSec * 1000);
     const anchors = anchorTimes(parsed.get(item.id) as ReturnType<typeof parseAnchors>, duration_ms, words);

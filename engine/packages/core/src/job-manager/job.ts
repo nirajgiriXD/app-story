@@ -132,17 +132,35 @@ export function recordError(job: Job, error: unknown, phase?: string, stepId?: s
   return entry;
 }
 
-/** Move the rendered video to `<output>/<product>/<job-id>-<name>.mp4`: the only file a job leaves behind. */
-export async function deliverVideo(job: Job): Promise<string> {
-  const dest = join(job.outputDir, job.metadata.product_id, `${job.id}-${job.name}.mp4`);
+/** A file made with the video, delivered next to it: `<job-id>-<name><suffix>`, e.g. `.vertical.mp4`. */
+export interface ExtraFile {
+  file: string;
+  suffix: string;
+}
+
+/**
+ * Move the rendered video to `<output>/<product>/<job-id>-<name>.mp4`, with its captions and
+ * the extra files made with it: the only files a job leaves behind.
+ */
+export async function deliverVideo(job: Job, extras: readonly ExtraFile[] = []): Promise<string> {
+  const base = join(job.outputDir, job.metadata.product_id, `${job.id}-${job.name}`);
+  const dest = `${base}.mp4`;
   await mkdir(dirname(dest), { recursive: true });
-  await rename(job.paths.finalVideo, dest).catch(async () => {
-    // Different drives: copy instead.
-    await copyFile(job.paths.finalVideo, dest);
-  });
+  const move = (from: string, to: string) =>
+    rename(from, to).catch(async () => {
+      // Different drives: copy instead.
+      await copyFile(from, to);
+    });
+  await move(job.paths.finalVideo, dest);
   if (job.metadata.video) job.metadata.video.path = dest;
   // Captions go next to the video with the same name, so players and YouTube pick them up.
-  if (await fileExists(job.paths.finalCaptions)) await copyFile(job.paths.finalCaptions, dest.replace(/\.mp4$/, ".srt"));
+  if (await fileExists(job.paths.finalCaptions)) await copyFile(job.paths.finalCaptions, `${base}.srt`);
+  const delivered: string[] = [];
+  for (const extra of extras) {
+    await move(extra.file, `${base}${extra.suffix}`);
+    delivered.push(`${base}${extra.suffix}`);
+  }
+  if (job.metadata.video && delivered.length) job.metadata.video.extras = delivered;
   return dest;
 }
 

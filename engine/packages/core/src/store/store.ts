@@ -19,13 +19,14 @@ export type RecordKind =
   | "quality"
   | "log"
   | "thumbnail"
-  | "visual_review";
+  | "visual_review"
+  | "narration_translations";
 
 /** Cached AI and speech results that nobody has used for this long are deleted. */
 const CACHE_DAYS = 30;
 
 /** What the cache holds: the feature list of a product file, a narration script, a spoken clip. */
-export type CacheKind = "features" | "narration_script" | "speech";
+export type CacheKind = "features" | "narration_script" | "narration_translation" | "speech";
 
 /** The tables as version 2 left them: what every migration below starts from. */
 const BASE_VERSION = 2;

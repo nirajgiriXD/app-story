@@ -104,6 +104,8 @@ export interface BuildPropsInput {
   logoSrc?: string;
   musicSrc?: string;
   heroSrc?: string;
+  /** The cards' words in another language (default: English, and the template's badge). */
+  labels?: RenderProps["labels"];
 }
 
 export function buildRenderProps(input: BuildPropsInput): RenderProps {
@@ -182,6 +184,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     },
     music: input.musicSrc ? { src: input.musicSrc, volume: config.branding.music_volume } : null,
     sfx: template.sounds ? soundEffects(passed, input.cursor, plan, template.transitionMs) : [],
+    labels: input.labels,
     keys: passed.flatMap((r) => {
       const key = r.action === "press" ? byId.get(r.step_id)?.key : undefined;
       return key ? [{ atMs: Math.max(0, r.started_ms), labels: keyLabels(key) }] : [];

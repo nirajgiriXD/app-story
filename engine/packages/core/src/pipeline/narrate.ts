@@ -1,6 +1,17 @@
-import { NarrationScriptSchema, type AudioClip, type NarrationScript, type VideoKind, type Workflow } from "@app-story/contracts";
+import { join } from "node:path";
+import {
+  NarrationScriptSchema,
+  NarrationTranslationSchema,
+  pickTemplate,
+  type AudioClip,
+  type NarrationScript,
+  type NarrationTranslation,
+  type VideoKind,
+  type Workflow,
+} from "@app-story/contracts";
 import { AppStoryError, toAppStoryError } from "@app-story/shared";
-import { PROMPT_VERSIONS } from "@app-story/ai";
+import { PHASE_EFFORT, PROMPT_VERSIONS, loadPrompt } from "@app-story/ai";
+import { getTemplate } from "@app-story/video";
 import { estimateStepMs } from "@app-story/workflow";
 import { synthesizeNarration, writeNarrationScript, type SpeechCache, type TTSProvider } from "@app-story/narration";
 import type { LoadedProduct } from "@app-story/products";
@@ -76,7 +87,9 @@ export async function prepareNarration(
   const tts = makeTTS(config.providers.tts, overrides);
   job.metadata.tts = { provider: tts.name, voice: tts.voice, model: tts.model };
   const cache = tts.silent ? undefined : speechCache(job, tts, config.providers.tts);
-  const clips = await job.runtime.heavy(() => synthesizeNarration(script, tts, job.paths.narrationDir, job.log, cache));
+  const clips = await job.runtime.heavy(() =>
+    synthesizeNarration(script, tts, job.paths.narrationDir, job.log, cache, { language: config.demo.default_language }),
+  );
   saveRecord(
     job,
     "narration_clips",
@@ -88,6 +101,129 @@ export async function prepareNarration(
     }
   }
   return { script, source, clips, silent: Boolean(tts.silent) };
+}
+
+/** The narration in one of the product's other languages, spoken. */
+export interface LanguageVoice {
+  language: string;
+  translation: NarrationTranslation;
+  clips: AudioClip[];
+}
+
+/**
+ * The narration in each of the product file's other languages (`language: en, de`), voiced
+ * line for line, so every language plays over the same recording. The translation comes
+ * from the plan file when it was saved for this very narration, else from the cache, else
+ * from the AI (it keeps the `{{@step}}` anchors).
+ */
+export async function prepareTranslations(
+  job: Job,
+  product: LoadedProduct,
+  workflow: Workflow,
+  base: NarrationResult,
+  options: { kind?: VideoKind; fresh?: boolean; replay?: boolean },
+  overrides: ProviderOverrides,
+): Promise<LanguageVoice[]> {
+  const config = product.config;
+  if (config.demo.languages.length === 0) return [];
+  const original = {
+    language: config.demo.default_language,
+    title: workflow.title,
+    summary: workflow.summary ?? null,
+    badge: getTemplate(pickTemplate(config.demo.template, options.kind)).title.badge ?? null,
+    cta: DEFAULT_CTA,
+    script: base.script,
+  };
+  const tts = makeTTS(config.providers.tts, overrides);
+  const cache = tts.silent ? undefined : speechCache(job, tts, config.providers.tts);
+  const voices: LanguageVoice[] = [];
+  for (const language of config.demo.languages) {
+    const saved = options.fresh ? undefined : savedTranslation(workflow, base.script, language);
+    const key = cacheKey("narration_translation", { ...original, to: language, prompt: PROMPT_VERSIONS.translation });
+    const cached = saved || options.fresh ? undefined : readCachedTranslation(job, key, base.script);
+    let translation = saved ?? cached;
+    if (!translation) {
+      translation = await withProviderFallback(job, `translation (${language})`, config, overrides, async (provider) =>
+        checkTranslation(
+          await provider.generateStructuredOutput({
+            system: loadPrompt("translation"),
+            prompt: translationPrompt(original, language),
+            schema: NarrationTranslationSchema,
+            schemaName: "narration_translation",
+            effort: PHASE_EFFORT.translation,
+          }),
+          base.script,
+        ),
+      ).catch((error: unknown) => {
+        if (!options.replay) throw error;
+        const e = toAppStoryError(error);
+        throw new AppStoryError(e.code, `This plan has no saved ${language} narration, and the AI could not translate it: ${e.message}`, {
+          hint: "Make its video once where an AI key is set, then commit the plan file: it then holds every language, and replays need no AI.",
+          cause: error,
+        });
+      });
+      job.store.setCached(key, "narration_translation", JSON.stringify(translation));
+    }
+    job.log.info({ language, source: saved ? "plan" : cached ? "cache" : "ai" }, "narration translated");
+    const script: NarrationScript = {
+      intro: translation.intro,
+      segments: base.script.segments.map((s, i) => ({ step_ids: s.step_ids, text: translation.segments[i] as string })),
+      outro: translation.outro,
+    };
+    const dir = join(job.paths.narrationDir, language);
+    const clips = await job.runtime.heavy(() => synthesizeNarration(script, tts, dir, job.log, cache, { language }));
+    voices.push({ language, translation, clips });
+  }
+  saveRecord(job, "narration_translations", Object.fromEntries(voices.map((v) => [v.language, v.translation])));
+  return voices;
+}
+
+/** The end card's call to action, in English; `{host}` is the app's address. */
+export const DEFAULT_CTA = "Try it at {host}";
+
+function translationPrompt(
+  original: { language: string; title: string; summary: string | null; badge: string | null; cta: string; script: NarrationScript },
+  to: string,
+): string {
+  return [
+    `# Translate from ${original.language} to ${to}`,
+    `Title: ${original.title}`,
+    `Summary: ${original.summary ?? "(none)"}`,
+    `Badge: ${original.badge ?? "(none)"}`,
+    `Call to action: ${original.cta}`,
+    `Intro: ${original.script.intro}`,
+    "Segments:",
+    ...original.script.segments.map((s, i) => `${i + 1}. ${s.text}`),
+    `Outro: ${original.script.outro}`,
+  ].join("\n");
+}
+
+/** A translation must have one line per original segment, and keep the `{host}` placeholder. */
+export function checkTranslation(translation: NarrationTranslation, script: NarrationScript): NarrationTranslation {
+  if (translation.segments.length !== script.segments.length) {
+    throw new AppStoryError("PROVIDER_INVALID_OUTPUT", `The translation has ${translation.segments.length} lines for ${script.segments.length} segments.`);
+  }
+  return translation.cta.includes("{host}") ? translation : { ...translation, cta: `${translation.cta} {host}` };
+}
+
+/** The translation saved in the plan file, if it was made from this very narration. */
+function savedTranslation(workflow: Workflow, script: NarrationScript, language: string): NarrationTranslation | undefined {
+  const saved = workflow.narration;
+  const translation = saved?.translations?.[language];
+  if (!saved || !translation) return undefined;
+  const same =
+    saved.intro === script.intro &&
+    saved.outro === script.outro &&
+    saved.segments.length === script.segments.length &&
+    saved.segments.every((s, i) => s.text === script.segments[i]?.text);
+  return same && translation.segments.length === script.segments.length ? translation : undefined;
+}
+
+function readCachedTranslation(job: Job, key: string, script: NarrationScript): NarrationTranslation | undefined {
+  const text = job.store.getCachedText(key);
+  if (!text) return undefined;
+  const parsed = NarrationTranslationSchema.safeParse(JSON.parse(text));
+  return parsed.success && parsed.data.segments.length === script.segments.length ? parsed.data : undefined;
 }
 
 /** The narration saved in the plan file, if it is in this language and still covers exactly the plan's steps. */
@@ -108,7 +244,7 @@ function readCachedScript(job: Job, key: string): NarrationScript | undefined {
 }
 
 /** Finished clips by voice and text, so the same line in the same voice is never spoken twice. */
-function speechCache(job: Job, tts: TTSProvider, settings: LoadedProduct["config"]["providers"]["tts"]): SpeechCache {
+export function speechCache(job: Job, tts: TTSProvider, settings: LoadedProduct["config"]["providers"]["tts"]): SpeechCache {
   // Bump `format` when the stored clip format changes (now: voice chain, normalised 48 kHz mono WAV).
   const voice = {
     format: 2,

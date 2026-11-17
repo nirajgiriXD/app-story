@@ -207,6 +207,50 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(replaced.steps.some((s) => s.value === "Website Launch")).toBe(true);
   });
 
+  it("makes the same video in another language and in other shapes, from one recording", async () => {
+    const dir = join(root, "languages", "products");
+    await mkdir(dir, { recursive: true });
+    const text = (await readFile(join(productsDir, "example.md"), "utf8")).replace(
+      "length: 60",
+      "length: 60\nvoice: openai\nlanguage: en, de\nformats: vertical, gif",
+    );
+    await writeFile(join(dir, "example.md"), text);
+    const product = await loadProduct(dir, "example");
+    const out = join(root, "languages", "output");
+    const de = (s: string) => `[de] ${s}`;
+    const translator = new ScriptedProvider([], {
+      narration_translation: {
+        title: "Ein neues Projekt anlegen",
+        summary: de(plan.summary as string),
+        intro: de("Intro"),
+        segments: plan.steps.map((s) => de(s.narration as string)),
+        outro: de("Outro"),
+        cta: "Jetzt testen auf {host}",
+        badge: null,
+      },
+    });
+    const metadata = await generateDemo({
+      product,
+      outputDir: out,
+      objective: OBJECTIVE,
+      plan,
+      logLevel: "warn",
+      providers: { createAI: (_config, deps) => Object.assign(translator, { usage: deps.usage }), createTTS: () => new ToneTTS() },
+    });
+
+    expect(metadata.errors).toEqual([]);
+    expect(["success", "success_with_warnings"]).toContain(metadata.status);
+    const base = metadata.video!.path.replace(/\.mp4$/, "");
+    expect(metadata.video?.extras?.sort()).toEqual([`${base}.de.mp4`, `${base}.de.srt`, `${base}.gif`, `${base}.vertical.mp4`].sort());
+    const [main, german, vertical] = await Promise.all([probeMedia(`${base}.mp4`), probeMedia(`${base}.de.mp4`), probeMedia(`${base}.vertical.mp4`)]);
+    expect([german.width, german.height, german.audioCodec]).toEqual([1920, 1080, "aac"]);
+    expect([vertical.width, vertical.height]).toEqual([1080, 1920]);
+    // Same recording; the cards fit each language's words, and idle stretches are trimmed per language.
+    expect(Math.abs(german.durationSec - main.durationSec)).toBeLessThan(10);
+    expect(await readFile(`${base}.de.srt`, "utf8")).toContain("[de] ");
+    expect((await readFile(`${base}.gif`)).subarray(0, 3).toString()).toBe("GIF");
+  });
+
   it("replays saved plans with no AI at all, and leaves their files as they were", async () => {
     const { product, out } = await productIn("ci");
     const ai = plannerAI();

@@ -2,7 +2,7 @@ import type React from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
 import { HANDOVER_SPLIT, handoverOut } from "./handover";
-import { asset, fontStack, px, textColor } from "./theme";
+import { asset, fontStack, px, shape, textColor } from "./theme";
 
 export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; durationMs: number }> = ({ p, kind, durationMs }) => {
   const frame = useCurrentFrame();
@@ -20,24 +20,29 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
     transform: `translateY(${interpolate(enter(delay), [0, 1], [px(p, 24), 0])}px)`,
   });
 
+  const form = shape(p);
+  const badge = p.labels ? p.labels.badge : p.template.title.badge;
+  const cta = (p.labels?.cta ?? "Try it at {host}").replace("{host}", p.brand.host);
+  // Portrait: the text in the upper part and the app's still under it. Square: no room for the still.
+  const hero = form === "square" ? null : p.hero;
   return (
     <AbsoluteFill
       style={{
         opacity: 1 - leave,
         transform: `translateY(${-px(p, 36) * leave}px)`,
         fontFamily: fontStack(p.brand.font),
-        justifyContent: "center",
-        padding: `0 ${px(p, 160)}px`,
+        justifyContent: form === "tall" && kind === "intro" && hero ? "flex-start" : "center",
+        padding: form === "tall" && kind === "intro" && hero ? `${p.height * 0.16}px ${px(p, 72)}px 0` : `0 ${px(p, form === "wide" ? 160 : 72)}px`,
       }}
     >
       {p.brand.logo ? (
         <Img src={asset(p, p.brand.logo)} style={{ height: px(p, 64), objectFit: "contain", alignSelf: "flex-start", marginBottom: px(p, 40), ...rise(0) }} />
       ) : null}
-      {kind === "intro" && p.hero ? <Hero p={p} src={p.hero} enter={enter(260)} /> : null}
+      {kind === "intro" && hero ? <Hero p={p} src={hero} enter={enter(260)} /> : null}
       {kind === "intro" ? (
         <>
           <div style={{ display: "flex", gap: px(p, 16), alignItems: "center", marginBottom: px(p, 20), ...rise(80) }}>
-            {p.template.title.badge ? (
+            {badge ? (
               <span
                 style={{
                   background: p.brand.primary,
@@ -48,7 +53,7 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
                   borderRadius: 999,
                 }}
               >
-                {p.template.title.badge}
+                {badge}
               </span>
             ) : null}
             <span style={{ color: p.brand.primary, fontSize: px(p, 26), fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -62,7 +67,7 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
               fontWeight: p.template.title.weight,
               lineHeight: 1.08,
               letterSpacing: "-0.02em",
-              maxWidth: px(p, p.hero ? 820 : 1400),
+              maxWidth: form === "wide" ? px(p, hero ? 820 : 1400) : undefined,
               ...rise(160),
             }}
           >
@@ -70,7 +75,14 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
           </div>
           {p.subtitle ? (
             <div
-              style={{ color: colors.muted, fontSize: px(p, 32), marginTop: px(p, 28), maxWidth: px(p, p.hero ? 760 : 1200), lineHeight: 1.4, ...rise(320) }}
+              style={{
+                color: colors.muted,
+                fontSize: px(p, 32),
+                marginTop: px(p, 28),
+                maxWidth: form === "wide" ? px(p, hero ? 760 : 1200) : undefined,
+                lineHeight: 1.4,
+                ...rise(320),
+              }}
             >
               {p.subtitle}
             </div>
@@ -97,7 +109,7 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
               ...rise(360),
             }}
           >
-            Try it at {p.brand.host} →
+            {cta} →
           </div>
         </>
       )}
@@ -105,18 +117,22 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
   );
 };
 
-/** The app's first screen, tilted in on the right of the intro: what the video is about, at a glance. */
+/**
+ * The app's first screen, tilted in on the right of the intro (under the title in a portrait
+ * video): what the video is about, at a glance.
+ */
 const Hero: React.FC<{ p: RenderProps; src: string; enter: number }> = ({ p, src, enter }) => {
-  const width = px(p, 900);
+  const tall = shape(p) === "tall";
+  const width = tall ? p.width - px(p, 144) : px(p, 900);
   return (
     <div
       style={{
         position: "absolute",
-        left: px(p, 1000),
-        top: "50%",
+        left: tall ? px(p, 72) : px(p, 1000),
+        top: tall ? "58%" : "50%",
         width,
         height: (width * 9) / 16,
-        marginTop: -(width * 9) / 32,
+        marginTop: tall ? 0 : -(width * 9) / 32,
         borderRadius: px(p, 16),
         overflow: "hidden",
         opacity: enter,

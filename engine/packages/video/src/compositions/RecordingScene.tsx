@@ -5,17 +5,24 @@ import type { RenderProps } from "../props";
 import { cameraAt, cameraTransform, cursorAt, cursorPresence, latestAt, mergeFocusWindows } from "../timeline";
 import { sourceFrame } from "../edit";
 import { handoverIn, handoverOut } from "./handover";
-import { fontStack, isDark, px, recordingFrame } from "./theme";
+import { fontStack, isDark, px, recordingFrame, shape } from "./theme";
 
 /** Window layout in output pixels. */
-function layout(p: RenderProps) {
+export function layout(p: RenderProps) {
   const { viewport } = p.recording;
   if (p.template.frame === "full") {
     const scale = Math.min(p.width / viewport.width, p.height / viewport.height);
     return { x: (p.width - viewport.width * scale) / 2, y: (p.height - viewport.height * scale) / 2, scale, bar: 0, radius: 0 };
   }
-  // Fixed zones keep overlays off the product UI: chapter chip above, captions below.
   const bar = px(p, 46);
+  if (shape(p) !== "wide") {
+    // Portrait or square: the window spans the width, a little above the middle, with the
+    // captions right under it (see DemoVideo's Captions).
+    const scale = (p.width * 0.94) / viewport.width;
+    const height = bar + viewport.height * scale;
+    return { x: p.width * 0.03, y: Math.max(px(p, 120), (p.height - height) / 2 - px(p, 60)), scale, bar, radius: px(p, 18) };
+  }
+  // Fixed zones keep overlays off the product UI: chapter chip above, captions below.
   const top = px(p, 84);
   const bottom = p.captions.enabled ? px(p, 152) : px(p, 56);
   const maxW = p.width * 0.9;

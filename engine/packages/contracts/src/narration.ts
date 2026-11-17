@@ -19,6 +19,10 @@ export const NarrationScriptSchema = z.object({
 });
 export type NarrationScript = z.infer<typeof NarrationScriptSchema>;
 
+/** When a word is spoken, in ms from the start of its clip. */
+export const WordTimingSchema = z.object({ text: z.string(), start_ms: z.number(), end_ms: z.number() });
+export type WordTiming = z.infer<typeof WordTimingSchema>;
+
 export const AudioClipSchema = z.object({
   id: z.string(),
   kind: z.enum(["intro", "segment", "outro"]),
@@ -26,6 +30,8 @@ export const AudioClipSchema = z.object({
   step_ids: z.array(z.string()),
   path: z.string(),
   duration_ms: z.number(),
+  /** Every word of `text` with when it is spoken, when word timing ran. */
+  words: z.array(WordTimingSchema).optional(),
 });
 export type AudioClip = z.infer<typeof AudioClipSchema>;
 

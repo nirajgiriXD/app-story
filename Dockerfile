@@ -28,9 +28,11 @@ RUN npm install -g --ignore-scripts /tmp/app-story-*.tgz \
  && cd /usr/local/lib/node_modules/app-story \
  && npx playwright install --with-deps chromium \
  && rm -rf /var/lib/apt/lists/*
-# Download the voice model now, so the first video needs no download (same model as KOKORO_DEFAULTS).
+# Download the voice model and the word timing model now, so the first video needs no download
+# (same models as KOKORO_DEFAULTS and WORD_TIMING_MODEL).
 RUN cd /usr/local/lib/node_modules/app-story \
- && node --input-type=module -e "const { KokoroTTS } = await import('kokoro-js'); await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'fp32', device: 'cpu' });"
+ && node --input-type=module -e "const { KokoroTTS } = await import('kokoro-js'); await KokoroTTS.from_pretrained('onnx-community/Kokoro-82M-v1.0-ONNX', { dtype: 'fp32', device: 'cpu' });" \
+ && node --input-type=module -e "const { pipeline } = await import('@huggingface/transformers'); await pipeline('automatic-speech-recognition', 'onnx-community/whisper-base.en_timestamped', { dtype: 'fp32', device: 'cpu' });"
 WORKDIR /work
 ENTRYPOINT ["app-story"]
 CMD ["--help"]

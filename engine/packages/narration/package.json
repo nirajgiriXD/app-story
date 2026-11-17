@@ -10,6 +10,7 @@
     "@app-story/ai": "*",
     "@app-story/contracts": "*",
     "@app-story/shared": "*",
+    "@huggingface/transformers": "^3.8.1",
     "kokoro-js": "1.2.1",
     "openai": "^7.57.0",
     "zod": "^4.6.7"

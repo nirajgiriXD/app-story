@@ -49,7 +49,9 @@ at login time and registered as secrets.
    lines). The writer sees what each step types and proves, and roughly how long it is on
    screen (`estimateStepMs`), so each line fits its steps and the recording never freezes
    waiting for the voice; `length` is only an upper bound. Then text-to-speech per line,
-   two-pass loudness-normalised, kept as WAV until the final encode, and measured.
+   cleaned up (low cut, de-esser, gentle compression), two-pass loudness-normalised, kept
+   as WAV until the final encode, and measured. A local speech model (Whisper) then times
+   every spoken word, matched to the script's words, so captions start and end with the voice.
 4. **Recording.** A fresh browser replays the workflow at presentation speed: smooth
    cursor, typed input, minimum dwell per step, and each narration line starts with its
    first step while the next line waits for the previous one to finish. Every step is

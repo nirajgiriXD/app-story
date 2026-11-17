@@ -3,6 +3,7 @@ import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import type { AudioClip, NarrationScript } from "@app-story/contracts";
 import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, runProcess, type Logger } from "@app-story/shared";
 import type { TTSProvider } from "../providers/tts";
+import { timeWords, wordTimingEnabled } from "../synchronization/words";
 
 /** Finished clips for lines that were spoken before, keyed by the line's text. */
 export interface SpeechCache {
@@ -61,8 +62,16 @@ export async function synthesizeNarration(script: NarrationScript, tts: TTSProvi
       cache?.set(item.text, await readFile(path));
     }
     const probe = await probeMedia(path);
-    log.info({ clip: item.id, seconds: probe.durationSec.toFixed(1), cached: Boolean(cached) }, "narration clip ready");
-    return { ...item, path, duration_ms: Math.round(probe.durationSec * 1000) };
+    // When each word is spoken: exact captions. Optional: without it, captions are timed by length.
+    const words =
+      tts.silent || !wordTimingEnabled()
+        ? undefined
+        : await timeWords(path, item.text).catch((error: Error) => {
+            log.warn({ clip: item.id, error: error.message }, "word timing failed; captions are timed by text length");
+            return undefined;
+          });
+    log.info({ clip: item.id, seconds: probe.durationSec.toFixed(1), cached: Boolean(cached), words: words?.length ?? 0 }, "narration clip ready");
+    return { ...item, path, duration_ms: Math.round(probe.durationSec * 1000), ...(words ? { words } : {}) };
   });
 }
 

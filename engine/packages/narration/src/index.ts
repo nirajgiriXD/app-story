@@ -4,3 +4,4 @@ export { createTTSProvider, registerTTSProvider, ElevenLabsTTS, OpenAITTS, Silen
 export type { TTSProvider, TTSFactory } from "./providers/tts";
 export { KokoroTTS, KOKORO_DEFAULTS, kokoroDtype } from "./providers/kokoro";
 export * from "./synchronization/pacer";
+export * from "./synchronization/words";

@@ -11,6 +11,8 @@ export * from "./orchestrator/redo";
 export * from "./orchestrator/resume";
 export * from "./orchestrator/replay";
 export * from "./orchestrator/test-plans";
+export * from "./orchestrator/import";
+export { planFromTrace, readZip, selectorToTarget } from "./import/playwright-trace";
 
 export * from "./pipeline/takes";
 export * from "./orchestrator/validate";

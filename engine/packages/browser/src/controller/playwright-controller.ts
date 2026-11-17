@@ -128,16 +128,16 @@ export class PlaywrightController implements BrowserController {
   }
 
   async click(target: Target, options?: ActionOptions): Promise<ActionOutcome> {
-    const { locator, box, info } = await this.prepare("click", target, options);
+    const { locator, box, region, info } = await this.prepare("click", target, options);
     await this.moveCursorTo(box);
     await locator.click({ timeout: this.timeout(options) });
     this.recordClick();
     await this.settle();
-    return { urlAfter: this.page.url(), box, elementName: info.name };
+    return { urlAfter: this.page.url(), box, region, elementName: info.name };
   }
 
   async fill(target: Target, value: string, options?: ActionOptions): Promise<ActionOutcome> {
-    const { locator, box, info } = await this.prepare("fill", target, options);
+    const { locator, box, region, info } = await this.prepare("fill", target, options);
     await this.moveCursorTo(box);
     if (this.presentation) {
       await locator.click({ timeout: this.timeout(options) });
@@ -151,11 +151,11 @@ export class PlaywrightController implements BrowserController {
     } else {
       await locator.fill(value, { timeout: this.timeout(options) });
     }
-    return { urlAfter: this.page.url(), box, elementName: info.name };
+    return { urlAfter: this.page.url(), box, region, elementName: info.name };
   }
 
   async select(target: Target, value: string, options?: ActionOptions): Promise<ActionOutcome> {
-    const { locator, box, info } = await this.prepare("select", target, options, value);
+    const { locator, box, region, info } = await this.prepare("select", target, options, value);
     await this.moveCursorTo(box);
     try {
       await locator.selectOption({ label: value }, { timeout: this.timeout(options) });
@@ -164,23 +164,23 @@ export class PlaywrightController implements BrowserController {
     }
     this.recordClick();
     await this.settle();
-    return { urlAfter: this.page.url(), box, elementName: info.name };
+    return { urlAfter: this.page.url(), box, region, elementName: info.name };
   }
 
   async setChecked(target: Target, checked: boolean, options?: ActionOptions): Promise<ActionOutcome> {
-    const { locator, box, info } = await this.prepare(checked ? "check" : "uncheck", target, options);
+    const { locator, box, region, info } = await this.prepare(checked ? "check" : "uncheck", target, options);
     await this.moveCursorTo(box);
     await locator.setChecked(checked, { timeout: this.timeout(options) });
     this.recordClick();
     await this.settle();
-    return { urlAfter: this.page.url(), box, elementName: info.name };
+    return { urlAfter: this.page.url(), box, region, elementName: info.name };
   }
 
   async hover(target: Target, options?: ActionOptions): Promise<ActionOutcome> {
-    const { locator, box, info } = await this.prepare("hover", target, options);
+    const { locator, box, region, info } = await this.prepare("hover", target, options);
     await this.moveCursorTo(box);
     await locator.hover({ timeout: this.timeout(options) });
-    return { urlAfter: this.page.url(), box, elementName: info.name };
+    return { urlAfter: this.page.url(), box, region, elementName: info.name };
   }
 
   async scroll(options: { target?: Target; direction?: "up" | "down"; amount?: number }): Promise<ActionOutcome> {
@@ -229,6 +229,28 @@ export class PlaywrightController implements BrowserController {
   // ----------------------------------------------------------- verification
 
   async verify(expectation: Expectation, options?: ActionOptions): Promise<VerificationResult> {
+    const result = await this.check(expectation, options);
+    if (!result.ok) return result;
+    // Where the outcome is on screen, so the video can show it.
+    const where = await this.locateOutcome(expectation).catch(() => undefined);
+    return where ? { ...result, ...where } : result;
+  }
+
+  /** The element an expectation is about, if it is one visible element. */
+  private async locateOutcome(expectation: Expectation): Promise<{ box: Box; region?: Box } | undefined> {
+    let locator: Locator | undefined;
+    if (expectation.target && ["visible", "value_equals", "count_at_least"].includes(expectation.type)) {
+      locator = (await resolveLocator(this.page, expectation.target, 1000)).first();
+    } else if (expectation.type === "text_present" && expectation.text) {
+      locator = this.page.getByText(expectation.text).first();
+    }
+    if (!locator || !(await locator.isVisible().catch(() => false))) return undefined;
+    const box = await locator.boundingBox();
+    if (!box) return undefined;
+    return { box, region: await regionOf(locator) };
+  }
+
+  private async check(expectation: Expectation, options?: ActionOptions): Promise<VerificationResult> {
     const timeout = this.timeout(options);
     const text = expectation.text ?? "";
     switch (expectation.type) {
@@ -343,7 +365,7 @@ export class PlaywrightController implements BrowserController {
     target: Target,
     options?: ActionOptions,
     extraText = "",
-  ): Promise<{ locator: Locator; box: Box | undefined; info: ElementInfo }> {
+  ): Promise<{ locator: Locator; box: Box | undefined; region: Box | undefined; info: ElementInfo }> {
     const locator = await resolveLocator(this.page, target, this.timeout(options));
     await this.bringIntoView(locator, this.timeout(options));
     const info = await elementInfo(locator);
@@ -354,7 +376,8 @@ export class PlaywrightController implements BrowserController {
       });
     }
     const box = (await locator.boundingBox()) ?? undefined;
-    return { locator, box, info };
+    const region = await regionOf(locator);
+    return { locator, box, region, info };
   }
 
   private async moveCursorTo(box: Box | undefined): Promise<void> {
@@ -550,4 +573,60 @@ function waitForDomQuiet({ quietMs, maxMs }: { quietMs: number; maxMs: number })
     timer = setTimeout(finish, quietMs);
     const cap = setTimeout(finish, maxMs);
   });
+}
+
+/**
+ * The area an element belongs to, the way an editor would frame it: the largest form,
+ * card, dialog, table or other visible container around it that is still well under half
+ * the screen. Undefined when the element stands on its own. Viewport CSS pixels.
+ */
+async function regionOf(locator: Locator): Promise<Box | undefined> {
+  const region = await locator
+    .evaluate(
+      inPage((el: Element) => {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const semantic = new Set(["FORM", "FIELDSET", "DIALOG", "TABLE", "SECTION", "ARTICLE", "ASIDE", "NAV", "UL", "OL", "HEADER", "FOOTER"]);
+        const roles = new Set([
+          "dialog",
+          "alertdialog",
+          "form",
+          "region",
+          "group",
+          "table",
+          "grid",
+          "list",
+          "listbox",
+          "menu",
+          "toolbar",
+          "alert",
+          "status",
+          "tabpanel",
+          "navigation",
+          "banner",
+          "row",
+        ]);
+        const transparent = (c: string) => c === "transparent" || /rgba\(.*,\s*0\)$/.test(c);
+        const own = el.getBoundingClientRect();
+        let best: DOMRect | undefined;
+        for (let e = el.parentElement; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
+          const r = e.getBoundingClientRect();
+          const visible = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0)) * Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+          if (visible > vw * vh * 0.45) break;
+          if (r.width * r.height < own.width * own.height * 1.3) continue;
+          const style = getComputedStyle(e);
+          const boxed =
+            style.boxShadow !== "none" ||
+            (Number.parseFloat(style.borderTopWidth) > 0 && Number.parseFloat(style.borderLeftWidth) > 0 && !transparent(style.borderTopColor)) ||
+            (!transparent(style.backgroundColor) && e.parentElement !== null && style.backgroundColor !== getComputedStyle(e.parentElement).backgroundColor);
+          if (semantic.has(e.tagName) || roles.has(e.getAttribute("role") ?? "") || boxed) best = r;
+        }
+        if (!best) return undefined;
+        const x = Math.max(0, best.left);
+        const y = Math.max(0, best.top);
+        return { x, y, width: Math.min(best.right, vw) - x, height: Math.min(best.bottom, vh) - y };
+      }),
+    )
+    .catch(() => undefined);
+  return region && region.width > 0 && region.height > 0 ? region : undefined;
 }

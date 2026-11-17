@@ -12,12 +12,18 @@ export interface ActionOutcome {
   urlAfter: string;
   /** Element box in viewport CSS pixels, measured before the action. */
   box?: Box;
+  /** The area around the element worth showing with it (its form, card, dialog or table). */
+  region?: Box;
   elementName?: string;
 }
 
 export interface VerificationResult {
   ok: boolean;
   detail: string;
+  /** Where the verified thing is on screen, when it is one element. */
+  box?: Box;
+  /** The area around it worth showing with it. */
+  region?: Box;
 }
 
 export interface ActionOptions {

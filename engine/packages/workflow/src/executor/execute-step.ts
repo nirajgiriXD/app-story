@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { Step, StepResult } from "@app-story/contracts";
+import type { Box, Step, StepResult } from "@app-story/contracts";
 import type { ActionOutcome, BrowserController } from "@app-story/browser";
 import { describeTarget } from "@app-story/browser";
 import { isAppStoryError, resolveEnvTemplate, sleep, toAppStoryError, type Logger } from "@app-story/shared";
@@ -71,6 +71,7 @@ export async function executeStep(controller: BrowserController, step: Step, opt
     try {
       const outcome = await performAction(controller, step);
       let verified = step.action !== "assert";
+      let outcomeAt: { box?: Box; region?: Box } = {};
       if (step.expected) {
         const result = await controller.verify(step.expected, { timeoutMs: step.timeout_ms });
         if (!result.ok) {
@@ -79,6 +80,7 @@ export async function executeStep(controller: BrowserController, step: Step, opt
           });
         }
         verified = true;
+        outcomeAt = { box: result.box, region: result.region };
       }
       if (step.action === "screenshot" && options.screenshotDir) {
         await controller.screenshot(join(options.screenshotDir, `${step.id}.png`));
@@ -93,6 +95,9 @@ export async function executeStep(controller: BrowserController, step: Step, opt
         verified,
         url_after: outcome.urlAfter,
         box: outcome.box,
+        // A check step has no element of its own: its area is the outcome's.
+        region: outcome.region ?? (step.action === "assert" ? outcomeAt.region : undefined),
+        result_box: outcomeAt.box,
       };
     } catch (error) {
       lastError = error;

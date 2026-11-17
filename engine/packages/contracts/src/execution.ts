@@ -18,6 +18,10 @@ export const StepResultSchema = z.object({
   url_after: z.string().optional(),
   /** Element box in viewport CSS pixels, used for zoom and cursor effects. */
   box: BoxSchema.optional(),
+  /** The area the element belongs to (its form, card, dialog or table), for framing the shot. */
+  region: BoxSchema.optional(),
+  /** Where the verified outcome is on screen (the message, the new row), measured after the check. */
+  result_box: BoxSchema.optional(),
   error: z.string().optional(),
   error_code: z.string().optional(),
   screenshot: z.string().optional(),

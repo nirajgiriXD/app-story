@@ -75,16 +75,6 @@ export async function bundleRenderPage(): Promise<string> {
   return script;
 }
 
-/** One render at a time: two at once only fight over the CPU. */
-let renderQueue: Promise<unknown> = Promise.resolve();
-
-/** Render the final MP4 (H.264 + AAC) and a PNG thumbnail. */
-export function renderVideo(options: RenderVideoOptions): Promise<void> {
-  const run = renderQueue.then(() => render(options));
-  renderQueue = run.catch(() => undefined);
-  return run;
-}
-
 /** Frames in the whole video. */
 export function frameCount(props: RenderProps): number {
   return Math.max(1, Math.round((props.durationMs / 1000) * props.fps));
@@ -109,7 +99,11 @@ function workerCount(): number {
   return Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)));
 }
 
-async function render(options: RenderVideoOptions): Promise<void> {
+/**
+ * Render the final MP4 (H.264 + AAC) and a PNG thumbnail. It uses every worker it is given,
+ * so callers run one render at a time (the pipeline does, through `exclusive()` in core).
+ */
+export async function renderVideo(options: RenderVideoOptions): Promise<void> {
   const { props, log } = options;
   const total = frameCount(props);
   let workDir: string | undefined;

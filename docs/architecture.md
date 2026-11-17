@@ -52,25 +52,38 @@ at login time and registered as secrets.
    cleaned up (low cut, de-esser, gentle compression), two-pass loudness-normalised, kept
    as WAV until the final encode, and measured. A local speech model (Whisper) then times
    every spoken word, matched to the script's words, so captions start and end with the voice.
-4. **Recording.** A fresh browser replays the workflow at presentation speed: smooth
-   cursor, typed input, minimum dwell per step, and each narration line starts with its
+4. **Recording.** A fresh browser replays the workflow at presentation speed: a pointer
+   that moves in a gentle arc, typed input, minimum dwell per step, and each narration line starts with its
    first step while the next line waits for the previous one to finish. Every step is
    verified again. After every action the controller waits until the page stops changing
    (no DOM mutations or loading requests for 300 ms, capped at 2.5 s); off-screen elements
-   glide into view. The take is captured at 2x and stored lossless (4:4:4, BT.709), so the
+   glide into view. For every action the controller also measures the area the element
+   belongs to (its form, card, dialog or table), and for every check where its outcome
+   shows on screen; page changes are timed as they happen. The take is captured at 2x and stored lossless (4:4:4, BT.709), so the
    zoom stays sharp and the final encode is the only lossy one. If a *saved* plan fails
    here, it is dropped and the demo is planned again once, in the same job; any other
    failure stops the job and no video is made.
-5. **Captions + render.** Narration is placed on the final timeline (intro card →
-   recording → outro card), captions are cut from it, and the video is rendered with
-   zoom-to-element, cursor highlight, click ripples, chapter chips and branding. The
+5. **Edit, captions + render.** An editor's pass fast-forwards idle stretches of the take
+   (no voice, no pointer, no typing, no page change: `edit.ts`), and every time moves onto
+   the edited timeline. Narration is placed on the final timeline (intro card with a still
+   of the app → recording → end card with a call to action), captions are cut from the
+   spoken words, and the video is rendered with a camera that frames each step's area
+   (pulling back at page changes, pushing in on the verified outcome, drifting slowly while
+   it holds), a soft spotlight on that area, the pointer (press, idle fade, motion trail),
+   click ripples, chapter chips and branding. The
    compositions (React) are bundled once per process with esbuild. The frames are split
    into stretches, one per worker (`APP_STORY_RENDER_WORKERS`, default one per two CPU
    cores, up to 8). Each worker draws its frames in a headless Chromium tab, with FFmpeg
    streaming it the recording's frames and encoding the captured frames to H.264 (JPEG
-   quality 100, BT.709). FFmpeg then joins the stretches without re-encoding and mixes
-   the sound: each voice clip at its place, and the music looped under it, dipping
-   under the voice. The thumbnail is a frame of the finished MP4.
+   quality 100, BT.709; x264 `slow`, tuned for screen text). FFmpeg then joins the
+   stretches without re-encoding and mixes the sound: each voice clip at its place, soft
+   sound effects (clicks, typing, whooshes, a chime on the outcome, made from formulas),
+   and the music looped under it, dipping under the voice; the mix is mastered to -14 LUFS
+   with a peak limiter. The thumbnail is a frame of the finished MP4. For new videos, the
+   AI then looks at one frame per narration line (`qa/visual-review.ts`); steps whose shot
+   misses its subject are shown wide and the video is rendered once more. The edit is
+   also saved as an OpenTimelineIO timeline (`timeline.otio`) next to the take, for anyone
+   who wants to finish it in an editor such as DaVinci Resolve.
 6. **Quality checks** and **metadata**. A plan made by the AI is saved for reuse only
    after its video passed. Videos are never published automatically.
 
@@ -88,7 +101,8 @@ passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`
   that are identical for identical inputs: the feature list of a product file, the
   narration of a plan, and spoken clips by voice and text.
 - `takes/<job>/`: the take of each of the 5 newest videos per product (`pipeline/takes.ts`):
-  the raw recording, the spoken clips, the plan and the recording's timeline. `redo`
+  the raw recording, the spoken clips, the plan, the recording's timeline, and the edit as
+  `timeline.otio` (OpenTimelineIO, opens in DaVinci Resolve and other editors). `redo`
   (`orchestrator/redo.ts`) renders a take again with the product file's current look,
   without a browser or the AI. The take is kept before rendering, so a video whose render
   failed can be redone too.

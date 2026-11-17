@@ -216,7 +216,8 @@ The saved plans are in `products/<product>.plans/` (see above). Everything else 
 ```text
 .app-story/
 ├── app-story.db       history, records and cache (SQLite)
-├── takes/<job>/       the recording, spoken clips and timeline of a recent video, for redo
+├── takes/<job>/       the recording, spoken clips and timeline of a recent video, for redo,
+│                      and timeline.otio: the edit, to finish in DaVinci Resolve or another editor
 └── work/<job>/        scratch files of a video being made
 ```
 

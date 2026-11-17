@@ -18,7 +18,8 @@ export type RecordKind =
   | "browser_issues"
   | "quality"
   | "log"
-  | "thumbnail";
+  | "thumbnail"
+  | "visual_review";
 
 const SCHEMA_VERSION = 2;
 

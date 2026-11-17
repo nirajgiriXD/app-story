@@ -18,6 +18,8 @@ let root: string;
 let plan: Workflow;
 
 beforeAll(async () => {
+  // The AI review of the finished video would make a real, paid call: it has its own unit tests.
+  process.env.APP_STORY_AI_REVIEW = "off";
   app = await startExampleApp(PORT);
   root = await mkdtemp(join(tmpdir(), "app-story-it-"));
   productsDir = join(root, "products");

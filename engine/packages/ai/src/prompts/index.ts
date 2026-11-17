@@ -11,6 +11,7 @@ export const PROMPT_VERSIONS = {
   rehearsal: "v3",
   narration: "v2",
   "release-notes": "v2",
+  review: "v1",
 } as const;
 
 export type PromptName = keyof typeof PROMPT_VERSIONS;

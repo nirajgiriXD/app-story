@@ -5,16 +5,17 @@ import { validateWorkflow } from "@app-story/workflow";
 import { AppStoryError, isAppStoryError, probeMedia, slugify } from "@app-story/shared";
 import { prepareRenderer } from "@app-story/video";
 import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type Job } from "../job-manager/job";
-import type { ProviderOverrides } from "../pipeline/providers";
+import { withProviderFallback, type ProviderOverrides } from "../pipeline/providers";
 import { rehearseWorkflow } from "../pipeline/rehearse";
 import { prepareNarration } from "../pipeline/narrate";
 import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
-import { composeVideo } from "../pipeline/compose";
+import { composeVideo, type ComposeResult } from "../pipeline/compose";
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
 import { keepTake, type Take } from "../pipeline/takes";
 import { statusForError } from "../pipeline/status";
 import { exclusive } from "../pipeline/exclusive";
 import { runQualityChecks } from "../qa/quality";
+import { grabFrames, linesToReview, REVIEW_REQUEST, reviewPrompt, stepsToShowWide, visualReviewEnabled } from "../qa/visual-review";
 
 export interface GenerateRequest {
   product: LoadedProduct;
@@ -158,7 +159,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
     // 4–5. Captions, render and quality checks.
     phase = "render";
-    const status = await renderTake(job, product, kept, { onPhase: (p) => (phase = p) });
+    const status = await renderTake(job, product, kept, { onPhase: (p) => (phase = p), review: { overrides } });
     if (status !== "failed" && reuse && !fromSavedPlan) await savePlan(product, name, workflow);
     return await finishJob(job, status);
   } catch (error) {
@@ -172,7 +173,12 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
  * From a recording to a delivered video: captions, render, quality checks, then the video
  * goes to `output/` and the take is kept for `redo`. Used by new videos and by redos.
  */
-export async function renderTake(job: Job, product: LoadedProduct, take: Take, options: { onPhase?: (phase: string) => void } = {}): Promise<JobStatus> {
+export async function renderTake(
+  job: Job,
+  product: LoadedProduct,
+  take: Take,
+  options: { onPhase?: (phase: string) => void; review?: { overrides: ProviderOverrides } } = {},
+): Promise<JobStatus> {
   const { workflow, clips, recorded, silent } = take;
   const config = product.config;
   const kind = take.kind ?? undefined;
@@ -180,7 +186,11 @@ export async function renderTake(job: Job, product: LoadedProduct, take: Take, o
   await keepTake(job, take).catch((error: Error) => job.log.warn({ error: error.message }, "could not keep the recording for redo"));
 
   options.onPhase?.("render");
-  const composed = await exclusive(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
+  let composed = await exclusive(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
+  if (options.review && visualReviewEnabled()) {
+    options.onPhase?.("review");
+    composed = (await reviewAndFix(job, product, take, composed, options.review.overrides)) ?? composed;
+  }
   const final = await probeMedia(job.paths.finalVideo);
   job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
 
@@ -232,3 +242,47 @@ function productConfigForRecord(product: LoadedProduct): unknown {
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * An editor's look at the cut: the AI sees a frame for each narration line and says whether
+ * what the line is about is on screen. Steps whose shot failed are shown wide and the video
+ * is rendered once more (no browser). Any problem with the review keeps the first cut.
+ */
+async function reviewAndFix(
+  job: Job,
+  product: LoadedProduct,
+  take: Take,
+  composed: ComposeResult,
+  overrides: ProviderOverrides,
+): Promise<ComposeResult | undefined> {
+  try {
+    const lines = linesToReview(composed.lines);
+    if (lines.length === 0) return undefined;
+    const images = await grabFrames(job, lines);
+    const review = await withProviderFallback(job, "review", product.config, overrides, (provider) =>
+      provider.generateStructuredOutput({
+        system: REVIEW_REQUEST.system(),
+        prompt: reviewPrompt(take.workflow, lines),
+        schema: REVIEW_REQUEST.schema,
+        schemaName: REVIEW_REQUEST.schemaName,
+        effort: REVIEW_REQUEST.effort,
+        images,
+      }),
+    );
+    saveRecord(job, "visual_review", review);
+    const { stepIds, issues } = stepsToShowWide(review, lines);
+    if (stepIds.length === 0) {
+      job.log.info({ frames: lines.length }, "AI review: every shot shows what the narration is about");
+      return undefined;
+    }
+    job.log.info({ issues }, "AI review: some shots miss their subject; showing those steps wide");
+    job.metadata.warnings.push(`AI review re-framed ${stepIds.length} step(s): ${issues.join("; ")}`);
+    const wide = new Set(stepIds);
+    const workflow = { ...take.workflow, steps: take.workflow.steps.map((s) => (wide.has(s.id) ? { ...s, zoom: false } : s)) };
+    return await exclusive(() => composeVideo(job, product, workflow, take.clips, take.recorded, { kind: take.kind ?? undefined }));
+  } catch (error) {
+    job.log.warn({ error: (error as Error).message }, "AI review failed; the video is kept as it is");
+    job.metadata.warnings.push(`AI review skipped: ${(error as Error).message}`);
+    return undefined;
+  }
+}

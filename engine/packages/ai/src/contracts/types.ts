@@ -12,6 +12,7 @@ export const PHASE_EFFORT = {
   rehearsal: "high",
   features: "high",
   narration: "low",
+  review: "medium",
 } as const satisfies Record<string, Effort>;
 
 /**

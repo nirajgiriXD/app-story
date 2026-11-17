@@ -11,6 +11,8 @@ import type { RecordingOutcome } from "./record";
 export interface ComposeResult {
   plan: TimelinePlan;
   cues: CaptionCue[];
+  /** Each narration line over the recording, where it is in the finished video (global ms). */
+  lines: { text: string; stepIds: string[]; startMs: number; durationMs: number }[];
 }
 
 async function copyAsset(job: Job, product: LoadedProduct, path: string | undefined, name: string): Promise<string | undefined> {
@@ -110,7 +112,8 @@ export async function composeVideo(
   });
   const thumbnail = await readFile(job.paths.thumbnail).catch(() => undefined);
   if (thumbnail) saveRecord(job, "thumbnail", thumbnail);
-  return { plan, cues };
+  const lines = edited.voice.map((v) => ({ text: v.text, stepIds: v.step_ids, startMs: plan.recordingStartMs + v.start_ms, durationMs: v.duration_ms }));
+  return { plan, cues, lines };
 }
 
 /** A still of the app as the take opens, for the intro card. Optional: the intro works without it. */

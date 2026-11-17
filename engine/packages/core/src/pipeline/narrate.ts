@@ -1,4 +1,5 @@
 import { NarrationScriptSchema, type AudioClip, type NarrationScript, type VideoKind, type Workflow } from "@app-story/contracts";
+import { AppStoryError, toAppStoryError } from "@app-story/shared";
 import { PROMPT_VERSIONS } from "@app-story/ai";
 import { estimateStepMs } from "@app-story/workflow";
 import { synthesizeNarration, writeNarrationScript, type SpeechCache, type TTSProvider } from "@app-story/narration";
@@ -10,6 +11,8 @@ import { productContext } from "./rehearse";
 
 export interface NarrationResult {
   script: NarrationScript;
+  /** Where the script came from: the plan file, the cache, the scenario's own lines, or the AI. */
+  source: string;
   clips: AudioClip[];
   /** True when the narration track is silence (captions-only video). */
   silent: boolean;
@@ -19,7 +22,7 @@ export async function prepareNarration(
   job: Job,
   product: LoadedProduct,
   workflow: Workflow,
-  options: { durationS: number; audience?: string; kind?: VideoKind; fresh?: boolean },
+  options: { durationS: number; audience?: string; kind?: VideoKind; fresh?: boolean; replay?: boolean },
   overrides: ProviderOverrides,
 ): Promise<NarrationResult> {
   const config = product.config;
@@ -38,18 +41,32 @@ export async function prepareNarration(
     stepTimesMs: Object.fromEntries(workflow.steps.map((s) => [s.id, estimateStepMs(s, pacing)])),
   };
 
-  // A replayed plan gets the same script as last time: no AI call, and the speech cache hits too.
-  const { source: _source, ...plan } = workflow;
+  // A replayed plan gets the same script as last time: the one saved in its file, or the
+  // cached one. No AI call, and the speech cache hits too.
+  const { source: _source, narration: _saved, ...plan } = workflow;
   const scriptKey = cacheKey("narration_script", { ...request, workflow: plan, prompt: PROMPT_VERSIONS.narration });
-  const cached = options.fresh ? undefined : readCachedScript(job, scriptKey);
+  const saved = options.fresh ? undefined : savedScript(workflow, config.demo.default_language);
+  const cached = options.fresh || saved ? undefined : readCachedScript(job, scriptKey);
   let script: NarrationScript;
   let source: string;
-  if (cached) {
+  if (saved) {
+    [script, source] = [saved, "plan"];
+  } else if (cached) {
     [script, source] = [cached, "cache"];
   } else {
+    if (options.replay) job.log.info("this plan has no saved narration yet: the AI writes it once, and it is saved in the plan");
     ({ script, source } = workflow.steps.every((s) => s.narration)
       ? await writeNarrationScript({ ...request, provider: undefined })
-      : await withProviderFallback(job, "narration", config, overrides, (provider) => writeNarrationScript({ ...request, provider })));
+      : await withProviderFallback(job, "narration", config, overrides, (provider) => writeNarrationScript({ ...request, provider })).catch(
+          (error: unknown) => {
+            if (!options.replay) throw error;
+            const e = toAppStoryError(error);
+            throw new AppStoryError(e.code, `This plan has no saved narration, and the AI could not write it: ${e.message}`, {
+              hint: "Make its video once where an AI key is set, then commit the plan file: it then holds the narration, and replays need no AI.",
+              cause: error,
+            });
+          },
+        ));
     if (source === "ai") job.store.setCached(scriptKey, "narration_script", JSON.stringify(script));
   }
   job.log.info({ source, segments: script.segments.length }, "narration script ready");
@@ -70,7 +87,17 @@ export async function prepareNarration(
       job.metadata.warnings.push("Captions are disabled too, so the video has no narration at all.");
     }
   }
-  return { script, clips, silent: Boolean(tts.silent) };
+  return { script, source, clips, silent: Boolean(tts.silent) };
+}
+
+/** The narration saved in the plan file, if it is in this language and still covers exactly the plan's steps. */
+export function savedScript(workflow: Workflow, language: string): NarrationScript | undefined {
+  const saved = workflow.narration;
+  if (!saved || saved.language !== language) return undefined;
+  const covered = saved.segments.flatMap((s) => s.step_ids);
+  const steps = workflow.steps.map((s) => s.id);
+  if (covered.length !== steps.length || covered.some((id, i) => id !== steps[i])) return undefined;
+  return { intro: saved.intro, segments: saved.segments, outro: saved.outro };
 }
 
 function readCachedScript(job: Job, key: string): NarrationScript | undefined {

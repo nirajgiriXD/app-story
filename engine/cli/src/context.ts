@@ -18,4 +18,4 @@ export async function openProduct(id: string): Promise<LoadedProduct> {
 }
 
 /** Names of commands, which therefore cannot be product names. */
-export const RESERVED_NAMES = new Set(["new", "check", "list", "history", "redo", "resume", "help"]);
+export const RESERVED_NAMES = new Set(["new", "check", "list", "history", "redo", "resume", "replay", "test", "import", "help"]);

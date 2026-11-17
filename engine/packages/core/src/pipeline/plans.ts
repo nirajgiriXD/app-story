@@ -1,8 +1,9 @@
 import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { Workflow } from "@app-story/contracts";
+import { WorkflowSchema, type Workflow } from "@app-story/contracts";
 import { parseWorkflow, workflowToYaml, type LoadedProduct } from "@app-story/products";
-import { ensureDir, fileExists, redactSecrets, slugify } from "@app-story/shared";
+import { AppStoryError, ensureDir, fileExists, redactSecrets, slugify } from "@app-story/shared";
+
 import type { Store } from "../store/store";
 
 /**
@@ -42,16 +43,44 @@ export async function loadSavedPlan(store: Store, product: LoadedProduct, name: 
   return saved && saved.objective === objective ? saved : undefined;
 }
 
+/** Save a plan to its file. A file that already says the same is left untouched. */
 export async function savePlan(product: LoadedProduct, name: string, plan: Workflow): Promise<string> {
   const file = planFile(product, name);
   await ensureDir(plansDir(product));
   const header = [
     `# A verified click-plan for "${planKey(name)}", saved by AppStory after a successful video.`,
-    "# The next video of this feature replays it without AI planning. Delete this file to plan again.",
+    "# The next video of this feature replays it without AI planning (and, with its narration, without any AI).",
+    "# Delete this file to plan again.",
     "",
   ].join("\n");
-  await writeFile(file, header + workflowToYaml(redactSecrets(plan)));
+  // Parsed first, so the fields are always in the same order: an unchanged plan writes the same text.
+  const text = header + workflowToYaml(redactSecrets(WorkflowSchema.parse(plan)));
+  const before = await readFile(file, "utf8").catch(() => undefined);
+  if (before !== text) await writeFile(file, text);
   return file;
+}
+
+/** A product's saved plans, by name (the file name without `.yaml`), sorted. */
+export async function listPlans(product: LoadedProduct): Promise<{ name: string; file: string }[]> {
+  const files = await readdir(plansDir(product)).catch(() => [] as string[]);
+  return files
+    .filter((f) => f.endsWith(".yaml") && !f.startsWith("."))
+    .sort()
+    .map((f) => ({ name: f.slice(0, -".yaml".length), file: join(plansDir(product), f) }));
+}
+
+/** Read a saved plan by name. */
+export async function readPlan(product: LoadedProduct, name: string): Promise<Workflow> {
+  const file = planFile(product, name);
+  if (!(await fileExists(file))) {
+    const names = (await listPlans(product)).map((p) => p.name);
+    throw new AppStoryError("CONFIG_INVALID", `There is no saved plan '${name}' for ${product.id} (looked for ${file}).`, {
+      hint: names.length
+        ? `Saved plans: ${names.join(", ")}`
+        : `Make a video first (npx app-story ${product.id}), or import one: npx app-story import ${product.id} <trace.zip>`,
+    });
+  }
+  return parseWorkflow(await readFile(file, "utf8"), file);
 }
 
 export async function forgetPlan(product: LoadedProduct, name: string): Promise<void> {

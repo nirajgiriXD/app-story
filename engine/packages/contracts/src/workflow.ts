@@ -111,6 +111,23 @@ export const StepSchema = z
   });
 export type Step = z.infer<typeof StepSchema>;
 
+/** The video kinds (see `VideoKind` in product.ts). */
+export const VIDEO_KINDS = ["whats-new", "feature", "how-to"] as const;
+
+/**
+ * The voice-over of a plan, saved in the plan file with it after a successful video, so
+ * the next video of the plan (a teammate's, or one made in CI) needs no AI to write it.
+ * Segment text may hold `{{@step}}` anchors (see narration's anchors.ts).
+ */
+export const SavedNarrationSchema = z.object({
+  /** The language it is written in; another language writes it again. */
+  language: z.string().min(1),
+  intro: z.string(),
+  segments: z.array(z.object({ step_ids: z.array(z.string()).min(1), text: z.string() })).min(1),
+  outro: z.string(),
+});
+export type SavedNarration = z.infer<typeof SavedNarrationSchema>;
+
 export const WorkflowSchema = z.object({
   workflow_version: z.literal(WORKFLOW_VERSION),
   id: z.string().min(1),
@@ -129,9 +146,13 @@ export const WorkflowSchema = z.object({
       created_at: z.string().optional(),
     })
     .optional(),
+  /** The kind of video the plan was made for: it picks the look when the plan is replayed. */
+  kind: z.enum(VIDEO_KINDS).optional(),
   setup: z.array(StepSchema).default([]),
   steps: z.array(StepSchema).min(1),
   cleanup: z.array(StepSchema).default([]),
+  narration: SavedNarrationSchema.optional(),
 });
+
 export type Workflow = z.infer<typeof WorkflowSchema>;
 export type WorkflowInput = z.input<typeof WorkflowSchema>;

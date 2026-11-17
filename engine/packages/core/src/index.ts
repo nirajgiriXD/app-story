@@ -9,6 +9,8 @@ export * from "./qa/quality";
 export * from "./orchestrator/generate";
 export * from "./orchestrator/redo";
 export * from "./orchestrator/resume";
+export * from "./orchestrator/replay";
+
 export * from "./pipeline/takes";
 export * from "./orchestrator/validate";
 export * from "./orchestrator/release-notes";

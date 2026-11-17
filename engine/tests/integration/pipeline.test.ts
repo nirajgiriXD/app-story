@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@app-story/contracts";
-import { generateDemo, listTakes, planFile, redoVideo, resumeDemo, savePlan, storeFor } from "@app-story/core";
+import { generateDemo, listTakes, planFile, redoVideo, replayPlans, resumeDemo, savePlan, storeFor } from "@app-story/core";
 import { loadProduct, parseWorkflow } from "@app-story/products";
 import { AppStoryError, probeMedia } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
@@ -168,6 +168,8 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(first.mode).toBe("guided");
     const saved = parseWorkflow(await readFile(planFile(product, "create-project"), "utf8"));
     expect(saved.steps.map((s) => s.action)).toEqual(["click", "fill", "click", "assert"]);
+    // The narration is saved with the plan, so a replay elsewhere needs no AI.
+    expect(saved.narration).toMatchObject({ language: "en", intro: "Here is how to create a project." });
     const agentTurns = ai.received.length;
 
     const second = await generateDemo({ product, outputDir: out, objective: OBJECTIVE, name: "create-project", logLevel: "warn", providers });
@@ -203,6 +205,33 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(metadata.warnings.join()).toMatch(/planned again/);
     const replaced = parseWorkflow(await readFile(planFile(product, "create-project"), "utf8"));
     expect(replaced.steps.some((s) => s.value === "Website Launch")).toBe(true);
+  });
+
+  it("replays saved plans with no AI at all, and leaves their files as they were", async () => {
+    const { product, out } = await productIn("ci");
+    const ai = plannerAI();
+    const createTTS = () => new ToneTTS();
+    await generateDemo({
+      product,
+      outputDir: out,
+      objective: OBJECTIVE,
+      name: "create-project",
+      logLevel: "silent",
+      providers: { createAI: (_config, deps) => Object.assign(ai, { usage: deps.usage }), createTTS },
+    });
+    const file = planFile(product, "create-project");
+    const before = await readFile(file, "utf8");
+
+    // A CI runner: no AI key. Any AI call fails the test.
+    const noAI = () => {
+      throw new Error("the AI must not be called");
+    };
+    const [replayed] = await replayPlans({ product, outputDir: out, logLevel: "silent", providers: { createAI: noAI, createTTS } });
+    expect(replayed?.errors).toEqual([]);
+    expect(["success", "success_with_warnings"]).toContain(replayed?.status);
+    expect(replayed?.mode).toBe("scenario");
+    expect(replayed?.ai.attempts).toEqual([]);
+    expect(await readFile(file, "utf8")).toBe(before);
   });
 
   it("finishes a failed video from its plan, without asking the AI again", async () => {

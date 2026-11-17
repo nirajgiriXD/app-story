@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { JobMetadata, JobStatus, VideoKind, Workflow } from "@app-story/contracts";
+import type { JobMetadata, JobStatus, NarrationScript, VideoKind, Workflow } from "@app-story/contracts";
+
 import { WORKFLOW_VERSION } from "@app-story/contracts";
 import type { LoadedProduct } from "@app-story/products";
 import { validateWorkflow } from "@app-story/workflow";
@@ -26,8 +27,13 @@ export interface GenerateRequest {
   objective: string;
   /** Short name for the video file and the saved plan. Default: a slug of the objective. */
   name?: string;
-  /** Replay this plan instead of planning (used by tests and `resumeDemo`). */
+  /** Replay this plan instead of planning (used by tests, `resumeDemo` and `replayPlans`). */
   plan?: Workflow;
+  /**
+   * `plan` is a saved plan, replayed as it is: it is never planned again, even if it fails.
+   * What this video adds to it (narration written for it, framing fixes) is saved back to its file.
+   */
+  replay?: boolean;
   /** Reuse and save verified plans next to the product file (default: true). */
   reusePlans?: boolean;
   /** Ignore a saved plan and plan again. */
@@ -69,6 +75,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   });
   job.metadata.kind = request.kind ?? null;
   job.metadata.resumed_from = request.resumedFrom ?? null;
+  if (request.replay) job.metadata.mode = "scenario";
   request.onJobCreated?.(job);
   // Bundle the video compositions while the AI and the browser work (errors resurface at render).
   void prepareRenderer().catch(() => undefined);
@@ -77,8 +84,9 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   const config = product.config;
   const durationS = request.durationS ?? config.demo.default_duration;
   const reuse = request.reusePlans !== false && !request.plan;
-  // A resumed plan was made by the AI like any other: it is kept once its video passes.
-  const keepPlan = request.reusePlans !== false && (!request.plan || Boolean(request.resumedFrom));
+  // A resumed plan was made by the AI like any other: it is kept once its video passes. A
+  // replayed one is written back only if this video added to it (see `planToSave`).
+  const keepPlan = request.reusePlans !== false && (!request.plan || Boolean(request.resumedFrom) || Boolean(request.replay));
   let phase = "plan";
 
   const planWithAI = () =>
@@ -103,7 +111,13 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   // Narration first (script + speech), so the recording can be paced to it.
   const narrateAndRecord = async (workflow: Workflow) => {
     phase = "narration";
-    const narration = await prepareNarration(job, product, workflow, { durationS, kind: request.kind, fresh: request.fresh }, overrides);
+    const narration = await prepareNarration(
+      job,
+      product,
+      workflow,
+      { durationS, kind: request.kind, fresh: request.fresh, replay: request.replay },
+      overrides,
+    );
     await saveMetadata(job);
     phase = "recording";
     const recorded = await job.runtime.heavy(async () => {
@@ -155,7 +169,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       await check(workflow);
       take = await narrateAndRecord(workflow);
     }
-    const { clips, silent, recorded } = take;
+    const { clips, silent, recorded, script, source } = take;
     const kept: Take = {
       job_id: job.id,
       product_id: product.id,
@@ -168,11 +182,16 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       silent,
     };
 
-    // 4–5. Captions, render and quality checks.
+    // 4–5. Captions, render and quality checks. A replayed plan whose narration was already
+    // saved was reviewed when it was made: it needs no AI at all.
     phase = "render";
-    const status = await renderTake(job, product, kept, { onPhase: (p) => (phase = p), review: { overrides } });
-    if (status !== "failed" && keepPlan && !fromSavedPlan) await savePlan(product, name, workflow);
-    return await finishJob(job, status);
+    const review = request.replay && source !== "ai" ? undefined : { overrides };
+    const rendered = await renderTake(job, product, kept, { onPhase: (p) => (phase = p), review });
+    if (rendered.status !== "failed" && keepPlan) {
+      const plan = planToSave(rendered.workflow, { kind: request.kind, language: config.demo.default_language, script });
+      await savePlan(product, name, plan);
+    }
+    return await finishJob(job, rendered.status);
   } catch (error) {
     recordError(job, error, phase);
     job.log.error({ phase, error: (error as Error).message }, "job failed");
@@ -181,15 +200,25 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 }
 
 /**
+ * The plan as it is saved after a video: with the framing the AI review settled on, the kind
+ * of video it was made for (its look on replay) and its narration, so the next video of it
+ * needs no AI.
+ */
+export function planToSave(workflow: Workflow, made: { kind?: VideoKind; language: string; script: NarrationScript }): Workflow {
+  return { ...workflow, kind: made.kind ?? workflow.kind, narration: { language: made.language, ...made.script } };
+}
+
+/**
  * From a recording to a delivered video: captions, render, quality checks, then the video
  * goes to `output/` and the take is kept for `redo`. Used by new videos and by redos.
+ * Returns the plan as it was rendered: the AI review may have re-framed some of its steps.
  */
 export async function renderTake(
   job: Job,
   product: LoadedProduct,
   take: Take,
   options: { onPhase?: (phase: string) => void; review?: { overrides: ProviderOverrides } } = {},
-): Promise<JobStatus> {
+): Promise<{ status: JobStatus; workflow: Workflow }> {
   const { workflow, clips, recorded, silent } = take;
   const config = product.config;
   const kind = take.kind ?? undefined;
@@ -201,9 +230,11 @@ export async function renderTake(
 
   options.onPhase?.("render");
   let composed = await job.runtime.heavy(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
+  let rendered = workflow;
   if (options.review && visualReviewEnabled()) {
     options.onPhase?.("review");
-    composed = (await reviewAndFix(job, product, take, composed, options.review.overrides)) ?? composed;
+    const fixed = await reviewAndFix(job, product, take, composed, options.review.overrides);
+    if (fixed) [composed, rendered] = [fixed.composed, fixed.workflow];
   }
   if (kept) await writeTimeline(job, kept, composed);
   const final = await probeMedia(job.paths.finalVideo);
@@ -230,11 +261,11 @@ export async function renderTake(
   if (errors.length > 0) {
     for (const e of errors)
       recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
-    return "failed";
+    return { status: "failed", workflow: rendered };
   }
   // Only the video (and its captions) go to output/.
   await deliverVideo(job);
-  return job.metadata.warnings.length > 0 ? "success_with_warnings" : "success";
+  return { status: job.metadata.warnings.length > 0 ? "success_with_warnings" : "success", workflow: rendered };
 }
 
 function failIfIncomplete(recorded: RecordingOutcome): void {
@@ -269,7 +300,7 @@ async function reviewAndFix(
   take: Take,
   composed: ComposeResult,
   overrides: ProviderOverrides,
-): Promise<ComposeResult | undefined> {
+): Promise<{ composed: ComposeResult; workflow: Workflow } | undefined> {
   try {
     const lines = linesToReview(composed.lines);
     if (lines.length === 0) return undefined;
@@ -294,7 +325,8 @@ async function reviewAndFix(
     job.metadata.warnings.push(`AI review re-framed ${stepIds.length} step(s): ${issues.join("; ")}`);
     const wide = new Set(stepIds);
     const workflow = { ...take.workflow, steps: take.workflow.steps.map((s) => (wide.has(s.id) ? { ...s, zoom: false } : s)) };
-    return await job.runtime.heavy(() => composeVideo(job, product, workflow, take.clips, take.recorded, { kind: take.kind ?? undefined }));
+    const recomposed = await job.runtime.heavy(() => composeVideo(job, product, workflow, take.clips, take.recorded, { kind: take.kind ?? undefined }));
+    return { composed: recomposed, workflow };
   } catch (error) {
     job.log.warn({ error: (error as Error).message }, "AI review failed; the video is kept as it is");
     job.metadata.warnings.push(`AI review skipped: ${(error as Error).message}`);

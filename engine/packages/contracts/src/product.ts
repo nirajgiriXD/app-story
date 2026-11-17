@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { VOICE_ACCENTS } from "./voices";
+import type { VIDEO_KINDS } from "./workflow";
 
 export const AI_PROVIDERS = ["anthropic", "openai"] as const;
 export const AiProviderNameSchema = z.enum(AI_PROVIDERS);
@@ -20,7 +21,7 @@ export const TEMPLATE_NAMES = ["modern-saas", "minimal", "product-update", "tuto
 export type TemplateName = (typeof TEMPLATE_NAMES)[number];
 
 /** What a video is for, which decides its look when the product file sets no `template:`. */
-export type VideoKind = "whats-new" | "feature" | "how-to";
+export type VideoKind = (typeof VIDEO_KINDS)[number];
 
 const TEMPLATE_FOR_KIND: Record<VideoKind, TemplateName> = {
   "whats-new": "product-update", // all new features of a release: "New" badge, announcement feel

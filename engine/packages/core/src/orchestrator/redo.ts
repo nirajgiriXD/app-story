@@ -76,7 +76,7 @@ export async function redoVideo(request: RedoRequest): Promise<JobMetadata> {
     };
     await saveMetadata(job);
     job.log.info({ from: jobId, template: config.demo.template ?? "as picked for the video" }, "making the video again from its kept recording");
-    return await finishJob(job, await renderTake(job, redone, take, { onPhase: (p) => (phase = p) }));
+    return await finishJob(job, (await renderTake(job, redone, take, { onPhase: (p) => (phase = p) })).status);
   } catch (error) {
     recordError(job, error, phase);
     job.log.error({ phase, error: (error as Error).message }, "job failed");

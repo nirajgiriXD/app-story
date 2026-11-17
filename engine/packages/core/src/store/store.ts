@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { JobMetadataSchema, type JobMetadata, type Workflow } from "@app-story/contracts";
-import { dataDirFor, redactSecrets } from "@app-story/shared";
+import { AppStoryError, dataDirFor, redactSecrets } from "@app-story/shared";
 
 /** What a job keeps besides its video. Text kinds hold JSON or plain text; `thumbnail` is a PNG. */
 export type RecordKind =
@@ -21,13 +21,14 @@ export type RecordKind =
   | "thumbnail"
   | "visual_review";
 
-const SCHEMA_VERSION = 2;
-
 /** Cached AI and speech results that nobody has used for this long are deleted. */
 const CACHE_DAYS = 30;
 
 /** What the cache holds: the feature list of a product file, a narration script, a spoken clip. */
 export type CacheKind = "features" | "narration_script" | "speech";
+
+/** The tables as version 2 left them: what every migration below starts from. */
+const BASE_VERSION = 2;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS jobs (
@@ -76,6 +77,42 @@ CREATE TABLE IF NOT EXISTS cache (
 );
 `;
 
+/**
+ * Changes to the tables after version 2, in order: entry i takes the database from version
+ * BASE_VERSION + i to BASE_VERSION + i + 1. Never edit one that has shipped; add a new one.
+ */
+export const MIGRATIONS: readonly string[] = [];
+
+/**
+ * Bring the database to the latest version: the base tables for a new (or pre-version-2)
+ * database, then each missing migration once, in its own transaction. Returns the version.
+ */
+export function migrate(db: DatabaseSync, migrations: readonly string[] = MIGRATIONS): number {
+  const latest = BASE_VERSION + migrations.length;
+  const current = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  if (current > latest) {
+    throw new AppStoryError("CONFIG_INVALID", `The database was made by a newer AppStory (version ${current}; this one knows up to ${latest}).`, {
+      hint: "Update AppStory: npm install app-story@latest",
+    });
+  }
+  if (current < BASE_VERSION) {
+    db.exec(SCHEMA);
+    db.exec(`PRAGMA user_version = ${BASE_VERSION}`);
+  }
+  for (let version = Math.max(current, BASE_VERSION); version < latest; version++) {
+    db.exec("BEGIN");
+    try {
+      db.exec(migrations[version - BASE_VERSION] as string);
+      db.exec(`PRAGMA user_version = ${version + 1}`);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  return latest;
+}
+
 /** A stable cache key for any JSON-able inputs. */
 export function cacheKey(kind: CacheKind, inputs: unknown): string {
   return `${kind}:${createHash("sha256").update(JSON.stringify(inputs)).digest("hex")}`;
@@ -115,8 +152,7 @@ export class Store {
     this.file = join(dataDir, "app-story.db");
     this.db = new DatabaseSync(this.file);
     this.db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;");
-    this.db.exec(SCHEMA);
-    this.db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
+    migrate(this.db);
     const cutoff = new Date(Date.now() - CACHE_DAYS * 86_400_000).toISOString();
     this.db.prepare("DELETE FROM cache WHERE used_at < ?").run(cutoff);
   }

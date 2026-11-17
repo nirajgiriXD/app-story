@@ -15,6 +15,8 @@ import {
   finishJob,
   forgetPlan,
   loadSavedPlan,
+  migrate,
+  MIGRATIONS,
   planFile,
   readHistory,
   saveRecord,
@@ -189,4 +191,40 @@ describe("kept recordings (takes)", () => {
     expect(take.recorded.placed[0]?.path).toBe(take.clips[0]?.path);
     await expect(loadTake(dataDir, ids[0] as string)).rejects.toThrow(/no kept recording/);
   }, 30_000);
+});
+
+describe("database migrations", () => {
+  const version = (db: DatabaseSync) => (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  const tempDb = async () => new DatabaseSync(join(await mkdtemp(join(tmpdir(), "df-migrate-")), "app-story.db"));
+
+  it("creates the tables of a new database and marks it with the latest version", async () => {
+    const db = await tempDb();
+    expect(migrate(db)).toBe(2 + MIGRATIONS.length);
+    expect(version(db)).toBe(2 + MIGRATIONS.length);
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE name = ?").get("jobs")).toBeTruthy();
+  });
+
+  it("runs only the migrations a database is missing, once", async () => {
+    const db = await tempDb();
+    migrate(db, []);
+    const steps = ["CREATE TABLE extra (id TEXT)", "ALTER TABLE extra ADD COLUMN note TEXT"];
+    expect(migrate(db, steps.slice(0, 1))).toBe(3);
+    expect(migrate(db, steps)).toBe(4);
+    expect(migrate(db, steps)).toBe(4);
+    expect(db.prepare("SELECT note FROM extra").all()).toEqual([]);
+  });
+
+  it("leaves the database as it was when a migration fails", async () => {
+    const db = await tempDb();
+    migrate(db, []);
+    expect(() => migrate(db, ["CREATE TABLE half (id TEXT); NOT SQL"])).toThrow();
+    expect(version(db)).toBe(2);
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE name = ?").get("half")).toBeUndefined();
+  });
+
+  it("refuses a database made by a newer version", async () => {
+    const db = await tempDb();
+    db.exec("PRAGMA user_version = 99");
+    expect(() => migrate(db)).toThrow(/newer AppStory/);
+  });
 });

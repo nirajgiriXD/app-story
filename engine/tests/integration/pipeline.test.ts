@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { mkdtemp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@app-story/contracts";
 import { generateDemo, listTakes, planFile, redoVideo, savePlan, storeFor } from "@app-story/core";
@@ -108,9 +108,12 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(store.getRecordText(metadata.job_id, "log")).toBeTruthy();
     expect(tts.calls.length).toBe(9); // intro + 7 segments + outro
 
-    // output/ holds only videos, and the scratch folder is gone.
+    // output/ holds only the video and its captions, and the scratch folder is gone.
     expect(metadata.video!.path).toBe(join(outputDir, "example", `${metadata.job_id}-${"demonstrate-how-to-create-a-new-project"}.mp4`));
-    expect((await readdir(join(outputDir, "example"))).every((f) => f.endsWith(".mp4"))).toBe(true);
+    expect((await readdir(join(outputDir, "example"))).sort()).toEqual([
+      basename(metadata.video!.path),
+      basename(metadata.video!.path).replace(/\.mp4$/, ".srt"),
+    ]);
     expect(existsSync(metadata.output_dir)).toBe(false);
   });
 

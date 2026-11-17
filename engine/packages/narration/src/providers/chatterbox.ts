@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import type { TtsConfig } from "@app-story/contracts";
-import { AppStoryError } from "@app-story/shared";
+import { AppStoryError, serialQueue } from "@app-story/shared";
 import type { TTSProvider } from "./tts";
 
 /*
@@ -116,7 +116,7 @@ class Worker {
 
 let worker: Worker | undefined;
 /** One line at a time: the helper answers in order and the model does not run in parallel. */
-let queue: Promise<unknown> = Promise.resolve();
+const queue = serialQueue();
 
 export class ChatterboxTTS implements TTSProvider {
   readonly name = "chatterbox";
@@ -134,11 +134,9 @@ export class ChatterboxTTS implements TTSProvider {
   }
 
   synthesize(text: string, outPath: string): Promise<void> {
-    const run = queue.then(() => {
+    return queue(() => {
       worker ??= new Worker(process.env.APP_STORY_PYTHON?.trim() || "python");
       return worker.speak({ text, out: outPath, voice: this.reference, exaggeration: this.exaggeration });
     });
-    queue = run.catch(() => undefined);
-    return run;
   }
 }

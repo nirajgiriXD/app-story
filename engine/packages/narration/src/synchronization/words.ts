@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import type { WordTiming } from "@app-story/contracts";
-import { AppStoryError } from "@app-story/shared";
+import { AppStoryError, serialQueue } from "@app-story/shared";
 
 /*
  * When each word of a narration clip is spoken. A small speech-recognition model (Whisper,
@@ -16,7 +16,7 @@ type Recognizer = (audio: Float32Array, options: { return_timestamps: "word" }) 
 
 let loading: Promise<Recognizer> | undefined;
 /** One clip at a time: the model is not safe to run in parallel and would not be faster. */
-let queue: Promise<unknown> = Promise.resolve();
+const queue = serialQueue();
 
 function loadRecognizer(): Promise<Recognizer> {
   loading ??= import("@huggingface/transformers")
@@ -40,7 +40,7 @@ export function wordTimingEnabled(): boolean {
 
 /** When each word of `text` is spoken in the clip at `file` (ms from the clip's start). */
 export function timeWords(file: string, text: string): Promise<WordTiming[]> {
-  const run = queue.then(async () => {
+  return queue(async () => {
     const recognize = await loadRecognizer();
     const audio = await readMono16k(file);
     const result = (await recognize(audio, { return_timestamps: "word" })) as { chunks?: { text: string; timestamp: [number, number | null] }[] };
@@ -51,8 +51,6 @@ export function timeWords(file: string, text: string): Promise<WordTiming[]> {
     }));
     return alignWords(text, heard, (audio.length / 16_000) * 1000);
   });
-  queue = run.catch(() => undefined);
-  return run;
 }
 
 /** The clip as 16 kHz mono float samples, what the model listens to. */

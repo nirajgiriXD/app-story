@@ -1,4 +1,4 @@
-let tail: Promise<unknown> = Promise.resolve();
+import { serialQueue } from "@app-story/shared";
 
 /**
  * When several videos are made at once, their CPU-heavy or timing-sensitive phases (speech,
@@ -6,8 +6,4 @@ let tail: Promise<unknown> = Promise.resolve();
  * two renders at once are no faster than one after the other. AI planning, which mostly waits
  * on the network, still overlaps freely.
  */
-export function exclusive<T>(fn: () => Promise<T>): Promise<T> {
-  const run = tail.then(fn);
-  tail = run.catch(() => undefined);
-  return run;
-}
+export const exclusive = serialQueue();

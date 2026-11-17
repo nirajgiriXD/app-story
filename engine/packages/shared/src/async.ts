@@ -49,3 +49,19 @@ export async function mapWithConcurrency<T, R>(items: readonly T[], limit: numbe
   await Promise.all(workers);
   return results;
 }
+
+/** Runs tasks one at a time, in the order they were given. */
+export type SerialQueue = <T>(task: () => Promise<T>) => Promise<T>;
+
+/**
+ * A queue that runs one task at a time. A failed task does not stop the ones after it;
+ * its error goes only to the caller that gave it.
+ */
+export function serialQueue(): SerialQueue {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(task: () => Promise<T>): Promise<T> => {
+    const run = tail.then(task);
+    tail = run.catch(() => undefined);
+    return run;
+  };
+}

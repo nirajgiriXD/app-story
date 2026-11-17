@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { resolveKokoroVoice, type TtsConfig } from "@app-story/contracts";
-import { AppStoryError } from "@app-story/shared";
+import { AppStoryError, serialQueue } from "@app-story/shared";
 import type { KokoroTTS as KokoroModel } from "kokoro-js";
 import type { TTSProvider } from "./tts";
 
@@ -35,7 +35,7 @@ let loading: Promise<{ tts: KokoroModel; lib: KokoroModule }> | undefined;
  * The model is not safe to run in parallel, and parallel runs would not be faster on one
  * CPU. The queue is shared by every KokoroTTS, so two videos made at once take turns.
  */
-let queue: Promise<unknown> = Promise.resolve();
+const queue = serialQueue();
 
 function loadModel(model: string): Promise<{ tts: KokoroModel; lib: KokoroModule }> {
   loading ??= import("kokoro-js")
@@ -69,9 +69,7 @@ export class KokoroTTS implements TTSProvider {
   }
 
   synthesize(text: string, outPath: string): Promise<void> {
-    const run = queue.then(() => this.speak(text, outPath));
-    queue = run.catch(() => undefined);
-    return run;
+    return queue(() => this.speak(text, outPath));
   }
 
   private async speak(text: string, outPath: string): Promise<void> {

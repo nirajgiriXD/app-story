@@ -63,7 +63,20 @@ export class AnthropicProvider implements AIProvider {
         model: this.model,
         max_tokens: request.maxTokens ?? ANTHROPIC_MAX_TOKENS.structured,
         system: request.system,
-        messages: [{ role: "user", content: request.prompt }],
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...(request.images ?? []).map(
+                (image): Anthropic.ImageBlockParam => ({
+                  type: "image",
+                  source: { type: "base64", media_type: image.mediaType, data: image.data.toString("base64") },
+                }),
+              ),
+              { type: "text", text: request.prompt },
+            ],
+          },
+        ],
         output_config: { effort: this.effortFor(request.effort), format: zodOutputFormat(request.schema) },
       }),
     );

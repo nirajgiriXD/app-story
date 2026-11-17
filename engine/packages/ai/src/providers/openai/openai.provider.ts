@@ -69,7 +69,23 @@ export class OpenAIProvider implements AIProvider {
       this.client.responses.parse({
         model: this.model,
         instructions: request.system,
-        input: request.prompt,
+        input: request.images?.length
+          ? [
+              {
+                role: "user",
+                content: [
+                  ...request.images.map(
+                    (image): OpenAI.Responses.ResponseInputImage => ({
+                      type: "input_image",
+                      image_url: `data:${image.mediaType};base64,${image.data.toString("base64")}`,
+                      detail: "high",
+                    }),
+                  ),
+                  { type: "input_text", text: request.prompt },
+                ],
+              },
+            ]
+          : request.prompt,
         max_output_tokens: request.maxTokens ?? OPENAI_MAX_OUTPUT_TOKENS.structured,
         text: { format: zodTextFormat(request.schema, request.schemaName) },
         ...this.tuning(request.effort),

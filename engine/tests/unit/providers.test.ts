@@ -122,6 +122,16 @@ for (const h of [anthropic, openai]) {
       expect(await provider.generateStructuredOutput({ system: "s", prompt: "p", schema: Schema, schemaName: "thing" })).toEqual({ title: "x", count: 2 });
     });
 
+    it("sends pictures before the prompt in a structured request", async () => {
+      const { provider, requests } = h.make([{ kind: "structured", value: { title: "x", count: 2 } }]);
+      const image = { mediaType: "image/jpeg" as const, data: Buffer.from("jpeg-bytes") };
+      await provider.generateStructuredOutput({ system: "s", prompt: "look", schema: Schema, schemaName: "thing", images: [image] });
+      const sent = JSON.stringify(requests[0]);
+      const b64 = image.data.toString("base64");
+      expect(sent).toContain(b64);
+      expect(sent.indexOf(b64)).toBeLessThan(sent.indexOf('"look"'));
+    });
+
     it("rejects structured output that does not match the schema", async () => {
       const { provider } = h.make([{ kind: "structured", value: { title: 1 } }]);
       await expect(provider.generateStructuredOutput({ system: "s", prompt: "p", schema: Schema, schemaName: "thing" })).rejects.toMatchObject({

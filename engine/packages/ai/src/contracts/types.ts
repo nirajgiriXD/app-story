@@ -75,6 +75,13 @@ export interface StructuredGenerationRequest<T> {
   schemaName: string;
   maxTokens?: number;
   effort?: Effort;
+  /** Pictures the model looks at, before the prompt (for example frames of a video). */
+  images?: ImageInput[];
+}
+
+export interface ImageInput {
+  mediaType: "image/jpeg" | "image/png";
+  data: Buffer;
 }
 
 export interface AgentSessionRequest {

@@ -26,17 +26,6 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
-    "@app-story/ai": "*",
-    "@app-story/browser": "*",
-    "@app-story/captions": "*",
-    "@app-story/cli": "*",
-    "@app-story/contracts": "*",
-    "@app-story/core": "*",
-    "@app-story/narration": "*",
-    "@app-story/products": "*",
-    "@app-story/shared": "*",
-    "@app-story/video": "*",
-    "@app-story/workflow": "*",
     "@biomejs/biome": "2.6.8",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
@@ -47,7 +36,6 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0",
-    "yaml": "^2.9.1",
     "zod": "^4.6.7"
   },
   "allowScripts": {

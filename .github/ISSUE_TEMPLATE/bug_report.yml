@@ -46,6 +46,7 @@ body:
       label: Voice
       options:
         - Kokoro (free)
+        - Chatterbox (free, Python)
         - OpenAI
         - ElevenLabs
         - None
@@ -54,7 +55,7 @@ body:
     id: version
     attributes:
       label: AppStory version
-      description: The commit you are on (`git rev-parse --short HEAD`).
+      description: The commit you are on (`git rev-parse --short HEAD`), or `npx app-story --version` if you installed it from npm or Docker.
   - type: input
     id: environment
     attributes:

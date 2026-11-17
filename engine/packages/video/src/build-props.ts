@@ -102,6 +102,7 @@ export interface BuildPropsInput {
   cues: { start_ms: number; end_ms: number; text: string }[];
   logoSrc?: string;
   musicSrc?: string;
+  heroSrc?: string;
 }
 
 export function buildRenderProps(input: BuildPropsInput): RenderProps {
@@ -156,6 +157,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     },
     title: input.title,
     subtitle: input.subtitle ?? null,
+    hero: input.heroSrc ?? null,
     intro: { startMs: plan.introStartMs, endMs: plan.introEndMs },
     outro: { startMs: plan.outroStartMs, endMs: plan.outroEndMs },
     recording: {

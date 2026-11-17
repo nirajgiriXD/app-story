@@ -33,6 +33,7 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
       {p.brand.logo ? (
         <Img src={asset(p, p.brand.logo)} style={{ height: px(p, 64), objectFit: "contain", alignSelf: "flex-start", marginBottom: px(p, 40), ...rise(0) }} />
       ) : null}
+      {kind === "intro" && p.hero ? <Hero p={p} src={p.hero} enter={enter(260)} /> : null}
       {kind === "intro" ? (
         <>
           <div style={{ display: "flex", gap: px(p, 16), alignItems: "center", marginBottom: px(p, 20), ...rise(80) }}>
@@ -61,14 +62,16 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
               fontWeight: p.template.title.weight,
               lineHeight: 1.08,
               letterSpacing: "-0.02em",
-              maxWidth: px(p, 1400),
+              maxWidth: px(p, p.hero ? 820 : 1400),
               ...rise(160),
             }}
           >
             {p.title}
           </div>
           {p.subtitle ? (
-            <div style={{ color: colors.muted, fontSize: px(p, 32), marginTop: px(p, 28), maxWidth: px(p, 1200), lineHeight: 1.4, ...rise(320) }}>
+            <div
+              style={{ color: colors.muted, fontSize: px(p, 32), marginTop: px(p, 28), maxWidth: px(p, p.hero ? 760 : 1200), lineHeight: 1.4, ...rise(320) }}
+            >
               {p.subtitle}
             </div>
           ) : null}
@@ -80,9 +83,49 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
             {p.brand.productName}
           </div>
           <div style={{ color: colors.muted, fontSize: px(p, 32), marginTop: px(p, 20), ...rise(220) }}>{p.title}</div>
-          <div style={{ color: p.brand.primary, fontSize: px(p, 30), fontWeight: 600, marginTop: px(p, 40), ...rise(360) }}>{p.brand.host}</div>
+          <div
+            style={{
+              alignSelf: "flex-start",
+              marginTop: px(p, 44),
+              background: p.brand.primary,
+              color: "#fff",
+              fontSize: px(p, 30),
+              fontWeight: 600,
+              padding: `${px(p, 16)}px ${px(p, 34)}px`,
+              borderRadius: 999,
+              boxShadow: `0 ${px(p, 14)}px ${px(p, 36)}px ${p.brand.primary}55`,
+              ...rise(360),
+            }}
+          >
+            Try it at {p.brand.host} →
+          </div>
         </>
       )}
     </AbsoluteFill>
+  );
+};
+
+/** The app's first screen, tilted in on the right of the intro: what the video is about, at a glance. */
+const Hero: React.FC<{ p: RenderProps; src: string; enter: number }> = ({ p, src, enter }) => {
+  const width = px(p, 900);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: px(p, 1000),
+        top: "50%",
+        width,
+        height: (width * 9) / 16,
+        marginTop: -(width * 9) / 32,
+        borderRadius: px(p, 16),
+        overflow: "hidden",
+        opacity: enter,
+        transform: `perspective(${px(p, 2200)}px) translateX(${px(p, 120) * (1 - enter)}px) rotateY(${-16 + 4 * enter}deg) rotateX(4deg)`,
+        boxShadow: "0 40px 90px rgba(15, 23, 42, 0.30), 0 0 0 1px rgba(15, 23, 42, 0.08)",
+        background: "#fff",
+      }}
+    >
+      <Img src={asset(p, src)} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top left", display: "block" }} />
+    </div>
   );
 };

@@ -3,7 +3,7 @@ import { extname, join } from "node:path";
 import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Workflow } from "@app-story/contracts";
 import { buildCues, toSrt, toVtt } from "@app-story/captions";
 import { resolveProductPath, type LoadedProduct } from "@app-story/products";
-import { ensureDir, fileExists, toPosixRelative } from "@app-story/shared";
+import { ensureDir, extractFrame, fileExists, toPosixRelative } from "@app-story/shared";
 import { activeStretches, buildRenderProps, editTimes, getTemplate, placeNarration, planEdit, renderVideo, type TimelinePlan } from "@app-story/video";
 import { saveRecord, type Job } from "../job-manager/job";
 import type { RecordingOutcome } from "./record";
@@ -92,6 +92,7 @@ export async function composeVideo(
     placements,
     cues,
     logoSrc: await copyAsset(job, product, config.branding.logo, "logo"),
+    heroSrc: await heroStill(job, recorded),
     musicSrc: await copyAsset(job, product, config.branding.background_music, "music"),
   });
 
@@ -110,4 +111,18 @@ export async function composeVideo(
   const thumbnail = await readFile(job.paths.thumbnail).catch(() => undefined);
   if (thumbnail) saveRecord(job, "thumbnail", thumbnail);
   return { plan, cues };
+}
+
+/** A still of the app as the take opens, for the intro card. Optional: the intro works without it. */
+async function heroStill(job: Job, recorded: RecordingOutcome): Promise<string | undefined> {
+  const file = join(job.paths.assetsDir, "hero.png");
+  await ensureDir(job.paths.assetsDir);
+  const atSec = Math.min(1, Math.max(0, recorded.recording.durationMs / 1000 - 0.1));
+  return extractFrame(recorded.recording.path, atSec, file).then(
+    () => toPosixRelative(job.paths.root, file),
+    (error: Error) => {
+      job.log.warn({ error: error.message }, "could not take a still of the app for the intro");
+      return undefined;
+    },
+  );
 }

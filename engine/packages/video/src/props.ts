@@ -20,6 +20,8 @@ export interface RenderProps {
   };
   title: string;
   subtitle: string | null;
+  /** A still of the app's first screen, shown on the intro card. */
+  hero: string | null;
   intro: { startMs: number; endMs: number };
   outro: { startMs: number; endMs: number };
   recording: {

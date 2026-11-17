@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ActionGuard, classifySensitive, isAllowedUrl, resolveUrl } from "@app-story/browser";
+import { ActionGuard, classifySensitive, isAllowedUrl, offLimitsElements, resolveUrl } from "@app-story/browser";
+
 import { SafetyConfigSchema } from "@app-story/contracts";
 
 const safety = SafetyConfigSchema.parse({});
@@ -73,5 +74,30 @@ describe("sensitive action guard", () => {
     expect(prod.readOnly).toBe(true);
     const allowed = new ActionGuard(SafetyConfigSchema.parse({ environment: "production", allow: { production_data: true } }));
     expect(allowed.readOnly).toBe(false);
+  });
+});
+
+describe("off-limits elements in a page snapshot", () => {
+  const snapshot = [
+    "- navigation:",
+    '  - link "Projects"',
+    '  - button "Delete project" [disabled]',
+    '  - button "Delete project"',
+    '  - button "Save changes"',
+    '  - textbox "Delete reason"',
+    '  - menuitem "Send invoice"',
+    '  - heading "Remove clutter" [level=2]',
+  ].join("\n");
+
+  it("lists each clickable element the guard refuses, once, with why", () => {
+    expect(offLimitsElements(snapshot, new ActionGuard(safety))).toEqual([
+      { role: "button", name: "Delete project", category: "delete" },
+      { role: "menuitem", name: "Send invoice", category: "emails" },
+    ]);
+  });
+
+  it("follows the product's allow list", () => {
+    const allowing = new ActionGuard(SafetyConfigSchema.parse({ allow: { delete: true, emails: true } }));
+    expect(offLimitsElements(snapshot, allowing)).toEqual([]);
   });
 });

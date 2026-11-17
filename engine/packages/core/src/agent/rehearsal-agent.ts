@@ -1,5 +1,5 @@
 import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepResult, type VideoKind, type Workflow } from "@app-story/contracts";
-import type { BrowserController } from "@app-story/browser";
+import type { BrowserController, PageObservation } from "@app-story/browser";
 import { assembleWorkflow, executeStep } from "@app-story/workflow";
 import type { Logger } from "@app-story/shared";
 import { PHASE_EFFORT, formatProductContext, loadPrompt, runToolLoop, untrusted, type AIProvider, type ProductContext, type ToolHandler } from "@app-story/ai";
@@ -46,7 +46,17 @@ interface Executed {
 
 async function describePage(controller: BrowserController): Promise<string> {
   const obs = await controller.observe();
-  return `URL: ${obs.url}\nTitle: ${obs.title}\n${untrusted(obs.snapshot)}`;
+  return `URL: ${obs.url}\nTitle: ${obs.title}\n${untrusted(obs.snapshot)}${offLimitsNote(obs.offLimits)}`;
+}
+
+/**
+ * Written by AppStory, outside the page's content: the elements on this page that the
+ * safety policy will refuse, so the planner does not spend a turn finding out.
+ */
+export function offLimitsNote(elements: PageObservation["offLimits"]): string {
+  if (!elements?.length) return "";
+  const list = elements.map((e) => `- ${e.role} "${e.name}" (${e.category.replace(/_/g, " ")})`).join("\n");
+  return `\n\nAppStory's safety policy refuses these elements on this page; do not use them:\n${list}`;
 }
 
 /**

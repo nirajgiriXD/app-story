@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./security/url-guard";
 export * from "./security/action-guard";
+export * from "./security/off-limits";
 export * from "./selectors/locator";
 export * from "./recording/cdp-recorder";
 export * from "./recording/playwright-recorder";

@@ -5,6 +5,7 @@ import type { ActionOptions, ActionOutcome, BrowserController, PageObservation, 
 import { inPage } from "../playwright/in-page";
 import { buildLocators, resolveLocator, describeTarget } from "../selectors/locator";
 import type { ActionGuard, ElementInfo } from "../security/action-guard";
+import { offLimitsElements } from "../security/off-limits";
 import { isAllowedUrl, resolveUrl } from "../security/url-guard";
 
 export interface PlaywrightControllerOptions {
@@ -355,6 +356,7 @@ export class PlaywrightController implements BrowserController {
       title: await this.page.title().catch(() => ""),
       snapshot: truncated ? `${snapshot.slice(0, maxChars)}\n... (truncated)` : snapshot,
       truncated,
+      offLimits: offLimitsElements(snapshot, this.options.guard),
     };
   }
 

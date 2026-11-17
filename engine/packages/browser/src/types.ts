@@ -6,6 +6,8 @@ export interface PageObservation {
   /** Accessibility-tree snapshot (YAML-like). Untrusted page content. */
   snapshot: string;
   truncated: boolean;
+  /** Elements on the page that the safety policy will refuse (see `offLimitsElements`). */
+  offLimits?: { role: string; name: string; category: string }[];
 }
 
 export interface ActionOutcome {

@@ -3,6 +3,7 @@ import { makeVideos, type MakeOptions } from "./commands/make";
 import { checkCommand, listCommand, newCommand } from "./commands/manage";
 import { historyCommand } from "./commands/history";
 import { redoCommand } from "./commands/redo";
+import { resumeCommand } from "./commands/resume";
 
 const EXAMPLES = `
 Examples:
@@ -10,6 +11,7 @@ Examples:
   npx app-story acme --each                   one video per new feature
   npx app-story acme "show how to export"     a video of anything else, in plain words
   npx app-story redo acme --template tutorial the newest video again, in another look
+  npx app-story resume acme                   finish the newest failed video, without planning again
   npx app-story new acme                      create products/acme.md
   npx app-story check acme                    check settings, keys, login and tools`;
 
@@ -30,5 +32,6 @@ export function buildProgram(): Command {
     .addCommand(checkCommand())
     .addCommand(listCommand())
     .addCommand(historyCommand())
-    .addCommand(redoCommand());
+    .addCommand(redoCommand())
+    .addCommand(resumeCommand());
 }

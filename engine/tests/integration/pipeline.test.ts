@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@app-story/contracts";
-import { generateDemo, listTakes, planFile, redoVideo, savePlan, storeFor } from "@app-story/core";
+import { generateDemo, listTakes, planFile, redoVideo, resumeDemo, savePlan, storeFor } from "@app-story/core";
 import { loadProduct, parseWorkflow } from "@app-story/products";
-import { probeMedia } from "@app-story/shared";
+import { AppStoryError, probeMedia } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
 import { ScriptedProvider, ToneTTS } from "../support/fakes";
 
@@ -203,5 +203,35 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(metadata.warnings.join()).toMatch(/planned again/);
     const replaced = parseWorkflow(await readFile(planFile(product, "create-project"), "utf8"));
     expect(replaced.steps.some((s) => s.value === "Website Launch")).toBe(true);
+  });
+
+  it("finishes a failed video from its plan, without asking the AI again", async () => {
+    const { product, out } = await productIn("resume");
+    const ai = plannerAI();
+    const createAI = (_config: unknown, deps: { usage: unknown }) => Object.assign(ai, { usage: deps.usage });
+    const brokenVoice = new ToneTTS();
+    brokenVoice.synthesize = async () => {
+      throw new AppStoryError("TTS_ERROR", "the voice service is down");
+    };
+
+    const failed = await generateDemo({
+      product,
+      outputDir: out,
+      objective: OBJECTIVE,
+      name: "create-project",
+      logLevel: "silent",
+      providers: { createAI, createTTS: () => brokenVoice },
+    });
+    expect(failed.status).not.toMatch(/success/);
+    expect(existsSync(planFile(product, "create-project"))).toBe(false);
+    const [agentTurns, structuredCalls] = [ai.received.length, ai.structuredPrompts.length];
+
+    const resumed = await resumeDemo({ product, outputDir: out, logLevel: "warn", providers: { createAI, createTTS: () => new ToneTTS() } });
+    expect(resumed.errors).toEqual([]);
+    expect(["success", "success_with_warnings"]).toContain(resumed.status);
+    expect(resumed.resumed_from).toBe(failed.job_id);
+    expect([ai.received.length, ai.structuredPrompts.length]).toEqual([agentTurns, structuredCalls]); // no planning, script from the cache
+    expect(resumed.video!.path).toMatch(/create-project\.mp4$/);
+    expect(parseWorkflow(await readFile(planFile(product, "create-project"), "utf8")).steps.length).toBeGreaterThan(0);
   });
 });

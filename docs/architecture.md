@@ -105,7 +105,10 @@ passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`
   `timeline.otio` (OpenTimelineIO, opens in DaVinci Resolve and other editors). `redo`
   (`orchestrator/redo.ts`) renders a take again with the product file's current look,
   without a browser or the AI. The take is kept before rendering, so a video whose render
-  failed can be redone too.
+  failed can be redone too. `resume` (`orchestrator/resume.ts`) finishes a failed video:
+  from its take if it has one, otherwise by replaying the plan kept in `job_records`
+  (narration and speech then come from the cache), so a late failure never pays for AI
+  planning twice.
 - `work/<job>/`: where a job works; deleted on success and kept on failure for
   troubleshooting.
 

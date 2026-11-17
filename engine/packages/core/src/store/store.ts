@@ -217,6 +217,12 @@ export class Store {
     return row ? (JSON.parse(row.metadata) as JobMetadata) : undefined;
   }
 
+  /** A job's short name (its video file and saved plan are named after it). */
+  getJobName(id: string): string | undefined {
+    const row = this.db.prepare("SELECT name FROM jobs WHERE id = ?").get(id) as { name: string } | undefined;
+    return row?.name;
+  }
+
   /** Finished jobs, newest first. */
   listJobs(options: { productId?: string; limit?: number } = {}): JobMetadata[] {
     const where = ["finished_at IS NOT NULL", ...(options.productId ? ["product_id = ?"] : [])].join(" AND ");

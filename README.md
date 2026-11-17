@@ -170,6 +170,9 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
   again in another look, or with a new logo, color, music or captions setting, without
   the app and without AI: `npx app-story redo acme --template tutorial`. The clicks, the
   voice and the timing stay as recorded.
+- Finishes a failed video without planning it again: `npx app-story resume acme`
+  replays the plan the AI already made (or renders the kept recording again, if the
+  render failed), so a failure late in the run does not cost a second AI planning pass.
 - Reuses what has not changed: the feature list of an unchanged product file, the
   narration of a replayed plan, and every line already spoken in the same voice.
 - Fits the narration to the clicks: each line is about as long as its steps take on

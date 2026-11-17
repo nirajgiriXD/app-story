@@ -26,7 +26,7 @@ export interface GenerateRequest {
   objective: string;
   /** Short name for the video file and the saved plan. Default: a slug of the objective. */
   name?: string;
-  /** Replay this plan instead of planning (used by tests). */
+  /** Replay this plan instead of planning (used by tests and `resumeDemo`). */
   plan?: Workflow;
   /** Reuse and save verified plans next to the product file (default: true). */
   reusePlans?: boolean;
@@ -39,6 +39,8 @@ export interface GenerateRequest {
   logLevel?: string;
   providers?: ProviderOverrides;
   onJobCreated?: (job: Job) => void;
+  /** The failed video whose plan `plan` is (see `resumeDemo`): saved for reuse once this video passes. */
+  resumedFrom?: string;
   /** Default: the process's runtime. */
   runtime?: Runtime;
 }
@@ -65,6 +67,8 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     logLevel: request.logLevel,
     runtime: request.runtime,
   });
+  job.metadata.kind = request.kind ?? null;
+  job.metadata.resumed_from = request.resumedFrom ?? null;
   request.onJobCreated?.(job);
   // Bundle the video compositions while the AI and the browser work (errors resurface at render).
   void prepareRenderer().catch(() => undefined);
@@ -73,6 +77,8 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
   const config = product.config;
   const durationS = request.durationS ?? config.demo.default_duration;
   const reuse = request.reusePlans !== false && !request.plan;
+  // A resumed plan was made by the AI like any other: it is kept once its video passes.
+  const keepPlan = request.reusePlans !== false && (!request.plan || Boolean(request.resumedFrom));
   let phase = "plan";
 
   const planWithAI = () =>
@@ -165,7 +171,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     // 4–5. Captions, render and quality checks.
     phase = "render";
     const status = await renderTake(job, product, kept, { onPhase: (p) => (phase = p), review: { overrides } });
-    if (status !== "failed" && reuse && !fromSavedPlan) await savePlan(product, name, workflow);
+    if (status !== "failed" && keepPlan && !fromSavedPlan) await savePlan(product, name, workflow);
     return await finishJob(job, status);
   } catch (error) {
     recordError(job, error, phase);

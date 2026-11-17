@@ -19,6 +19,7 @@ import {
   MIGRATIONS,
   planFile,
   readHistory,
+  resumeDemo,
   Runtime,
   saveRecord,
   savePlan,
@@ -259,5 +260,37 @@ describe("runtime", () => {
     runtime.close();
     expect(() => created.store.getJob(created.id)).toThrow();
     expect(storeFor(out, runtime).getJob(created.id)?.job_id).toBe(created.id);
+  });
+});
+
+describe("resume", () => {
+  const setup = async () => {
+    const root = await mkdtemp(join(tmpdir(), "df-resume-"));
+    await mkdir(join(root, "products"));
+    await writeFile(join(root, "products", "example.md"), "---\nurl: http://localhost:4310\n---\n# Example\n");
+    return { product: await loadProduct(join(root, "products"), "example"), out: join(root, "output") };
+  };
+
+  it("says when there is no failed video", async () => {
+    const { product, out } = await setup();
+    await expect(resumeDemo({ product, outputDir: out })).rejects.toThrow(/No video of example has failed/);
+  });
+
+  it("will not resume a video that succeeded", async () => {
+    const { product, out } = await setup();
+    const done = await finishJob(await job(out, "example", "fine"), "success");
+    await expect(resumeDemo({ product, outputDir: out, jobId: done.job_id })).rejects.toThrow(/did not fail/);
+  });
+
+  it("says when the video failed before it had a plan", async () => {
+    const { product, out } = await setup();
+    await finishJob(await job(out, "example", "early"), "authentication_failure");
+    await expect(resumeDemo({ product, outputDir: out })).rejects.toThrow(/before its plan was ready/);
+  });
+
+  it("will not resume another product's video", async () => {
+    const { product, out } = await setup();
+    const other = await finishJob(await job(out, "shop", "x"), "workflow_failure");
+    await expect(resumeDemo({ product, outputDir: out, jobId: other.job_id })).rejects.toThrow(/belongs to shop/);
   });
 });

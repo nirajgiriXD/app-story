@@ -105,6 +105,14 @@ npx app-story redo acme 20261116-134205-a1b2c3   # an older one (ids are in `his
 A redo opens no browser and calls no AI, so it works even when the app is down. The
 clicks, the voice and the timing stay as recorded.
 
+When a video fails after the AI has planned it (the voice service was down, the
+recording hit a hiccup, the render failed), finish it without planning again:
+
+```bash
+npx app-story resume acme                          # the newest failed acme video
+npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
+```
+
 ## Commands
 
 | Command | Purpose |
@@ -115,6 +123,7 @@ clicks, the voice and the timing stay as recorded.
 | `npx app-story list` | list your products |
 | `npx app-story history [product]` | recent videos, with their ids |
 | `npx app-story redo <product> [video]` | make a video again from its kept recording (option: `--template`) |
+| `npx app-story resume <product> [video]` | finish a failed video without planning it again (option: `--headed`) |
 
 `--headed` shows the browser while it works. `--log-level` sets how much is printed.
 

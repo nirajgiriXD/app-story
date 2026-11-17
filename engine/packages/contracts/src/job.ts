@@ -64,6 +64,10 @@ export const JobMetadataSchema = z.object({
   objective: z.string().nullable(),
   /** For a redo: the video whose recording was used. */
   redo_of: z.string().nullable().optional(),
+  /** For a resumed video: the failed video whose plan was replayed. */
+  resumed_from: z.string().nullable().optional(),
+  /** What the video is for (picks its look and the script's tone), so a resumed video keeps it. */
+  kind: z.enum(["whats-new", "feature", "how-to"]).nullable().optional(),
   status: JobStatusSchema,
   created_at: z.string(),
   finished_at: z.string().nullable(),

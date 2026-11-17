@@ -32,6 +32,10 @@ export function printJob(m: JobMetadata): void {
   }
   // Failed jobs keep their scratch files (raw recording, screenshots, trace) for troubleshooting.
   if (!ok) console.log(`  Debug:     ${m.output_dir}`);
+  // A plan that passed its checks was kept with the job: the next try need not plan again.
+  if (!ok && m.mode !== "redo" && m.workflow_version !== null && m.status !== "unsupported_workflow") {
+    console.log(`  Resume:    npx app-story resume ${m.product_id} ${m.job_id}`);
+  }
   for (const w of m.warnings) console.log(yellow(`  ! ${w}`));
   for (const e of m.errors) {
     console.log(red(`  ✖ [${e.code}] ${e.message}`));

@@ -56,3 +56,22 @@ describe("render props", () => {
     expect(p.urls.map((u) => u.atMs)).toEqual([0, 4000]);
   });
 });
+
+describe("captions on title cards", () => {
+  it("leaves out a caption that repeats the card's own text, but keeps the rest", () => {
+    const plan = planTimeline({ template, recordingMs: 20_000, introAudioMs: 3000 });
+    const p = props({
+      plan,
+      subtitle: "Set up a project in a few seconds.",
+      placements: [
+        { src: "intro.wav", text: "Set up a project in a few seconds", startMs: 450, durationMs: 3000 },
+        { src: "seg.wav", text: "Open the form.", startMs: plan.recordingStartMs + 500, durationMs: 1500 },
+      ],
+      cues: [
+        { start_ms: 450, end_ms: 3450, text: "Set up a project in a few seconds" },
+        { start_ms: plan.recordingStartMs + 500, end_ms: plan.recordingStartMs + 2000, text: "Open the form." },
+      ],
+    });
+    expect(p.captions.cues.map((c) => c.text)).toEqual(["Open the form."]);
+  });
+});

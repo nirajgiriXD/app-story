@@ -104,6 +104,11 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     }
   }
 
+  // A card already shows its title and subtitle: a caption that repeats them only clutters it.
+  const onCard = new Set([input.title, input.subtitle].filter(Boolean).map((t) => sameText(t as string)));
+  const repeated = input.placements.filter((p) => onCard.has(sameText(p.text)) && (p.startMs < plan.recordingStartMs || p.startMs >= plan.outroStartMs));
+  const cues = input.cues.filter((c) => !repeated.some((p) => c.start_ms >= p.startMs - 1 && c.start_ms < p.startMs + p.durationMs));
+
   return {
     width,
     height,
@@ -137,8 +142,15 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       enabled: config.captions.enabled && config.captions.burn_in,
       fontSize: config.captions.font_size,
       position: config.captions.position,
-      cues: input.cues.map((c) => ({ startMs: c.start_ms, endMs: c.end_ms, text: c.text })),
+      cues: cues.map((c) => ({ startMs: c.start_ms, endMs: c.end_ms, text: c.text })),
     },
     music: input.musicSrc ? { src: input.musicSrc, volume: config.branding.music_volume } : null,
   };
+}
+
+function sameText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }

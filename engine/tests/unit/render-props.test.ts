@@ -66,6 +66,20 @@ describe("render props", () => {
     });
     expect(p.urls.map((u) => u.atMs)).toEqual([0, 4000]);
   });
+
+  it("shows the keys of every key press that happened on camera", () => {
+    const p = props({
+      workflowSteps: [
+        { id: "s1", description: "open search", action: "press", key: "Control+K" } as Step,
+        { id: "s2", description: "submit", action: "press", key: "Enter" } as Step,
+      ],
+      results: [
+        result({ step_id: "s1", action: "press", started_ms: 1000, ended_ms: 1500 }),
+        result({ step_id: "s2", action: "press", started_ms: 3000, ended_ms: 3400, status: "failed" }),
+      ],
+    });
+    expect(p.keys).toEqual([{ atMs: 1000, labels: ["Ctrl", "K"] }]);
+  });
 });
 
 describe("captions on title cards", () => {

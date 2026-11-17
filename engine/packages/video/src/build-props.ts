@@ -3,6 +3,7 @@ import { RESOLUTIONS } from "@app-story/contracts";
 import type { TimeMap } from "./edit";
 import type { RenderProps, SoundEffect } from "./props";
 import type { VideoTemplate } from "./templates";
+import { keyLabels } from "./keys";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
 
 const FOCUS_ACTIONS = new Set(["click", "fill", "select", "check", "uncheck", "hover"]);
@@ -181,6 +182,10 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     },
     music: input.musicSrc ? { src: input.musicSrc, volume: config.branding.music_volume } : null,
     sfx: template.sounds ? soundEffects(passed, input.cursor, plan, template.transitionMs) : [],
+    keys: passed.flatMap((r) => {
+      const key = r.action === "press" ? byId.get(r.step_id)?.key : undefined;
+      return key ? [{ atMs: Math.max(0, r.started_ms), labels: keyLabels(key) }] : [];
+    }),
   };
 }
 

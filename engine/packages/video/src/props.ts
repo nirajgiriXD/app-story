@@ -47,6 +47,8 @@ export interface RenderProps {
   music: { src: string; volume: number } | null;
   /** Sound effects (global times). */
   sfx?: SoundEffect[];
+  /** Keys pressed on camera, shown as keycaps (recording-relative times). */
+  keys?: { atMs: number; labels: string[] }[];
 }
 
 export interface SoundEffect {

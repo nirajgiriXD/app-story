@@ -43,6 +43,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const opacity = arrive * (1 - leave);
   const url = latestAt(t, p.urls)?.url ?? "";
   const section = latestAt(t, p.sections);
+  const pressed = latestAt(t, p.keys ?? []);
 
   const content = (
     <div style={{ position: "relative", width: viewport.width * L.scale, height: viewport.height * L.scale, overflow: "hidden" }}>
@@ -81,6 +82,15 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
         {L.bar ? <WindowBar p={p} url={url} height={L.bar} /> : null}
         {content}
       </div>
+      {pressed ? (
+        <KeyChip
+          p={p}
+          labels={pressed.labels}
+          sinceMs={t - pressed.atMs}
+          centerX={L.x + (viewport.width * L.scale) / 2}
+          bottom={L.y + L.bar + viewport.height * L.scale - px(p, 36)}
+        />
+      ) : null}
       {p.template.sectionStyle === "chip" && section ? (
         <SectionChip
           p={p}
@@ -266,6 +276,58 @@ const SectionChip: React.FC<{ p: RenderProps; title: string; sinceMs: number; le
     >
       <span style={{ width: px(p, 10), height: px(p, 10), borderRadius: "50%", background: p.brand.primary, display: "inline-block" }} />
       {title}
+    </div>
+  );
+};
+
+/** How long a pressed key stays on screen. */
+const KEY_CHIP_MS = 1500;
+
+/** The keys just pressed, as keycaps near the bottom of the app window, like a screencast key overlay. */
+const KeyChip: React.FC<{ p: RenderProps; labels: string[]; sinceMs: number; centerX: number; bottom: number }> = ({ p, labels, sinceMs, centerX, bottom }) => {
+  const { fps } = useVideoConfig();
+  if (sinceMs < 0 || sinceMs > KEY_CHIP_MS) return null;
+  const inK = spring({ frame: (sinceMs / 1000) * fps, fps, config: { damping: 18, mass: 0.6 } });
+  const out = interpolate(sinceMs, [KEY_CHIP_MS - 350, KEY_CHIP_MS], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const size = px(p, 30);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: centerX,
+        top: bottom,
+        transform: `translate(-50%, -100%) scale(${0.85 + 0.15 * inK})`,
+        opacity: Math.min(inK, 1) * out,
+        display: "flex",
+        alignItems: "center",
+        gap: px(p, 10),
+        padding: `${px(p, 12)}px ${px(p, 16)}px`,
+        borderRadius: px(p, 18),
+        background: "rgba(15, 23, 42, 0.86)",
+        boxShadow: "0 12px 32px rgba(15, 23, 42, 0.35)",
+        fontFamily: fontStack(p.brand.font),
+      }}
+    >
+      {labels.map((label, i) => (
+        <span
+          // biome-ignore lint/suspicious/noArrayIndexKey: keycaps are fixed for the chip's life
+          key={i}
+          style={{
+            minWidth: size * 1.4,
+            textAlign: "center",
+            padding: `${px(p, 6)}px ${px(p, 14)}px`,
+            borderRadius: px(p, 10),
+            background: "#F8FAFC",
+            color: "#0F172A",
+            fontSize: size,
+            fontWeight: 600,
+            lineHeight: 1.2,
+            boxShadow: `inset 0 -${px(p, 4)}px 0 rgba(15, 23, 42, 0.18)`,
+          }}
+        >
+          {label}
+        </span>
+      ))}
     </div>
   );
 };

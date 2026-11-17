@@ -2,7 +2,7 @@ import type React from "react";
 import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
-import { cameraAt, cameraTransform, cursorAt, latestAt, mergeFocusWindows } from "../timeline";
+import { cameraAt, cameraTransform, cursorAt, cursorPresence, latestAt, mergeFocusWindows } from "../timeline";
 import { sourceFrame } from "../edit";
 import { handoverIn, handoverOut } from "./handover";
 import { fontStack, isDark, px, recordingFrame } from "./theme";
@@ -56,7 +56,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
         }}
       >
         <Img src={recordingFrame(sourceFrame(p.recording.timeMap, frame, fps))} style={{ width: viewport.width, height: viewport.height, display: "block" }} />
-        {cursor ? <Cursor p={p} x={cursor.x} y={cursor.y} sinceClickMs={cursor.sinceClickMs} zoom={view.scale} /> : null}
+        {cursor ? <Cursor p={p} t={t} x={cursor.x} y={cursor.y} sinceClickMs={cursor.sinceClickMs} zoom={view.scale} /> : null}
       </div>
     </div>
   );
@@ -141,11 +141,41 @@ const WindowBar: React.FC<{ p: RenderProps; url: string; height: number }> = ({ 
   );
 };
 
-const Cursor: React.FC<{ p: RenderProps; x: number; y: number; sinceClickMs: number | null; zoom: number }> = ({ p, x, y, sinceClickMs, zoom }) => {
+/** The pointer's arrow, drawn at the tip (0, 0). */
+const Arrow: React.FC<{ size: number; style?: React.CSSProperties }> = ({ size, style }) => (
+  <svg
+    aria-hidden="true"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    style={{ position: "absolute", left: -size * 0.12, top: -size * 0.06, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))", ...style }}
+  >
+    <path d="M4 2 L4 20 L9 15.5 L12.5 22.5 L15.5 21 L12 14 L19 14 Z" fill="#0F172A" stroke="#FFFFFF" strokeWidth="1.6" strokeLinejoin="round" />
+  </svg>
+);
+
+const Cursor: React.FC<{ p: RenderProps; t: number; x: number; y: number; sinceClickMs: number | null; zoom: number }> = ({
+  p,
+  t,
+  x,
+  y,
+  sinceClickMs,
+  zoom,
+}) => {
   const size = p.template.cursor.size / zoom;
   const ripple = sinceClickMs !== null && sinceClickMs >= 0 && sinceClickMs < 650 ? sinceClickMs / 650 : null;
+  // A click presses the arrow in a little and lets it spring back.
+  const press = sinceClickMs !== null && sinceClickMs >= 0 && sinceClickMs < 240 ? Math.sin((sinceClickMs / 240) * Math.PI) : 0;
+  const presence = cursorPresence(t, p.cursor);
+  if (presence <= 0.001) return null;
+  // On fast moves a faint trail follows the arrow, like motion blur.
+  const trail = [14, 28, 42].flatMap((ago, i) => {
+    const at = cursorAt(t - ago, p.cursor);
+    if (!at || Math.hypot(at.x - x, at.y - y) < 6 / zoom) return [];
+    return [{ dx: at.x - x, dy: at.y - y, opacity: [0.22, 0.12, 0.06][i] as number }];
+  });
   return (
-    <div style={{ position: "absolute", left: x, top: y, pointerEvents: "none" }}>
+    <div style={{ position: "absolute", left: x, top: y, pointerEvents: "none", opacity: presence }}>
       {p.template.cursor.highlight ? (
         <div
           style={{
@@ -173,15 +203,10 @@ const Cursor: React.FC<{ p: RenderProps; x: number; y: number; sinceClickMs: num
           }}
         />
       ) : null}
-      <svg
-        aria-hidden="true"
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        style={{ position: "absolute", left: -size * 0.12, top: -size * 0.06, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))" }}
-      >
-        <path d="M4 2 L4 20 L9 15.5 L12.5 22.5 L15.5 21 L12 14 L19 14 Z" fill="#0F172A" stroke="#FFFFFF" strokeWidth="1.6" strokeLinejoin="round" />
-      </svg>
+      {trail.map((g) => (
+        <Arrow key={g.opacity} size={size} style={{ transform: `translate(${g.dx}px, ${g.dy}px)`, opacity: g.opacity, filter: "none" }} />
+      ))}
+      <Arrow size={size} style={{ transform: `scale(${1 - 0.18 * press})`, transformOrigin: "0 0" }} />
     </div>
   );
 };

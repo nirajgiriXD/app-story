@@ -146,6 +146,32 @@ export function cursorAt(t: number, points: readonly CursorPoint[]): { x: number
   return { x: prev.x, y: prev.y, sinceClickMs: lastClick === null ? null : t - lastClick };
 }
 
+/** The pointer hides after this long without moving, as screen-recording editors do. */
+const CURSOR_IDLE_MS = 2500;
+const CURSOR_FADE_MS = 400;
+
+/**
+ * How visible the pointer is at `t` (0-1): shown while it moves and for a while after,
+ * faded out when it rests, and faded back in just before it moves again.
+ */
+export function cursorPresence(t: number, points: readonly CursorPoint[]): number {
+  let lastActive = Number.NEGATIVE_INFINITY;
+  let nextActive = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1] as CursorPoint;
+    const b = points[i] as CursorPoint;
+    const moving = Math.hypot(b.x - a.x, b.y - a.y) > 0.5 || b.click;
+    if (!moving) continue;
+    const from = b.click && Math.hypot(b.x - a.x, b.y - a.y) <= 0.5 ? b.t : a.t;
+    if (from <= t && b.t >= t) return 1;
+    if (b.t < t) lastActive = Math.max(lastActive, b.t);
+    else nextActive = Math.min(nextActive, from);
+  }
+  const resting = smooth((t - lastActive - CURSOR_IDLE_MS) / CURSOR_FADE_MS);
+  const arriving = smooth(1 - (nextActive - t) / CURSOR_FADE_MS);
+  return Math.max(1 - resting, arriving);
+}
+
 /** Latest entry at or before `t`. */
 export function latestAt<T extends { atMs: number }>(t: number, items: readonly T[]): T | undefined {
   let found: T | undefined;

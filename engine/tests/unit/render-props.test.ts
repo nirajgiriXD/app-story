@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Step, StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
-import { buildRenderProps, getTemplate, planTimeline, shotBox, type BuildPropsInput } from "@app-story/video";
+import { curveControl } from "@app-story/browser";
+import { buildRenderProps, cursorPresence, getTemplate, planTimeline, shotBox, type BuildPropsInput } from "@app-story/video";
 
 const { config } = parseProductFile("---\nurl: https://acme.test\n---\n\n# Acme\n", "acme.md", "acme");
 const template = getTemplate("modern-saas");
@@ -112,5 +113,29 @@ describe("shots", () => {
       [5000, 9000],
       [9000, 17100],
     ]);
+  });
+});
+
+describe("pointer", () => {
+  const points = [
+    { t: 0, x: 800, y: 450 },
+    { t: 1000, x: 800, y: 450 },
+    { t: 1600, x: 300, y: 200 },
+    { t: 1700, x: 300, y: 200, click: true },
+  ];
+
+  it("hides while it rests and comes back just before it moves", () => {
+    expect(cursorPresence(500, points)).toBe(0); // resting since the start
+    expect(cursorPresence(900, points)).toBeGreaterThan(0); // fading in before the move
+    expect(cursorPresence(1300, points)).toBe(1); // moving
+    expect(cursorPresence(1700 + 2000, points)).toBe(1); // still shown a while after the click
+    expect(cursorPresence(1700 + 5000, points)).toBe(0); // gone after resting
+  });
+
+  it("moves in a gentle upward arc", () => {
+    const bend = curveControl({ x: 0, y: 500 }, { x: 1000, y: 500 });
+    expect(bend.x).toBeCloseTo(500);
+    expect(bend.y).toBeLessThan(500);
+    expect(curveControl({ x: 1000, y: 500 }, { x: 0, y: 500 }).y).toBeLessThan(500);
   });
 });

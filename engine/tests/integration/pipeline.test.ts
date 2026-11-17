@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@app-story/contracts";
-import { generateDemo, listTakes, planFile, redoVideo, replayPlans, resumeDemo, savePlan, storeFor } from "@app-story/core";
+import { generateDemo, listTakes, planFile, redoVideo, replayPlans, resumeDemo, savePlan, storeFor, testPlans } from "@app-story/core";
 import { loadProduct, parseWorkflow } from "@app-story/products";
 import { AppStoryError, probeMedia } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
@@ -232,6 +232,26 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(replayed?.mode).toBe("scenario");
     expect(replayed?.ai.attempts).toEqual([]);
     expect(await readFile(file, "utf8")).toBe(before);
+  });
+
+  it("tests saved plans in the app: a working one passes, a broken one names its step", async () => {
+    const { product, out } = await productIn("tests");
+    await savePlan(product, "works", plan);
+    await savePlan(product, "broken", {
+      ...plan,
+      steps: [
+        { id: "s1", description: "Open the old wizard", action: "click", target: { role: "button", name: "Old wizard" } },
+        { id: "s2", description: "Check the list", action: "assert", expected: { type: "text_present", text: "Projects" } },
+      ],
+    });
+    const checks = await testPlans({ product, outputDir: out, logLevel: "silent" });
+    expect(checks.map((c) => [c.name, c.ok])).toEqual([
+      ["broken", false],
+      ["works", true],
+    ]);
+    expect(checks[0]?.problems[0]).toMatch(/^step s1 \(Open the old wizard\)/);
+    expect(checks[0]?.screenshot && existsSync(checks[0].screenshot)).toBe(true);
+    expect(checks[1]?.steps.every((s) => s.status === "passed")).toBe(true);
   });
 
   it("finishes a failed video from its plan, without asking the AI again", async () => {

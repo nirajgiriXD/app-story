@@ -5,6 +5,7 @@ import { historyCommand } from "./commands/history";
 import { redoCommand } from "./commands/redo";
 import { resumeCommand } from "./commands/resume";
 import { replayCommand } from "./commands/replay";
+import { testCommand } from "./commands/test";
 
 const EXAMPLES = `
 Examples:
@@ -14,6 +15,7 @@ Examples:
   npx app-story redo acme --template tutorial the newest video again, in another look
   npx app-story resume acme                   finish the newest failed video, without planning again
   npx app-story replay acme                   every saved plan's video again, with no AI (for CI)
+  npx app-story test acme                     check the saved plans still work in the app
   npx app-story new acme                      create products/acme.md
   npx app-story check acme                    check settings, keys, login and tools`;
 
@@ -36,5 +38,6 @@ export function buildProgram(): Command {
     .addCommand(historyCommand())
     .addCommand(redoCommand())
     .addCommand(resumeCommand())
-    .addCommand(replayCommand());
+    .addCommand(replayCommand())
+    .addCommand(testCommand());
 }

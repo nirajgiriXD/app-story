@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runRehearsal, type AIProvider, type AgentInput, type AgentTurnResult, type ToolCall } from "@app-story/ai";
 import type { Step } from "@app-story/contracts";
+import { frameTimes } from "@app-story/browser";
 import { cacheKey, storeFor } from "@app-story/core";
 import { segmentWordBudget } from "@app-story/narration";
 import { applyOverrides, parseProductFile } from "@app-story/products";
@@ -118,5 +119,22 @@ describe("APP_STORY_AI_EFFORT", () => {
     expect(applyOverrides(config).providers.ai.effort).toBe("high");
     process.env.APP_STORY_AI_EFFORT = "turbo";
     expect(() => applyOverrides(config)).toThrow(/APP_STORY_AI_EFFORT/);
+  });
+});
+
+describe("screen recording clock", () => {
+  it("puts Chromium's frame times on Node's clock, whatever the gap between the two", () => {
+    // Chromium's clock is 11.6 s behind; frames arrive 20-40 ms after they are drawn.
+    const behind = 11_600;
+    const frames = [
+      { drawnAt: 1000 - behind, receivedAt: 1030 },
+      { drawnAt: 1500 - behind, receivedAt: 1520 },
+      { drawnAt: 4000 - behind, receivedAt: 4040 },
+    ];
+    expect(frameTimes(frames)).toEqual([1020, 1520, 4020]);
+  });
+
+  it("uses arrival times when Chromium gives none, and never goes back in time", () => {
+    expect(frameTimes([{ receivedAt: 100 }, { receivedAt: 90 }, { receivedAt: 300 }])).toEqual([100, 100, 300]);
   });
 });

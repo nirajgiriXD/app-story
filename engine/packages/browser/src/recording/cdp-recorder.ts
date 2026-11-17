@@ -48,7 +48,26 @@ export function intermediateVideoArgs(width: number, height: number, fps: number
 
 interface Frame {
   file: string;
-  t: number; // epoch ms
+  /** When the frame arrived here (Node's clock, epoch ms). */
+  receivedAt: number;
+  /** When Chromium drew it (Chromium's clock, epoch ms), if it said. */
+  drawnAt?: number;
+}
+
+/**
+ * Frame times on Node's clock, the one the steps and the cursor use. Chromium's own frame
+ * times are more exact (no transport delay) but its clock can be seconds away from Node's,
+ * so they are shifted by the smallest delay seen: a frame can never arrive before it is drawn.
+ */
+export function frameTimes(frames: readonly { receivedAt: number; drawnAt?: number }[]): number[] {
+  let offset = Number.POSITIVE_INFINITY;
+  for (const f of frames) if (f.drawnAt !== undefined) offset = Math.min(offset, f.receivedAt - f.drawnAt);
+  let last = Number.NEGATIVE_INFINITY;
+  return frames.map((f) => {
+    const t = f.drawnAt !== undefined && Number.isFinite(offset) ? f.drawnAt + offset : f.receivedAt;
+    last = Math.max(last, t);
+    return last;
+  });
 }
 
 interface ScreencastFrameEvent {
@@ -86,8 +105,8 @@ export class CdpScreencastRecorder implements Recorder {
     this.session.on("Page.screencastFrame", (event: ScreencastFrameEvent) => {
       const index = this.frames.length;
       const file = join(this.framesDir, `${String(index).padStart(6, "0")}.jpg`);
-      const t = event.metadata.timestamp ? event.metadata.timestamp * 1000 : Date.now();
-      this.frames.push({ file, t });
+      const drawnAt = event.metadata.timestamp ? event.metadata.timestamp * 1000 : undefined;
+      this.frames.push({ file, receivedAt: Date.now(), drawnAt });
       this.writes.push(writeFile(file, Buffer.from(event.data, "base64")));
       this.session?.send("Page.screencastFrameAck", { sessionId: event.sessionId }).catch(() => undefined);
     });
@@ -111,12 +130,19 @@ export class CdpScreencastRecorder implements Recorder {
     // Build an FFmpeg concat list where each frame lasts until the next one.
     const lines: string[] = ["ffconcat version 1.0"];
     const frames = this.frames;
+    const times = frameTimes(frames);
+    // Each frame is shown from its time until the next frame's; the first from the start.
+    // Ends are rounded to the millisecond on one running clock, so the parts add up to the take exactly.
+    let shownUntil = this.startedAt;
     for (let i = 0; i < frames.length; i++) {
       const frame = frames[i] as Frame;
-      const from = i === 0 ? this.startedAt : frame.t;
-      const until = i + 1 < frames.length ? (frames[i + 1] as Frame).t : stoppedAt;
-      const seconds = Math.max(0.001, (until - from) / 1000);
-      lines.push(`file '${frame.file.replace(/\\/g, "/")}'`, `duration ${seconds.toFixed(4)}`);
+      const next = i + 1 < frames.length ? Math.min(times[i + 1] as number, stoppedAt) : stoppedAt;
+      const until = Math.max(shownUntil, next);
+      // A frame replaced in the same instant is never seen.
+      if (until > shownUntil || (i === frames.length - 1 && lines.length === 1)) {
+        lines.push(`file '${frame.file.replace(/\\/g, "/")}'`, `duration ${Math.max(0.001, (until - shownUntil) / 1000).toFixed(4)}`);
+      }
+      shownUntil = until;
     }
     lines.push(`file '${(frames[frames.length - 1] as Frame).file.replace(/\\/g, "/")}'`);
     const listFile = join(this.framesDir, "frames.ffconcat");

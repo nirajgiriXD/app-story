@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Step, StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
 import { curveControl } from "@app-story/browser";
-import { buildRenderProps, cursorPresence, getTemplate, planTimeline, shotBox, type BuildPropsInput } from "@app-story/video";
+import { buildAudioMix, buildRenderProps, cursorPresence, getTemplate, planTimeline, shotBox, soundEffects, type BuildPropsInput } from "@app-story/video";
 
 const { config } = parseProductFile("---\nurl: https://acme.test\n---\n\n# Acme\n", "acme.md", "acme");
 const template = getTemplate("modern-saas");
@@ -137,5 +137,44 @@ describe("pointer", () => {
     expect(bend.x).toBeCloseTo(500);
     expect(bend.y).toBeLessThan(500);
     expect(curveControl({ x: 1000, y: 500 }, { x: 0, y: 500 }).y).toBeLessThan(500);
+  });
+});
+
+describe("sound effects", () => {
+  it("ticks on clicks, taps while typing, whooshes in and out, and chimes on the outcome", () => {
+    const plan = planTimeline({ template, recordingMs: 20_000 });
+    const cursor = [
+      { t: 0, x: 0, y: 0 },
+      { t: 1500, x: 10, y: 10, click: true },
+      { t: 5200, x: 20, y: 20, click: true },
+    ];
+    const effects = soundEffects(
+      [
+        result({ step_id: "s1", action: "click", started_ms: 1000, ended_ms: 2000 }),
+        result({ step_id: "s2", action: "fill", started_ms: 5000, ended_ms: 7000 }),
+        result({ step_id: "s3", action: "assert", started_ms: 9000, ended_ms: 9100, result_box: { x: 0, y: 0, width: 10, height: 10 } }),
+      ],
+      cursor,
+      plan,
+      template.transitionMs,
+    );
+    const at = (ms: number) => plan.recordingStartMs + ms;
+    expect(effects.map((e) => e.kind)).toEqual(["whoosh", "click", "click", "typing", "chime", "whoosh"]);
+    expect(effects.find((e) => e.kind === "typing")).toEqual({ kind: "typing", atMs: at(5280), durationMs: 1680 });
+    expect(effects.find((e) => e.kind === "chime")!.atMs).toBe(at(9150));
+  });
+
+  it("are mixed with the voice", () => {
+    const p = props({
+      results: [],
+      cursor: [
+        { t: 0, x: 0, y: 0 },
+        { t: 1000, x: 5, y: 5, click: true },
+      ],
+    });
+    const mix = buildAudioMix(p, 0, (src) => src);
+    expect(mix.filter).toContain("aevalsrc=");
+    expect(mix.filter).toMatch(/\[s\d+\]/);
+    expect(getTemplate("minimal").sounds).toBe(false);
   });
 });

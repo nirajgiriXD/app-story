@@ -17,6 +17,8 @@ export interface VideoTemplate {
   zoom: { enabled: boolean; scale: number; rampMs: number };
   /** How much the rest of the screen dims around the area being shown (0 = no spotlight). */
   spotlight: number;
+  /** Soft clicks, typing, whooshes and a chime on the outcome. */
+  sounds: boolean;
   cursor: { highlight: boolean; size: number };
   caption: { style: "pill" | "bar" };
   title: { weight: number; size: number; badge?: string };
@@ -32,6 +34,7 @@ const base: Omit<VideoTemplate, "name"> = {
   sectionStyle: "chip",
   zoom: { enabled: true, scale: 1.4, rampMs: 550 },
   spotlight: 0.16,
+  sounds: true,
   cursor: { highlight: true, size: 30 },
   caption: { style: "pill" },
   title: { weight: 700, size: 76 },
@@ -48,6 +51,7 @@ export const TEMPLATES: Record<TemplateName, VideoTemplate> = {
     sectionStyle: "none",
     zoom: { enabled: true, scale: 1.2, rampMs: 650 },
     spotlight: 0,
+    sounds: false,
     cursor: { highlight: false, size: 26 },
     caption: { style: "bar" },
     title: { weight: 600, size: 68 },

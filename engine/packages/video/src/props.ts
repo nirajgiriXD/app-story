@@ -45,4 +45,13 @@ export interface RenderProps {
   audio: { src: string; startMs: number; durationMs: number }[];
   captions: { enabled: boolean; fontSize: number; position: "bottom" | "top"; cues: { startMs: number; endMs: number; text: string }[] };
   music: { src: string; volume: number } | null;
+  /** Sound effects (global times). */
+  sfx?: SoundEffect[];
+}
+
+export interface SoundEffect {
+  kind: "click" | "typing" | "whoosh" | "chime";
+  atMs: number;
+  /** Typing only: how long the keys are heard. */
+  durationMs?: number;
 }

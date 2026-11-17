@@ -1,7 +1,7 @@
 import type { AudioClip, Box, CursorPoint, PlacedClip, ProductConfig, Step, StepResult, WordTiming } from "@app-story/contracts";
 import { RESOLUTIONS } from "@app-story/contracts";
 import type { TimeMap } from "./edit";
-import type { RenderProps } from "./props";
+import type { RenderProps, SoundEffect } from "./props";
 import type { VideoTemplate } from "./templates";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
 
@@ -180,6 +180,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       cues: cues.map((c) => ({ startMs: c.start_ms, endMs: c.end_ms, text: c.text })),
     },
     music: input.musicSrc ? { src: input.musicSrc, volume: config.branding.music_volume } : null,
+    sfx: template.sounds ? soundEffects(passed, input.cursor, plan, template.transitionMs) : [],
   };
 }
 
@@ -188,4 +189,26 @@ function sameText(text: string): string {
     .toLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
+}
+
+/**
+ * Where the sound effects go (global time): a tick on every click, taps while a value is
+ * typed, a whoosh into and out of the app, and a chime when the final outcome is confirmed.
+ */
+export function soundEffects(results: readonly StepResult[], cursor: readonly CursorPoint[], plan: TimelinePlan, transitionMs: number): SoundEffect[] {
+  const at = (ms: number) => plan.recordingStartMs + ms;
+  const clicks = cursor.filter((c) => c.click).map((c) => c.t);
+  const effects: SoundEffect[] = [{ kind: "whoosh", atMs: plan.recordingStartMs - transitionMs * 0.4 }];
+  for (const t of clicks) effects.push({ kind: "click", atMs: at(t) });
+  for (const r of results) {
+    if (r.action !== "fill") continue;
+    // Typing starts once the field is clicked and lasts until the step ends.
+    const click = clicks.find((t) => t >= r.started_ms && t <= r.ended_ms);
+    const from = (click ?? r.started_ms) + 80;
+    if (r.ended_ms - from > 120) effects.push({ kind: "typing", atMs: at(from), durationMs: r.ended_ms - from - 40 });
+  }
+  const outcome = [...results].reverse().find((r) => r.action === "assert" && r.verified && r.result_box);
+  if (outcome) effects.push({ kind: "chime", atMs: at(outcome.started_ms + 150) });
+  effects.push({ kind: "whoosh", atMs: plan.outroStartMs });
+  return effects.sort((a, b) => a.atMs - b.atMs);
 }

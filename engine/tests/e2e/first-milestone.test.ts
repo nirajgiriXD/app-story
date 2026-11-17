@@ -37,7 +37,9 @@ beforeAll(async () => {
 
 afterAll(() => app?.stop());
 
-for (const provider of ["anthropic", "openai"] as const) {
+const PROVIDERS = ["anthropic", "openai"] as const;
+
+for (const provider of PROVIDERS) {
   const key = provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY;
   const answers = `engine/tests/fixtures/ai-answers/${provider}.json`;
   const mode = isRecordingAI() ? (key ? "record" : undefined) : hasCassette(answers) ? "replay" : undefined;
@@ -72,3 +74,12 @@ for (const provider of ["anthropic", "openai"] as const) {
     });
   });
 }
+
+// On CI the full flow must run: without recorded answers every suite above is skipped,
+// and a run that tested nothing would still pass.
+const replayable = PROVIDERS.some((p) => hasCassette(`engine/tests/fixtures/ai-answers/${p}.json`));
+describe.runIf(process.env.CI && !isRecordingAI() && !replayable)("recorded AI answers", () => {
+  it("exist for at least one provider", () => {
+    throw new Error("No recorded AI answers in engine/tests/fixtures/ai-answers/. Run `APP_STORY_RECORD_AI=1 npm run test:e2e` and commit them.");
+  });
+});

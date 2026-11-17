@@ -2,6 +2,7 @@ import type { Locator, Page, Request } from "playwright";
 import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@app-story/contracts";
 import { AppStoryError, sleep, type Logger } from "@app-story/shared";
 import type { ActionOptions, ActionOutcome, BrowserController, PageObservation, VerificationResult } from "../types";
+import { inPage } from "../playwright/in-page";
 import { buildLocators, resolveLocator, describeTarget } from "../selectors/locator";
 import type { ActionGuard, ElementInfo } from "../security/action-guard";
 import { isAllowedUrl, resolveUrl } from "../security/url-guard";
@@ -386,16 +387,18 @@ export class PlaywrightController implements BrowserController {
 
   private async focusedElementInfo(): Promise<ElementInfo | undefined> {
     return this.page
-      .evaluate(() => {
-        const el = document.activeElement as HTMLElement | null;
-        if (!el || el === document.body) return undefined;
-        return {
-          role: el.getAttribute("role") ?? el.tagName.toLowerCase(),
-          name: (el.getAttribute("aria-label") ?? (el as HTMLInputElement).value ?? el.innerText ?? "").slice(0, 120),
-          tag: el.tagName.toLowerCase(),
-          type: el.getAttribute("type") ?? undefined,
-        };
-      })
+      .evaluate(
+        inPage(() => {
+          const el = document.activeElement as HTMLElement | null;
+          if (!el || el === document.body) return undefined;
+          return {
+            role: el.getAttribute("role") ?? el.tagName.toLowerCase(),
+            name: (el.getAttribute("aria-label") ?? (el as HTMLInputElement).value ?? el.innerText ?? "").slice(0, 120),
+            tag: el.tagName.toLowerCase(),
+            type: el.getAttribute("type") ?? undefined,
+          };
+        }),
+      )
       .catch(() => undefined);
   }
 
@@ -409,7 +412,7 @@ export class PlaywrightController implements BrowserController {
     await this.page.waitForLoadState("domcontentloaded", { timeout: this.timeout(options) }).catch(() => undefined);
     const deadline = Date.now() + SETTLE_MAX_MS;
     while (Date.now() < deadline) {
-      const quiet = await this.page.evaluate(waitForDomQuiet, { quietMs: QUIET_MS, maxMs: deadline - Date.now() }).then(
+      const quiet = await this.page.evaluate(inPage(waitForDomQuiet), { quietMs: QUIET_MS, maxMs: deadline - Date.now() }).then(
         () => true,
         () => false,
       );
@@ -443,12 +446,14 @@ export class PlaywrightController implements BrowserController {
   private async bringIntoView(locator: Locator, timeoutMs: number): Promise<void> {
     if (this.presentation) {
       const scrolled = await locator
-        .evaluate((el: Element) => {
-          const r = el.getBoundingClientRect();
-          const off = r.top < 0 || r.left < 0 || r.bottom > window.innerHeight || r.right > window.innerWidth;
-          if (off) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-          return off;
-        })
+        .evaluate(
+          inPage((el: Element) => {
+            const r = el.getBoundingClientRect();
+            const off = r.top < 0 || r.left < 0 || r.bottom > window.innerHeight || r.right > window.innerWidth;
+            if (off) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+            return off;
+          }),
+        )
         .catch(() => false);
       if (scrolled) await this.waitForStill(locator);
     }
@@ -496,33 +501,35 @@ async function countMatches(page: Page, target: Target): Promise<number> {
 }
 
 async function elementInfo(locator: Locator): Promise<ElementInfo> {
-  return locator.evaluate((el: Element) => {
-    const html = el as HTMLElement;
-    const tag = el.tagName.toLowerCase();
-    const type = el.getAttribute("type") ?? undefined;
-    const implicit: Record<string, string> = {
-      a: "link",
-      button: "button",
-      select: "combobox",
-      textarea: "textbox",
-      option: "option",
-      summary: "button",
-    };
-    let role = el.getAttribute("role") ?? implicit[tag] ?? "generic";
-    if (tag === "input") {
-      role = ["submit", "button", "reset"].includes(type ?? "") ? "button" : type === "checkbox" ? "checkbox" : type === "radio" ? "radio" : "textbox";
-    }
-    const labelled = el.getAttribute("aria-labelledby");
-    const labelText = labelled ? document.getElementById(labelled)?.innerText : undefined;
-    const name =
-      el.getAttribute("aria-label") ??
-      labelText ??
-      (tag === "input" ? (el as HTMLInputElement).value || el.getAttribute("placeholder") : undefined) ??
-      html.innerText ??
-      el.getAttribute("title") ??
-      "";
-    return { role, name: String(name).replace(/\s+/g, " ").trim().slice(0, 160), tag, type };
-  });
+  return locator.evaluate(
+    inPage((el: Element) => {
+      const html = el as HTMLElement;
+      const tag = el.tagName.toLowerCase();
+      const type = el.getAttribute("type") ?? undefined;
+      const implicit: Record<string, string> = {
+        a: "link",
+        button: "button",
+        select: "combobox",
+        textarea: "textbox",
+        option: "option",
+        summary: "button",
+      };
+      let role = el.getAttribute("role") ?? implicit[tag] ?? "generic";
+      if (tag === "input") {
+        role = ["submit", "button", "reset"].includes(type ?? "") ? "button" : type === "checkbox" ? "checkbox" : type === "radio" ? "radio" : "textbox";
+      }
+      const labelled = el.getAttribute("aria-labelledby");
+      const labelText = labelled ? document.getElementById(labelled)?.innerText : undefined;
+      const name =
+        el.getAttribute("aria-label") ??
+        labelText ??
+        (tag === "input" ? (el as HTMLInputElement).value || el.getAttribute("placeholder") : undefined) ??
+        html.innerText ??
+        el.getAttribute("title") ??
+        "";
+      return { role, name: String(name).replace(/\s+/g, " ").trim().slice(0, 160), tag, type };
+    }),
+  );
 }
 
 /** Runs in the page: resolves once the DOM has not changed for `quietMs` (or after `maxMs`). */

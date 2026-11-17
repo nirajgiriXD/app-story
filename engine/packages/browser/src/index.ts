@@ -6,3 +6,4 @@ export * from "./recording/cdp-recorder";
 export * from "./recording/playwright-recorder";
 export * from "./controller/playwright-controller";
 export * from "./playwright/session";
+export * from "./playwright/in-page";

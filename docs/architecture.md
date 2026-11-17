@@ -3,10 +3,10 @@
 All code lives in `engine/`: the CLI in `engine/cli`, the packages in `engine/packages/`.
 
 ```text
-cli ──► core (orchestrator, pipeline stages, job manager, QA, SQLite store)
+cli ──► core (orchestrator, pipeline stages, rehearsal agent, job manager, QA, SQLite store)
         │
         ├─ products   product file reader (settings block + Markdown), plan YAML
-        ├─ ai         provider interface, Anthropic + OpenAI, agents, prompts, tools
+        ├─ ai         provider interface, Anthropic + OpenAI, tool loop, prompts (no browser)
         ├─ workflow   step executor, validators, workflow assembly
         ├─ browser    Playwright session, controller, locators, guards, recorders
         ├─ narration  script writer, TTS providers, narration pacer

@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { VideoKind, Workflow } from "@app-story/contracts";
-import { runRehearsal, type ProductContext, type RehearsalOutcome } from "@app-story/ai";
+import type { ProductContext } from "@app-story/ai";
+import { runRehearsal, type RehearsalOutcome } from "../agent/rehearsal-agent";
 import type { LoadedProduct } from "@app-story/products";
 import { AppStoryError, type ErrorCode } from "@app-story/shared";
 import { saveRecord, type Job } from "../job-manager/job";

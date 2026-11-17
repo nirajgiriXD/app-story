@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { EXPECTATION_TYPES, type Expectation, type Step, type Target } from "@app-story/contracts";
-import { stripNulls } from "../contracts/json-schema";
-import type { ToolSpec } from "../contracts/types";
+import { stripNulls, type ToolSpec } from "@app-story/ai";
 
 /*
  * Tool input schemas. Every optional value is `.nullable()` (not `.optional()`) because

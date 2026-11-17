@@ -1,4 +1,6 @@
 export * from "./job-manager/job";
+export * from "./agent/rehearsal-agent";
+export * from "./agent/browser-tools";
 export * from "./pipeline/status";
 export * from "./pipeline/browser";
 export * from "./pipeline/plans";

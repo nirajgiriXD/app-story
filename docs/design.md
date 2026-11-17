@@ -574,8 +574,8 @@ app-story/
 ├── engine/                   AppStory itself
 │   ├── cli/                  the app-story command
 │   ├── packages/
-│   │   ├── core/             orchestrator, pipeline, plans, job-manager, SQLite store
-│   │   ├── ai/               providers, agents, prompts, tools, factory
+│   │   ├── core/             orchestrator, pipeline, rehearsal agent, plans, job-manager, SQLite store
+│   │   ├── ai/               providers, tool loop, prompts, factory
 │   │   ├── browser/          playwright, auto login, controller, recording, security
 │   │   ├── workflow/         executor, validators
 │   │   ├── products/         product file reader

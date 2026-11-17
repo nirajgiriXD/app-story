@@ -2,11 +2,8 @@ import { StepSchema, formatZodError, type ExecutionReport, type Step, type StepR
 import type { BrowserController } from "@app-story/browser";
 import { assembleWorkflow, executeStep } from "@app-story/workflow";
 import type { Logger } from "@app-story/shared";
-import { PHASE_EFFORT, type AIProvider } from "../contracts/types";
-import { loadPrompt, untrusted } from "../prompts";
-import { RehearsalToolInputs, rehearsalToolSpecs, toolCallToStep, type RehearsalToolName } from "../tools/browser-tools";
-import { runToolLoop, type ToolHandler } from "./tool-loop";
-import { formatProductContext, type ProductContext } from "./context";
+import { PHASE_EFFORT, formatProductContext, loadPrompt, runToolLoop, untrusted, type AIProvider, type ProductContext, type ToolHandler } from "@app-story/ai";
+import { RehearsalToolInputs, rehearsalToolSpecs, toolCallToStep, type RehearsalToolName } from "./browser-tools";
 
 export interface RehearsalInput {
   provider: AIProvider;

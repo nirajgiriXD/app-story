@@ -154,7 +154,8 @@ allow: delete, emails                      # risky actions are blocked unless li
 
   Set `template:` to use one look for every video of the product.
 
-Files whose name starts with `_` (for example `_draft.md`) are not treated as products.
+Files whose name starts with `_` or `.` (for example `_draft.md`), and a `README.md`, are
+not treated as products. Product names are lowercase letters, numbers and dashes.
 
 ### What AppStory handles by itself
 
@@ -167,9 +168,9 @@ Files whose name starts with `_` (for example `_draft.md`) are not treated as pr
   notes, or the app changed and the plan stops working, it plans again and replaces the
   file. Use `--fresh` to force a new plan, or delete the file.
 - Keeps the recording of the 5 newest videos of each product, so a video can be made
-  again in another look, or with a new logo, color, music or captions setting, without
-  the app and without AI: `npx app-story redo acme --template tutorial`. The clicks, the
-  voice and the timing stay as recorded.
+  again in another look, or with a new `logo` or `color`, without the app and without
+  AI: `npx app-story redo acme --template tutorial`. The clicks, the voice and the timing
+  stay as recorded.
 - Finishes a failed video without planning it again: `npx app-story resume acme`
   replays the plan the AI already made (or renders the kept recording again, if the
   render failed), so a failure late in the run does not cost a second AI planning pass.
@@ -187,7 +188,7 @@ The voice is set in `.env` and applies to every product. All of it is optional.
 APP_STORY_VOICE=female            # female | male | a voice name (default: female)
 APP_STORY_VOICE_ACCENT=american   # american | british (default: american)
 APP_STORY_VOICE_SPEED=1.0         # 0.7 (slower) to 1.3 (faster)
-APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
+APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice; Chatterbox: "expressive")
 ```
 
 - **Kokoro** (the free default) picks its best voice for the gender and accent:
@@ -235,7 +236,7 @@ The database has these tables:
 | Table | What it keeps |
 | --- | --- |
 | `jobs` | one row per video: product, goal, status, AI and model, voice, cost, video path, full metadata |
-| `job_records` | per video: the product settings used (passwords hidden), the click-plan, the AI's practice run, narration script, captions (SRT and WebVTT), recording and browser reports, quality checks, the log, and the thumbnail |
+| `job_records` | per video: the product settings used (passwords hidden), the click-plan, the AI's practice run, narration script, captions (SRT and WebVTT), recording and browser reports, quality checks, the AI's review of the finished video, the log, and the thumbnail |
 | `cache` | AI answers and spoken lines that are identical for identical inputs (unused entries are deleted after 30 days) |
 
 A video's scratch folder, `.app-story/work/<job>/`, is deleted when the video succeeds,
@@ -254,8 +255,8 @@ your work happens in `products/`, and the videos land in `output/`.
 engine/
 ├── cli/            the `app-story` command (npx app-story ...)
 ├── packages/       the building blocks
-│   ├── core/         runs every step of a job, in order; keeps the SQLite database
-│   ├── ai/           talks to Anthropic or OpenAI; plans the clicks
+│   ├── core/         runs every step of a job, in order; the AI's practice run that plans the clicks; the SQLite database
+│   ├── ai/           talks to Anthropic or OpenAI; the prompts
 │   ├── browser/      drives a real Chromium browser and records the screen
 │   ├── workflow/     checks and replays click-plans
 │   ├── narration/    writes the script and speaks it (Kokoro, Chatterbox, OpenAI, ElevenLabs)
@@ -279,6 +280,7 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
 - With Docker: nothing else.
 - Without Docker: Node.js 22.13 or newer, [FFmpeg](https://ffmpeg.org) (`ffmpeg` and
   `ffprobe` on your PATH), and Chromium for Playwright (`npx playwright install chromium`)
+- Only for the Chatterbox voice: Python with `pip install chatterbox-tts`
 
 ## Development
 

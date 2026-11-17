@@ -50,16 +50,21 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
   every file. Biome skips Markdown, so prompts and product files are never reformatted.
 - Run the integration tests when you touch the browser, recording, narration or video.
   They take several minutes, and the first run downloads the voice model (~330 MB).
-- `npm run test:e2e` makes a real video with real AI answers that were recorded once
-  (`engine/tests/fixtures/ai-answers/`), so it is free and needs no key. After changing a
-  prompt, the AI tools or the practice app, record them again (needs the key, costs a
-  little): `APP_STORY_RECORD_AI=1 npm run test:e2e`, and commit the new files.
+- `npm run test:e2e` makes a real video with real AI answers recorded once in
+  `engine/tests/fixtures/ai-answers/<provider>.json`, so replaying them is free and needs
+  no key. Record them (needs the key, costs a little) with
+  `APP_STORY_RECORD_AI=1 npm run test:e2e`, and commit the new files; do it again after
+  changing a prompt, the AI tools or the practice app. Without recorded answers the e2e
+  tests are skipped locally, and fail on CI so a run that tested nothing never passes.
 
 ## Writing code
 
 - **Tests.** Add or update tests for the behavior you change: unit tests in
   `engine/tests/unit/`, browser tests in `engine/tests/integration/`. Fakes for the AI,
-  the voice and the browser are in `engine/tests/support/`.
+  the voice and the browser are in `engine/tests/support/`. Unit tests run on Linux and
+  Windows in CI.
+- **Database.** To change the tables in `engine/packages/core/src/store/store.ts`, add a
+  new entry to `MIGRATIONS`; never edit one that has shipped.
 - **AI prompts** live in `engine/packages/ai/src/prompts/` as `name.vN.md`. When you
   change what a prompt means, add a new version file and bump it in `PROMPT_VERSIONS`
   (`prompts/index.ts`), instead of editing the old one.

@@ -18,9 +18,10 @@ cli ──► core (orchestrator, pipeline stages, rehearsal agent, job manager,
 Packages export TypeScript sources directly and run through `tsx`, so working on them needs
 no build step. The npm package `app-story` is built by `npm run build`
 (`engine/scripts/build-package.ts`): esbuild bundles the CLI and the engine's packages
-into one file, with the render page bundled ahead of time and the prompts next to it;
-everything from npm stays a dependency. The Docker image (`Dockerfile`) installs that
-package with FFmpeg, Chromium and the Kokoro voice model.
+into one file, with the render page bundled ahead of time and the prompts and the
+Chatterbox Python helper next to it; everything from npm stays a dependency. The Docker
+image (`Dockerfile`) installs that package with FFmpeg, Chromium, the Kokoro voice model
+and the word timing model.
 
 AppStory never keeps user data in its own folder. Everything belongs to the user's
 project folder (`workspace()` in the shared package): the nearest folder with
@@ -45,8 +46,8 @@ at login time and registered as secrets.
    guarded tools, recovers from mistakes, verifies the outcome, then picks the successful
    steps to keep. The result is a versioned workflow (the `plan` record).
 2. **Static validation.** Domains, sensitive actions and at least one verification.
-3. **Narration.** Script from the verified steps (AI, or the scenario's own `narration`
-   lines). The writer sees what each step types and proves, and roughly how long it is on
+3. **Narration.** Script from the verified steps (AI, or the plan's own `narration` lines
+   when every step has one). The writer sees what each step types and proves, and roughly how long it is on
    screen (`estimateStepMs`), so each line fits its steps and the recording never freezes
    waiting for the voice; `length` is only an upper bound. Then text-to-speech per line,
    cleaned up (low cut, de-esser, gentle compression), two-pass loudness-normalised, kept
@@ -89,6 +90,12 @@ at login time and registered as secrets.
 6. **Quality checks** and **metadata**. A plan made by the AI is saved for reuse only
    after its video passed. Videos are never published automatically.
 
+Several videos can be made at once (`--each` makes two at a time). Their heavy phases
+(speech, recording, rendering) take turns in the job's `Runtime` (`core/src/runtime.ts`),
+because a recording that competes for the CPU drops frames; AI planning, which mostly waits
+on the network, overlaps freely. The runtime also holds the database connections. The CLI
+uses one per process; a test or a long-running host can make its own and `close()` it.
+
 ## Storage
 
 `output/` receives only the finished MP4 and its captions (`.srt`). A plan made by the AI is saved, after its video
@@ -99,9 +106,12 @@ passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`
 - `app-story.db`, one SQLite file through Node's built-in `node:sqlite` (`Store` in
   `engine/packages/core/src/store/`): a `jobs` table with each job's metadata,
   `job_records` with everything a job produces (settings used, plan, practice run,
-  narration, captions, reports, quality checks, log, thumbnail), and `cache` with results
-  that are identical for identical inputs: the feature list of a product file, the
-  narration of a plan, and spoken clips by voice and text.
+  narration, captions, reports, quality checks, the AI's visual review, log, thumbnail),
+  and `cache` with results that are identical for identical inputs: the feature list of a
+  product file, the narration of a plan, and spoken clips by voice and text (unused for 30
+  days, they are deleted). The schema version is SQLite's `user_version`; `migrate()`
+  creates the tables of a new database and applies each missing entry of `MIGRATIONS` once,
+  in its own transaction, and refuses a database made by a newer AppStory.
 - `takes/<job>/`: the take of each of the 5 newest videos per product (`pipeline/takes.ts`):
   the raw recording, the spoken clips, the plan, the recording's timeline, and the edit as
   `timeline.otio` (OpenTimelineIO, opens in DaVinci Resolve and other editors). `redo`
@@ -140,7 +150,8 @@ These were chosen deliberately (and agreed before building):
 - Anthropic: Messages API via `@anthropic-ai/sdk`, default `claude-opus-5-5`, adaptive
   thinking with `effort`, streaming agent turns, prompt caching of the agent loop.
 - Effort is set per phase (`PHASE_EFFORT`: `high` for the practice run and feature
-  picking, `low` for the script); `APP_STORY_AI_EFFORT` overrides all of them. The practice
+  picking, `medium` for the visual review, `low` for the script); `APP_STORY_AI_EFFORT`
+  overrides all of them. The practice
   agent may call several actions in one turn (they run in order and stop at the first
   error); only the last one returns the page snapshot. Old snapshots are never trimmed
   from the history: editing past turns would invalidate Claude's preserved thinking.

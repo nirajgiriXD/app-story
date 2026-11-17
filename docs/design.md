@@ -512,8 +512,9 @@ WordPress hosting management platform for agencies.
 ```
 
 Only `url` is required. Optional settings: `login`, `login page`, `start page`, `ai`,
-`model`, `voice`, `length`, `language`, `logo`, `color`, `allow`. Everything else (browser,
-recording, captions, safety) has defaults in the engine.
+`model`, `voice`, `length`, `template`, `fps`, `resolution`, `language`, `logo`, `color`,
+`allow`. Any other key is an error. Everything else (browser, recording, captions, music,
+safety) has defaults in the engine.
 
 Secrets must never be committed: `env:NAME` reads a value from the git-ignored `.env`.
 
@@ -539,10 +540,15 @@ app-story easydash "Demonstrate how to create and restore a website backup"
 
 ## Repeatable runs
 
-Each verified plan is saved in the database and replayed by the next video of the same
-feature, without AI planning. Its narration and voice clips are reused too. It is
-re-planned automatically when the feature text changes or the app no longer matches it, or
-on `--fresh`.
+Each plan whose video passed is saved as YAML next to the product file
+(`products/<product>.plans/<name>.yaml`, meant to be committed) and replayed by the next
+video of the same feature, without AI planning. Its narration and voice clips are reused
+too, from the cache. It is re-planned automatically when the feature text changes or the
+app no longer matches it, or on `--fresh`.
+
+The recording of the 5 newest videos of each product is kept, so `redo` can render one
+again in another look without the app or the AI. `resume` finishes a failed video without
+planning it again.
 
 ---
 
@@ -553,7 +559,9 @@ app-story <product> [goal]      # make videos (--each, --fresh, --headed)
 app-story new <name>            # create products/<name>.md
 app-story check <product>       # settings, keys, login, the app, local tools
 app-story list                  # list products
-app-story history [product]     # recent videos
+app-story history [product]     # recent videos (--limit, --json)
+app-story redo <product> [video]    # render a kept recording again (--template)
+app-story resume <product> [video]  # finish a failed video without planning again (--headed)
 ```
 
 ---
@@ -566,34 +574,38 @@ lives in `engine/`.
 ```text
 app-story/
 ├── products/                 user-owned: one file per product
-│   └── example.md            the practice app
+│   ├── example.md            the practice app
+│   └── <product>.plans/      saved click-plans, one YAML file per video (committed)
 │
-├── output/                   finished videos only (git-ignored)
+├── output/                   finished videos and their captions only (git-ignored)
+├── .app-story/               database, kept recordings, scratch folders (ignores itself in git)
 ├── docs/
 │
 ├── engine/                   AppStory itself
 │   ├── cli/                  the app-story command
 │   ├── packages/
-│   │   ├── core/             orchestrator, pipeline, rehearsal agent, plans, job-manager, SQLite store
+│   │   ├── core/             orchestrator, pipeline, rehearsal agent, plans, takes, job-manager, runtime, SQLite store
 │   │   ├── ai/               providers, tool loop, prompts, factory
-│   │   ├── browser/          playwright, auto login, controller, recording, security
-│   │   ├── workflow/         executor, validators
-│   │   ├── products/         product file reader
-│   │   ├── narration/        generator, providers, synchronization
-│   │   ├── video/            remotion, compositions, templates
+│   │   ├── browser/          playwright session and auto login, controller, recording, security
+│   │   ├── workflow/         executor, validators, workflow assembly
+│   │   ├── products/         product file reader, plan YAML
+│   │   ├── narration/        script writer, voices (incl. a Python helper for Chatterbox), word timing, pacer
+│   │   ├── video/            compositions (React), templates, edit and timeline maths, render, audio, OpenTimelineIO
 │   │   ├── captions/
 │   │   ├── contracts/
 │   │   └── shared/
 │   │
-│   ├── data/                 SQLite database and scratch folders (git-ignored),
+│   ├── tests/                unit/, integration/, e2e/, support/, fixtures/,
 │   │                         example-app/ (tiny fake app for practice and tests)
-│   ├── tests/                unit/, integration/, e2e/, support/, fixtures/
-│   ├── scripts/
+│   ├── scripts/              test runner and npm package build
 │   ├── tsconfig.json, tsconfig.base.json
 │   └── vitest.config.ts
 │
 ├── .env.example
+├── .gitattributes            LF line endings everywhere
 ├── .gitignore
+├── Dockerfile                the image with Node, Chromium, FFmpeg and the voice models
+├── biome.jsonc               lint and format settings
 ├── package.json              npm workspaces: engine/cli, engine/packages/*
 └── README.md
 ```
@@ -604,20 +616,24 @@ Keep modules independently testable. Avoid circular dependencies and unnecessary
 
 # 9. Output Structure
 
-`output/` receives only finished videos:
+`output/` receives only finished videos, each with its captions:
 
 ```text
 output/
   easydash/
     20261116-134205-a1b2c3-website-backup.mp4
+    20261116-134205-a1b2c3-website-backup.srt
 ```
 
-Everything else is in the SQLite database `engine/data/app-story.db`: the `jobs` table
-(product, objective, timestamps, AI provider and model, voice, workflow version, status,
-recording duration, video path, token usage and estimated AI cost, errors), `job_records`
-(settings used, plan, practice run, narration, captions, reports, quality checks, log,
-thumbnail) and `plans` (saved click-plans). A job's scratch files live in
-`engine/data/work/<job>/`, deleted on success and kept on failure for troubleshooting.
+Saved plans are YAML files in `products/<product>.plans/`. Everything else is in
+`.app-story/` in the user's project. The SQLite database `.app-story/app-story.db` has the
+`jobs` table (product, objective, timestamps, AI provider and model, voice, workflow
+version, status, recording duration, video path, token usage and estimated AI cost,
+errors), `job_records` (settings used, plan, practice run, narration, captions, reports,
+quality checks, visual review, log, thumbnail) and `cache` (feature lists, narration
+scripts and spoken clips). The recordings of the newest videos are kept in
+`.app-story/takes/<job>/` for `redo`. A job's scratch files live in
+`.app-story/work/<job>/`, deleted on success and kept on failure for troubleshooting.
 
 ---
 

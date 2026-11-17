@@ -35,7 +35,9 @@ unless they prefer not to be.
 These are in scope:
 
 - **Secrets leaking.** Passwords, API keys or `env:` values showing up in logs, the
-  database (`.app-story/app-story.db`), the saved plans (`products/<product>.plans/`), captions, narration or the video.
+  database (`.app-story/app-story.db`), the kept recordings (`.app-story/takes/`), the
+  editable timeline (`timeline.otio`), the saved plans (`products/<product>.plans/`),
+  captions, narration or the video.
 - **Getting around the safety guards.** The browser leaving the product's `url`, or doing
   a risky action (deleting, paying, sending email, publishing, changing account settings,
   inviting users) that the product file does not `allow`.

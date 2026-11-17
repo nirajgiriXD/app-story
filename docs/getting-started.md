@@ -7,9 +7,10 @@
 - An Anthropic or OpenAI API key. That is all.
   - The voice-over is free and runs on your computer ([Kokoro](https://huggingface.co/hexgrad/Kokoro-82M),
     via `kokoro-js`). The first run downloads the voice model (~330 MB) and a speech model that times each spoken word for the captions (~300 MB) once. English only.
-  - Paid voices are optional (`voice: openai` or `voice: elevenlabs`); `voice: none` makes
-    captions-only videos. Female or male, accent, speed and tone are set in `.env`
-    (see "Voice" in the README).
+  - Other voices are optional: `voice: chatterbox` (free and local too, needs Python),
+    `voice: openai` or `voice: elevenlabs` (paid); `voice: none` makes captions-only
+    videos. Female or male, accent, speed and tone are set in `.env` (see "Voice" in the
+    README).
 
 ## Install
 
@@ -94,7 +95,7 @@ release notes, or the app changing so the plan no longer works, makes AppStory p
 by itself and replace the file. Use `--fresh` to force it, or delete the file.
 
 The recording of the 5 newest videos of each product is kept. To make one again with
-another look, or after changing the logo, color, music or captions in the product file:
+another look, or after changing the `logo` or `color` in the product file:
 
 ```bash
 npx app-story redo acme                          # the newest acme video, with the current settings
@@ -140,6 +141,7 @@ SQLite database `.app-story/app-story.db` (see "Output" in the README):
 | `narration_script`, `narration_clips` | what the narrator says, line by line |
 | `captions_srt`, `captions_vtt` | subtitles |
 | `execution`, `browser_issues`, `quality` | step results, console/network problems, quality checks |
+| `visual_review` | the AI's look at the finished video: which shots missed their subject |
 | `log`, `thumbnail` | the full log, and a PNG cover image |
 
 A failed video keeps its scratch folder, `.app-story/work/<job>/`, with the raw recording,
@@ -155,15 +157,19 @@ sqlite3 .app-story/app-story.db "SELECT created_at, product_id, status, video_pa
 
 | Variable | Used for |
 | --- | --- |
-| `ANTHROPIC_API_KEY` | Claude |
+| `ANTHROPIC_API_KEY` | Claude (`ANTHROPIC_AUTH_TOKEN` works instead) |
 | `OPENAI_API_KEY` | OpenAI models, and the optional OpenAI voice |
 | `ELEVENLABS_API_KEY` | optional; ElevenLabs voice |
-| `APP_STORY_VOICE`, `APP_STORY_VOICE_ACCENT`, `APP_STORY_VOICE_SPEED`, `APP_STORY_VOICE_TONE` | which voice speaks (female, male or a name), accent, speed and tone |
+| `APP_STORY_VOICE`, `APP_STORY_VOICE_ACCENT`, `APP_STORY_VOICE_SPEED`, `APP_STORY_VOICE_TONE` | which voice speaks (female, male, a name, or for Chatterbox a WAV to copy), accent, speed and tone |
+| `APP_STORY_PYTHON` | the Python that has `chatterbox-tts` (default: `python`) |
+| `APP_STORY_KOKORO_DTYPE` | Kokoro weights: `fp32` (clearest, default), `fp16`, `q8`, `q4`, `q4f16` (smaller and faster, a little buzzy) |
+| `APP_STORY_WORD_TIMING` | `off` skips timing each spoken word (captions are then timed by length) |
+| `APP_STORY_AI_REVIEW` | `off` skips the AI's look at the finished video (it re-frames shots that miss their subject) |
 | `APP_STORY_AI_PROVIDER`, `APP_STORY_AI_MODEL`, `APP_STORY_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
-| `APP_STORY_AI_EFFORT` | `low` to `max`: how hard the AI thinks in every step (default: `high` for planning, `low` for the script) |
+| `APP_STORY_AI_EFFORT` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the AI thinks in every step (default: `high` for planning and picking features, `medium` for the review, `low` for the script) |
 | `APP_STORY_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |
 | `APP_STORY_HOME` | your project folder, when it is not found by itself |
-| `APP_STORY_RENDER_WORKERS` | how many frames are drawn at once while rendering (default: one per two CPU cores, up to 8) |
+| `APP_STORY_RENDER_WORKERS` | how many render workers run at once, each its own headless browser (default: one per two CPU cores, up to 8) |
 | anything a product file names, e.g. `ACME_PASSWORD` | `login: demo@acme.com / env:ACME_PASSWORD` |
 
 All of them go in your project's `.env` (`APP_STORY_HOME` must be set outside it). Keep
@@ -174,6 +180,6 @@ All of them go in your project's `.env` (`APP_STORY_HOME` must be set outside it
 ```bash
 npm test                  # unit (fast, no browser)
 npm run test:integration  # real Chromium, login, recorder and renderer; fake AI and voice
-npm run test:e2e          # the full flow with recorded AI answers (free); see CONTRIBUTING.md to record them
+npm run test:e2e          # the full flow with recorded AI answers (free once recorded; see CONTRIBUTING.md)
 npm run typecheck
 ```

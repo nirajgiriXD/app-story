@@ -73,7 +73,7 @@ at login time and registered as secrets.
    click ripples, chapter chips and branding. The
    compositions (React) are bundled once per process with esbuild. The frames are split
    into stretches, one per worker (`APP_STORY_RENDER_WORKERS`, default one per two CPU
-   cores, up to 8). Each worker draws its frames in a headless Chromium tab, with FFmpeg
+   cores, up to 8). Each worker draws its frames in a headless Chromium of its own, with FFmpeg
    streaming it the recording's frames and encoding the captured frames to H.264 (JPEG
    quality 100, BT.709; x264 `slow`, tuned for screen text). FFmpeg then joins the
    stretches without re-encoding and mixes the sound: each voice clip at its place, soft

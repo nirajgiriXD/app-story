@@ -17,8 +17,9 @@ import type { RenderProps } from "./props";
  *
  * 1. The compositions (React) are bundled into one script for a render page.
  * 2. The frames are split into stretches, one per worker. Each worker has its own headless
- *    browser tab, its own FFmpeg reading the recording's frames for its stretch, and its
- *    own FFmpeg encoding what the tab shows. For every frame the tab draws the picture
+ *    browser, its own FFmpeg reading the recording's frames for its stretch, and its own
+ *    FFmpeg encoding what the browser shows. (Tabs of one shared browser are slower: they
+ *    paint and capture through the same browser process, which then becomes the bottleneck.) For every frame the tab draws the picture
  *    (title cards, the app window with the recording, zoom, cursor, captions) and is
  *    captured.
  * 3. FFmpeg joins the stretches without re-encoding and adds the sound (see audio.ts).
@@ -30,7 +31,7 @@ const ENTRY = join(here, "page", "main.tsx");
 const PREBUILT = join(here, "render-page.js");
 /** The render page's made-up address. Nothing is fetched from the network: every request is answered below. */
 const ORIGIN = "http://render.app-story.local";
-/** Fewer frames than this per worker is not worth another browser tab. */
+/** Fewer frames than this per worker is not worth another browser. */
 const MIN_FRAMES_PER_WORKER = 90;
 
 export interface RenderVideoOptions {
@@ -95,7 +96,7 @@ export function splitFrames(total: number, workers: number): [number, number][] 
 function workerCount(): number {
   const fromEnv = Number(process.env.APP_STORY_RENDER_WORKERS);
   if (Number.isInteger(fromEnv) && fromEnv > 0) return fromEnv;
-  // Each worker is a browser tab and two FFmpeg processes, so one per two cores.
+  // Each worker is a browser and two FFmpeg processes, so one per two cores.
   return Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)));
 }
 
@@ -107,11 +108,9 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
   const { props, log } = options;
   const total = frameCount(props);
   let workDir: string | undefined;
-  let browser: Browser | undefined;
   try {
     const script = await prepareRenderer();
     workDir = await mkdtemp(join(tmpdir(), "app-story-render-"));
-    browser = await launchBrowser();
     const ranges = splitFrames(total, workerCount());
     log.info({ frames: total, workers: ranges.length }, "rendering video");
 
@@ -127,10 +126,9 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
     };
     const parts = ranges.map((_, i) => join(workDir as string, `part-${i}.mp4`));
     const state = { failed: false };
-    const b = browser;
     await Promise.all(
       ranges.map((range, i) =>
-        renderRange({ browser: b, script, options, range, outFile: parts[i] as string, onFrame, state }).catch((error: unknown) => {
+        renderRange({ script, options, range, outFile: parts[i] as string, onFrame, state }).catch((error: unknown) => {
           state.failed = true;
           throw error;
         }),
@@ -190,7 +188,6 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
     if (error instanceof AppStoryError) throw error;
     throw new AppStoryError("RENDER_FAILED", `Video rendering failed: ${(error as Error).message}`, { cause: error });
   } finally {
-    await browser?.close().catch(() => undefined);
     if (workDir) await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
   }
 }
@@ -211,7 +208,6 @@ async function launchBrowser(): Promise<Browser> {
 }
 
 interface RangeJob {
-  browser: Browser;
   script: string;
   options: RenderVideoOptions;
   range: [number, number];
@@ -221,7 +217,7 @@ interface RangeJob {
   state: { failed: boolean };
 }
 
-/** Draw, capture and encode frames [from, to) in one browser tab. */
+/** Draw, capture and encode frames [from, to) in a browser of its own. */
 async function renderRange(job: RangeJob): Promise<void> {
   const { props, publicDir } = job.options;
   const [from, to] = job.range;
@@ -236,10 +232,14 @@ async function renderRange(job: RangeJob): Promise<void> {
   const takeLast = sourceFrame(map, last - 1 - recordingFirst, props.fps);
   const recording = last > first ? new RecordingFrames(fileIn(publicDir, props.recording.src), props.fps, takeFirst, takeLast - takeFirst + 1) : undefined;
 
-  const context = await job.browser.newContext({ viewport: { width: props.width, height: props.height }, deviceScaleFactor: 1 });
-  const encoder = new FrameEncoder(props.fps, job.outFile);
+  let browser: Browser | undefined;
+  let encoder: FrameEncoder | undefined;
   let serveError: unknown;
   try {
+    browser = await launchBrowser();
+    if (job.state.failed) return;
+    const context = await browser.newContext({ viewport: { width: props.width, height: props.height }, deviceScaleFactor: 1 });
+    encoder = new FrameEncoder(props.fps, job.outFile);
     const page = await context.newPage();
     await page.route("**/*", async (route) => {
       try {
@@ -263,8 +263,8 @@ async function renderRange(job: RangeJob): Promise<void> {
     await encoder.finish();
   } finally {
     recording?.close();
-    encoder.kill();
-    await context.close().catch(() => undefined);
+    encoder?.kill();
+    await browser?.close().catch(() => undefined);
   }
 }
 

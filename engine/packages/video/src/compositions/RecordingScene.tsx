@@ -56,6 +56,9 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
         }}
       >
         <Img src={recordingFrame(sourceFrame(p.recording.timeMap, frame, fps))} style={{ width: viewport.width, height: viewport.height, display: "block" }} />
+        {camera.focus && p.template.spotlight > 0 ? (
+          <Spotlight box={camera.focus.box} strength={p.template.spotlight * camera.focus.amount} zoom={view.scale} />
+        ) : null}
         {cursor ? <Cursor p={p} t={t} x={cursor.x} y={cursor.y} sinceClickMs={cursor.sinceClickMs} zoom={view.scale} /> : null}
       </div>
     </div>
@@ -138,6 +141,29 @@ const WindowBar: React.FC<{ p: RenderProps; url: string; height: number }> = ({ 
         {display}
       </div>
     </div>
+  );
+};
+
+/**
+ * Dims the screen around the area being shown, softly, so the eye goes where the narration
+ * is. It moves with the camera, in the recording's own pixels.
+ */
+const Spotlight: React.FC<{ box: { x: number; y: number; width: number; height: number }; strength: number; zoom: number }> = ({ box, strength, zoom }) => {
+  if (strength <= 0.001) return null;
+  const pad = 14;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: box.x - pad,
+        top: box.y - pad,
+        width: box.width + pad * 2,
+        height: box.height + pad * 2,
+        borderRadius: 14,
+        boxShadow: `0 0 ${48 / zoom}px ${24 / zoom}px rgba(15, 23, 42, ${strength}), 0 0 0 4000px rgba(15, 23, 42, ${strength})`,
+        pointerEvents: "none",
+      }}
+    />
   );
 };
 

@@ -60,6 +60,8 @@ export interface Camera {
   /** Focus point in viewport px. */
   x: number;
   y: number;
+  /** The area being shown and how far the camera is on it (0-1), for the spotlight. */
+  focus?: { box: Box; amount: number };
 }
 
 const smooth = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -104,11 +106,14 @@ export function cameraAt(
 
     const amount = t < first.startMs ? smooth((t - (first.startMs - rampIn)) / rampIn) : t > last.endMs ? smooth((last.endMs + rampOut - t) / rampOut) : 1;
     let shot = frameBox(first.box, viewport, zoom.scale);
+    let box = first.box;
     for (const w of group.slice(1)) {
       const next = frameBox(w.box, viewport, zoom.scale);
       const k = smooth((t - (w.startMs - PAN_LEAD_MS)) / panMs(Math.hypot(next.x - shot.x, next.y - shot.y)));
       if (k <= 0) break;
       shot = { scale: shot.scale + (next.scale - shot.scale) * k, x: shot.x + (next.x - shot.x) * k, y: shot.y + (next.y - shot.y) * k };
+      const mix = (a: number, b: number) => a + (b - a) * k;
+      box = { x: mix(box.x, w.box.x), y: mix(box.y, w.box.y), width: mix(box.width, w.box.width), height: mix(box.height, w.box.height) };
     }
     const held = Math.min(1, Math.max(0, (t - first.startMs) / Math.max(1, last.endMs - first.startMs)));
     const scale = shot.scale * (1 + DRIFT * held);
@@ -116,6 +121,7 @@ export function cameraAt(
       scale: 1 + (scale - 1) * amount,
       x: wide.x + (shot.x - wide.x) * amount,
       y: wide.y + (shot.y - wide.y) * amount,
+      focus: { box, amount },
     };
   }
   return wide;

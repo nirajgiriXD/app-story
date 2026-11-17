@@ -125,6 +125,8 @@ model: claude-opus-5-5                     # default: the provider's default mod
 voice: kokoro                              # kokoro (free) | openai | elevenlabs | none
 length: 60                                 # longest video, in seconds (default: 90)
 template: product-update                   # the video's look (default: picked per video, see below)
+fps: 60                                    # 60 (smooth, default) | 30 (renders in half the time)
+resolution: 1080p                          # 1080p (default) | 1440p | 4k: sharper text, slower render
 language: en                               # Kokoro speaks English only
 logo: acme-logo.png                        # next to this file
 color: "#4F46E5"                           # in quotes

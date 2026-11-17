@@ -233,3 +233,13 @@ describe("workflow contract", () => {
     expect(w.cleanup).toEqual([]);
   });
 });
+
+describe("frame rate and resolution", () => {
+  it("renders at 60 fps and 1080p unless the product file says otherwise", () => {
+    const { config } = parseProductFile("---\nurl: https://acme.test\n---\n\n# Acme\n", "acme.md", "acme");
+    expect([config.demo.fps, config.demo.default_resolution]).toEqual([60, "1080p"]);
+    const chosen = parseProductFile("---\nurl: https://acme.test\nfps: 30\nresolution: 4k\n---\n\n# Acme\n", "acme.md", "acme").config;
+    expect([chosen.demo.fps, chosen.demo.default_resolution]).toEqual([30, "4k"]);
+    expect(() => parseProductFile("---\nurl: https://acme.test\nfps: 50\n---\n\n# Acme\n", "acme.md", "acme")).toThrow(/fps is 30 or 60/);
+  });
+});

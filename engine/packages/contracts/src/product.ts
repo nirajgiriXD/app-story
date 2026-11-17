@@ -141,7 +141,8 @@ export const ProductConfigSchema = z.object({
       default_language: z.string().default("en"),
       default_duration: z.number().int().positive().default(90),
       default_resolution: ResolutionSchema.default("1080p"),
-      fps: z.number().int().min(24).max(60).default(30),
+      /** 60 keeps the cursor and the camera's moves smooth; 30 renders in half the time. */
+      fps: z.number().int().min(24).max(60).default(60),
       /** Video look. Unset: picked per video (see `pickTemplate`). */
       template: z.enum(TEMPLATE_NAMES).optional(),
       audience: z.string().optional(),

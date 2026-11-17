@@ -74,6 +74,8 @@ const SettingsSchema = z
     length: z.number({ error: "length is the video length in seconds, e.g. 60" }).int().min(10).max(600).optional(),
     language: z.string().optional(),
     template: z.enum(TEMPLATE_NAMES, { error: `template must be one of: ${TEMPLATE_NAMES.join(", ")}` }).optional(),
+    fps: z.union([z.literal(30), z.literal(60)], { error: "fps is 30 or 60" }).optional(),
+    resolution: z.enum(["1080p", "1440p", "4k"], { error: "resolution is 1080p, 1440p or 4k" }).optional(),
     logo: z.string().optional(),
     color: z
       .string({ error: 'put the color in quotes, e.g. color: "#4F46E5"' })
@@ -193,7 +195,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
     // in up to ~1.9x on screen, and at 1080p that needs about two pixels per CSS pixel to stay sharp.
     browser: { viewport: { width: 1600, height: 900 }, device_scale_factor: 2, allowed_domains: [url.host] },
     authentication: login ? { strategy: "auto", ...login, login_path: s["login page"] } : { strategy: "none" },
-    demo: { default_language: s.language, default_duration: s.length, template: s.template },
+    demo: { default_language: s.language, default_duration: s.length, template: s.template, fps: s.fps, default_resolution: s.resolution },
     branding: { logo: s.logo, primary_color: s.color },
     providers: {
       ai: { provider: ai, model: s.model },

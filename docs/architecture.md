@@ -60,7 +60,9 @@ at login time and registered as secrets.
    glide into view. For every action the controller also measures the area the element
    belongs to (its form, card, dialog or table), and for every check where its outcome
    shows on screen; page changes are timed as they happen. The take is captured at 2x and stored lossless (4:4:4, BT.709), so the
-   zoom stays sharp and the final encode is the only lossy one. If a *saved* plan fails
+   zoom stays sharp. While rendering, each frame passes through the browser as a top-quality
+   JPEG (FFmpeg to the page, the page's screenshot back); the final H.264 encode is the only
+   heavy compression. If a *saved* plan fails
    here, it is dropped and the demo is planned again once, in the same job; any other
    failure stops the job and no video is made.
 5. **Edit, captions + render.** An editor's pass fast-forwards idle stretches of the take

@@ -45,6 +45,8 @@ await build({
 });
 await writeFile(join(dist, "render-page.js"), await bundleRenderPage());
 await cp(join(root, "engine", "packages", "ai", "src", "prompts"), join(dist, "prompts"), { recursive: true, filter: (f) => !f.endsWith(".ts") });
+// The Chatterbox voice's Python helper.
+await cp(join(root, "engine", "packages", "narration", "python"), join(dist, "python"), { recursive: true });
 
 // The package's dependencies: what the engine's packages use from npm.
 const readJson = async (file: string) => JSON.parse(await readFile(file, "utf8"));

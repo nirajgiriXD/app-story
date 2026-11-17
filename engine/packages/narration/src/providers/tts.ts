@@ -2,6 +2,7 @@ import { writeFile } from "node:fs/promises";
 import OpenAI from "openai";
 import type { TtsConfig } from "@app-story/contracts";
 import { AppStoryError, registerSecret, retry, runFfmpeg } from "@app-story/shared";
+import { ChatterboxTTS } from "./chatterbox";
 import { KokoroTTS } from "./kokoro";
 
 export interface TTSProvider {
@@ -148,6 +149,7 @@ const factories = new Map<string, TTSFactory>([
   ],
   ["openai", openaiTTS],
   ["kokoro", (config) => new KokoroTTS(config)],
+  ["chatterbox", (config) => new ChatterboxTTS(config)],
   ["none", () => new SilentTTS()],
 ]);
 

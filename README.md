@@ -122,7 +122,7 @@ login page: /login                         # default: found automatically
 start page: /dashboard                     # default: the page in url
 ai: anthropic                              # anthropic | openai (default: whichever key you have)
 model: claude-opus-5-5                     # default: the provider's default model
-voice: kokoro                              # kokoro (free) | openai | elevenlabs | none
+voice: kokoro                              # kokoro (free) | chatterbox (free, needs Python) | openai | elevenlabs | none
 length: 60                                 # longest video, in seconds (default: 90)
 template: product-update                   # the video's look (default: picked per video, see below)
 fps: 60                                    # 60 (smooth, default) | 30 (renders in half the time)
@@ -195,6 +195,12 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice only)
 - **OpenAI** (`voice: openai` in the product file) needs a voice name, e.g. `marin`,
   `cedar`, `coral` or `onyx`, and is the one that follows `APP_STORY_VOICE_TONE`.
 - **ElevenLabs** (`voice: elevenlabs`) needs a voice id from your ElevenLabs account.
+- **Chatterbox** (`voice: chatterbox`) is free and local like Kokoro, sounds more natural,
+  and can copy a voice: set `APP_STORY_VOICE` to a 10-20 second WAV of the voice you want
+  (yours, for example). It runs in Python: `pip install chatterbox-tts` (a GPU helps but is
+  not needed), and `APP_STORY_PYTHON` names that Python if it is not the one on PATH. The
+  first video downloads its model (about 2 GB) once, which takes a while.
+  `APP_STORY_VOICE_TONE=expressive` gives a livelier delivery.
 
 ## Output
 
@@ -249,7 +255,7 @@ engine/
 │   ├── ai/           talks to Anthropic or OpenAI; plans the clicks
 │   ├── browser/      drives a real Chromium browser and records the screen
 │   ├── workflow/     checks and replays click-plans
-│   ├── narration/    writes the script and speaks it (Kokoro, OpenAI, ElevenLabs)
+│   ├── narration/    writes the script and speaks it (Kokoro, Chatterbox, OpenAI, ElevenLabs)
 │   ├── captions/     subtitles
 │   ├── video/        renders the final MP4 (headless Chromium + FFmpeg)
 │   ├── products/     reads the product files in products/

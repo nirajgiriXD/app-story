@@ -7,10 +7,11 @@ export type AiProviderName = z.infer<typeof AiProviderNameSchema>;
 
 /**
  * `kokoro` is free and runs locally (no API key), so it works with either AI provider.
+ * `chatterbox` is free and local too, more natural, and can copy a voice; it needs Python.
  * `openai` and `elevenlabs` are optional paid voices. `none` makes a silent narration
  * track: the video still gets captions, paced to the text.
  */
-export const TTS_PROVIDERS = ["kokoro", "openai", "elevenlabs", "none"] as const;
+export const TTS_PROVIDERS = ["kokoro", "chatterbox", "openai", "elevenlabs", "none"] as const;
 export const TtsProviderNameSchema = z.enum(TTS_PROVIDERS);
 export type TtsProviderName = z.infer<typeof TtsProviderNameSchema>;
 

@@ -1,9 +1,11 @@
+import { existsSync } from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AnthropicProvider, OpenAIProvider, UsageTracker, stripNulls, toStrictJsonSchema, type AIProvider } from "@app-story/ai";
 import { AiProviderConfigSchema, type AiProviderConfig } from "@app-story/contracts";
+import { ChatterboxTTS, chatterboxWorkerPath, createTTSProvider } from "@app-story/narration";
 import { createSilentLogger } from "@app-story/shared";
 
 /*
@@ -210,5 +212,30 @@ describe("strict JSON schema", () => {
 
   it("strips nulls back to missing keys", () => {
     expect(stripNulls({ a: 1, b: null, c: { d: null, e: "x" } })).toEqual({ a: 1, c: { e: "x" } });
+  });
+});
+
+describe("Chatterbox voice", () => {
+  it("ships its Python helper", () => {
+    expect(existsSync(chatterboxWorkerPath())).toBe(true);
+  });
+
+  it("says how to install it when Python is missing", async () => {
+    process.env.APP_STORY_PYTHON = "no-such-python-app-story";
+    try {
+      const tts = createTTSProvider({ provider: "chatterbox", speed: 1 });
+      expect(tts.name).toBe("chatterbox");
+      await expect(tts.synthesize("Hello.", "out.wav")).rejects.toMatchObject({
+        code: "DEPENDENCY_MISSING",
+        hint: expect.stringMatching(/pip install chatterbox-tts/),
+      });
+    } finally {
+      delete process.env.APP_STORY_PYTHON;
+    }
+  });
+
+  it("copies a voice from an audio file and uses its own voice otherwise", () => {
+    expect(new ChatterboxTTS({ provider: "chatterbox", speed: 1, voice: "me.wav" }).voice).toMatch(/me\.wav$/);
+    expect(new ChatterboxTTS({ provider: "chatterbox", speed: 1, voice: "female" }).voice).toBe("default");
   });
 });

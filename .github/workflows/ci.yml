@@ -72,7 +72,7 @@ jobs:
   package:
     name: npm package and Docker image
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -94,3 +94,24 @@ jobs:
         run: |
           docker build -t app-story .
           docker run --rm app-story --version
+      # The GitHub Action (action.yml), on the image just built: the practice app with a saved
+      # plan whose every step has narration, so it needs no AI key.
+      - name: Start the practice app, with a saved plan for it
+        run: |
+          node engine/tests/example-app/server.mjs &
+          mkdir -p products/example.plans
+          cp engine/tests/fixtures/create-project.plan.yaml products/example.plans/create-project.yaml
+          for i in $(seq 1 50); do curl -sf http://localhost:4310/health > /dev/null && break; sleep 0.2; done
+      - name: "Action: check the saved plan still works"
+        uses: ./
+        with:
+          products: example
+          command: test
+          image: app-story
+      - name: "Action: make its video again"
+        uses: ./
+        with:
+          products: example
+          image: app-story
+          upload: "false"
+      - run: ls -l output/example/*.mp4 output/example/*.srt

@@ -1,0 +1,96 @@
+name: AppStory demo videos
+description: Re-make product demo videos from saved AppStory plans in CI (no AI key needed), or check that the plans still work.
+author: AppStory
+branding:
+  icon: film
+  color: blue
+
+# A composite action that runs the AppStory Docker image (Node, Chromium, FFmpeg and the
+# free voice inside), so the runner needs only Docker: use a Linux runner (ubuntu-latest).
+# Your app must be running and reachable from the runner, e.g. started in an earlier step
+# on localhost: the container shares the runner's network.
+
+inputs:
+  products:
+    description: Product names (products/<name>.md), separated by spaces.
+    required: true
+  command:
+    description: >-
+      replay: make the videos of the saved plans (products/<name>.plans/*.yaml) again, with
+      the narration saved in them, so no AI key is needed. test: check that every saved plan
+      still works in the app (fast: no recording, voice or AI); fails the step if one broke.
+    required: false
+    default: replay
+  plans:
+    description: Plan names to use, separated by spaces. Default, every saved plan of each product.
+    required: false
+    default: ""
+  env-vars:
+    description: >-
+      Names of environment variables to pass to AppStory, separated by spaces: the passwords
+      your product files read with env:NAME, for example "ACME_PASSWORD". Set their values in
+      the job's env from secrets. AI keys and APP_STORY_* settings are passed by themselves.
+    required: false
+    default: ""
+  version:
+    description: The AppStory version (Docker image tag) to run, e.g. 0.2.0. Pin it, so videos do not change by themselves.
+    required: false
+    default: latest
+  image:
+    description: A full Docker image name to run instead of the published one (for example a local build). Overrides version.
+    required: false
+    default: ""
+  working-directory:
+    description: The project folder, the one with products/.
+    required: false
+    default: .
+  upload:
+    description: Upload output/ (the videos and captions) as a workflow artifact after replay.
+    required: false
+    default: "true"
+  artifact-name:
+    description: Name of the uploaded artifact.
+    required: false
+    default: app-story-videos
+
+runs:
+  using: composite
+  steps:
+    - name: Run AppStory
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        APP_STORY_PRODUCTS: ${{ inputs.products }}
+        APP_STORY_COMMAND: ${{ inputs.command }}
+        APP_STORY_PLANS: ${{ inputs.plans }}
+        APP_STORY_PASS_ENV: ${{ inputs.env-vars }}
+        APP_STORY_IMAGE: ${{ inputs.image || format('ghcr.io/nirajgirixd/app-story:{0}', inputs.version) }}
+      run: |
+        set -uo pipefail
+        case "$APP_STORY_COMMAND" in
+          replay|test) ;;
+          *) echo "::error::command must be replay or test, not '$APP_STORY_COMMAND'"; exit 1 ;;
+        esac
+        # AI keys (only needed for a plan without saved narration), AppStory's own settings,
+        # and the variables named in env-vars. `-e NAME` passes NAME's value from this step.
+        pass=(-e ANTHROPIC_API_KEY -e ANTHROPIC_AUTH_TOKEN -e OPENAI_API_KEY -e ELEVENLABS_API_KEY)
+        for name in $(compgen -e | grep '^APP_STORY_' | grep -v -E '^APP_STORY_(PRODUCTS|COMMAND|PLANS|PASS_ENV|IMAGE|HOME)$'); do pass+=(-e "$name"); done
+        for name in $APP_STORY_PASS_ENV; do pass+=(-e "$name"); done
+        docker image inspect "$APP_STORY_IMAGE" > /dev/null 2>&1 || docker pull --quiet "$APP_STORY_IMAGE" > /dev/null
+        status=0
+        for product in $APP_STORY_PRODUCTS; do
+          echo "::group::app-story $APP_STORY_COMMAND $product $APP_STORY_PLANS"
+          # shellcheck disable=SC2086 # plan names are separate arguments
+          docker run --rm --network host --user "$(id -u):$(id -g)" -v "$PWD:/work" "${pass[@]}" \
+            "$APP_STORY_IMAGE" "$APP_STORY_COMMAND" "$product" $APP_STORY_PLANS || status=1
+          echo "::endgroup::"
+        done
+        exit $status
+
+    - name: Upload the videos
+      if: ${{ always() && inputs.command == 'replay' && inputs.upload == 'true' }}
+      uses: actions/upload-artifact@v5
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.working-directory }}/output/
+        if-no-files-found: warn

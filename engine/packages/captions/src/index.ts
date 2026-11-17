@@ -1,10 +1,17 @@
-import type { CaptionCue } from "@app-story/contracts";
+import type { CaptionCue, WordTiming } from "@app-story/contracts";
 
 export interface TimedText {
   text: string;
   start_ms: number;
   duration_ms: number;
+  /** When each word of `text` is spoken (ms from `start_ms`); without it, time is shared out by length. */
+  words?: readonly WordTiming[];
 }
+
+/** A caption appears this long before its first word, so the eye is there when the voice is. */
+const LEAD_MS = 80;
+/** And stays this long after its last word, unless the next one starts. */
+const TAIL_MS = 400;
 
 export interface CueOptions {
   maxCharsPerLine: number;
@@ -93,6 +100,25 @@ export function buildCues(items: readonly TimedText[], options: CueOptions): Cap
   const minCue = options.minCueMs ?? 900;
   for (const item of items) {
     const chunks = chunkText(item.text, maxChars);
+    const spoken = item.words;
+    const counts = chunks.map((c) => c.split(" ").length);
+    if (spoken && spoken.length === counts.reduce((n, c) => n + c, 0)) {
+      // Exact: each caption from just before its first word to just after its last.
+      let first = 0;
+      for (const [k, chunk] of chunks.entries()) {
+        const from = spoken[first] as WordTiming;
+        const to = spoken[first + (counts[k] as number) - 1] as WordTiming;
+        const start = item.start_ms + Math.max(0, from.start_ms - LEAD_MS);
+        cues.push({
+          index: cues.length + 1,
+          start_ms: Math.round(start),
+          end_ms: Math.round(Math.max(item.start_ms + to.end_ms + TAIL_MS, start + minCue)),
+          text: wrapLines(chunk, options.maxCharsPerLine),
+        });
+        first += counts[k] as number;
+      }
+      continue;
+    }
     const totalChars = chunks.reduce((n, c) => n + c.length, 0) || 1;
     let cursor = item.start_ms;
     for (const chunk of chunks) {

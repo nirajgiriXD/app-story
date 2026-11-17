@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCues, chunkText, toSrt, toVtt, wrapLines } from "@app-story/captions";
+import { alignWords } from "@app-story/narration";
 import { cameraAt, cameraTransform, cursorAt, frameBox, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@app-story/video";
 
 describe("captions", () => {
@@ -158,5 +159,43 @@ describe("caption lines", () => {
   it("breaks two lines where they come out closest in length", () => {
     const [a, b] = wrapLines("Set up a project in a few seconds and see it on your team's list.", 52).split("\n") as [string, string];
     expect(Math.abs(a.length - b.length)).toBeLessThanOrEqual(8);
+  });
+});
+
+describe("word timing", () => {
+  const w = (text: string, start_ms: number, end_ms: number) => ({ text, start_ms, end_ms });
+
+  it("keeps the script's words and takes the times of the words heard", () => {
+    const heard = [w("Give", 0, 400), w("the", 400, 540), w("project", 540, 860), w("a", 860, 1100), w("clear", 1100, 1280), w("name", 1280, 1660)];
+    expect(alignWords("Give the project a clear name.", heard, 2000)).toEqual([
+      w("Give", 0, 400),
+      w("the", 400, 540),
+      w("project", 540, 860),
+      w("a", 860, 1100),
+      w("clear", 1100, 1280),
+      w("name.", 1280, 1660),
+    ]);
+  });
+
+  it("survives misheard, missing and extra words without shifting the rest", () => {
+    // "Q3" heard as "queue three", "Launch" not heard at all.
+    const heard = [w("like", 0, 300), w("queue", 300, 500), w("three", 500, 700), w("Product", 700, 1000)];
+    const words = alignWords("like Q3 Product Launch.", heard, 1600);
+    expect(words.map((x) => x.text)).toEqual(["like", "Q3", "Product", "Launch."]);
+    expect(words[0]).toEqual(w("like", 0, 300));
+    expect(words[2]).toEqual(w("Product", 700, 1000));
+    expect(words[3]!.start_ms).toBeGreaterThanOrEqual(1000); // shared out after the last word heard
+    expect(words[3]!.end_ms).toBeLessThanOrEqual(1600);
+    for (let i = 1; i < words.length; i++) expect(words[i]!.start_ms).toBeGreaterThanOrEqual(words[i - 1]!.start_ms);
+  });
+
+  it("times each caption by its own first and last word", () => {
+    const text = "Open the form. Then name it.";
+    const words = [w("Open", 100, 300), w("the", 300, 400), w("form.", 400, 800), w("Then", 2000, 2200), w("name", 2200, 2400), w("it.", 2400, 2700)];
+    const cues = buildCues([{ text, start_ms: 1000, duration_ms: 3000, words }], { maxCharsPerLine: 40, maxLines: 2 });
+    expect(cues.map((c) => [c.start_ms, c.end_ms])).toEqual([
+      [1020, 2200],
+      [2920, 4100],
+    ]);
   });
 });

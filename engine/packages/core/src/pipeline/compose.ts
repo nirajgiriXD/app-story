@@ -51,7 +51,7 @@ export async function composeVideo(
   });
 
   const cues = buildCues(
-    placements.map((p) => ({ text: p.text, start_ms: p.startMs, duration_ms: p.durationMs })),
+    placements.map((p) => ({ text: p.text, start_ms: p.startMs, duration_ms: p.durationMs, words: p.words })),
     { maxCharsPerLine: config.captions.max_chars_per_line, maxLines: 2 },
   );
   if (config.captions.enabled) {

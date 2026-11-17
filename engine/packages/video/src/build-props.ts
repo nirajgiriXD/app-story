@@ -1,4 +1,4 @@
-import type { AudioClip, Box, CursorPoint, PlacedClip, ProductConfig, Step, StepResult } from "@app-story/contracts";
+import type { AudioClip, Box, CursorPoint, PlacedClip, ProductConfig, Step, StepResult, WordTiming } from "@app-story/contracts";
 import { RESOLUTIONS } from "@app-story/contracts";
 import type { RenderProps } from "./props";
 import type { VideoTemplate } from "./templates";
@@ -29,6 +29,8 @@ export interface NarrationPlacement {
   text: string;
   startMs: number;
   durationMs: number;
+  /** When each word is spoken, from the clip's start. */
+  words?: WordTiming[];
 }
 
 /** Plan the timeline and place every narration clip on it (global time). */
@@ -49,7 +51,13 @@ export function placeNarration(input: {
   });
   const placements: NarrationPlacement[] = [];
   if (input.intro) {
-    placements.push({ src: input.toSrc(input.intro.path), text: input.intro.text, startMs: 450, durationMs: input.intro.duration_ms });
+    placements.push({
+      src: input.toSrc(input.intro.path),
+      text: input.intro.text,
+      startMs: 450,
+      durationMs: input.intro.duration_ms,
+      words: input.intro.words,
+    });
   }
   for (const clip of input.segments) {
     placements.push({
@@ -57,6 +65,7 @@ export function placeNarration(input: {
       text: clip.text,
       startMs: plan.recordingStartMs + clip.start_ms,
       durationMs: clip.duration_ms,
+      words: clip.words,
     });
   }
   if (input.outro) {
@@ -65,6 +74,7 @@ export function placeNarration(input: {
       text: input.outro.text,
       startMs: plan.outroStartMs + input.template.transitionMs + 300,
       durationMs: input.outro.duration_ms,
+      words: input.outro.words,
     });
   }
   return { plan, placements };

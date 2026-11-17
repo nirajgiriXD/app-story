@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
 import { cameraAt, cameraTransform, cursorAt, followPointer, latestAt, mergeFocusWindows } from "../timeline";
+import { handoverIn, handoverOut } from "./handover";
 import { fontStack, isDark, px, recordingFrame } from "./theme";
 
 /** Window layout in output pixels. */
@@ -36,11 +37,10 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const view = cameraTransform(camera, viewport);
   const cursor = cursorAt(t, p.cursor);
   const fade = p.template.transitionMs;
-  const opacity = interpolate(t, [0, fade, p.recording.durationMs - fade, p.recording.durationMs], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const appear = spring({ frame, fps, config: { damping: 200 } });
+  // Arrives after the intro's text has left and leaves before the outro's arrives (handover.ts).
+  const arrive = handoverIn(t, fade);
+  const leave = handoverOut(t, p.recording.durationMs, fade);
+  const opacity = arrive * (1 - leave);
   const url = latestAt(t, p.urls)?.url ?? "";
   const section = latestAt(t, p.sections);
 
@@ -71,7 +71,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
           borderRadius: L.radius,
           overflow: "hidden",
           boxShadow: L.radius ? "0 30px 80px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(15, 23, 42, 0.08)" : undefined,
-          transform: L.radius ? `translateY(${interpolate(appear, [0, 1], [px(p, 30), 0])}px)` : undefined,
+          transform: `translateY(${px(p, 40) * (1 - arrive)}px) scale(${0.96 + 0.04 * arrive - 0.03 * leave})`,
           background: "#fff",
         }}
       >

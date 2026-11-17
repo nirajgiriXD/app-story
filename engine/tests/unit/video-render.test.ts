@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { buildAudioMix, getTemplate, interpolate, jpegEnd, musicVolumeExpression, type RenderProps, spring, splitFrames } from "@app-story/video";
+import {
+  buildAudioMix,
+  getTemplate,
+  handoverIn,
+  handoverOut,
+  interpolate,
+  jpegEnd,
+  musicVolumeExpression,
+  type RenderProps,
+  spring,
+  splitFrames,
+} from "@app-story/video";
 
 describe("animation helpers", () => {
   it("interpolates piecewise, and clamps or extends outside the range", () => {
@@ -107,5 +118,18 @@ describe("audio mix", () => {
     expect(at(0.75)).toBeGreaterThan(0.04); // dipping as the voice starts
     expect(at(9)).toBeCloseTo(0.05); // fading out over the last 2 seconds
     expect(at(10)).toBe(0);
+  });
+});
+
+describe("title card handover", () => {
+  it("brings the app window in only after the title has mostly gone", () => {
+    const fade = 500;
+    for (let t = 0; t <= fade; t += 10) {
+      const titleGone = handoverOut(t, fade, fade);
+      const windowIn = handoverIn(t, fade);
+      if (windowIn > 0) expect(titleGone).toBeGreaterThan(0.85);
+    }
+    expect(handoverIn(fade, fade)).toBe(1);
+    expect(handoverOut(fade, fade, fade)).toBe(1);
   });
 });

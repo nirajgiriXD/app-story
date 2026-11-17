@@ -1,19 +1,20 @@
 import type React from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
-import { asset, backdrop, fontStack, px, textColor } from "./theme";
+import { HANDOVER_SPLIT, handoverOut } from "./handover";
+import { asset, fontStack, px, textColor } from "./theme";
 
 export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; durationMs: number }> = ({ p, kind, durationMs }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const ms = (frame / fps) * 1000;
   const colors = textColor(p);
-  const enter = (delay: number) => spring({ frame: frame - (delay * fps) / 1000, fps, config: { damping: 200, mass: 0.8 } });
   const fadeMs = p.template.transitionMs;
-  const opacity =
-    kind === "intro"
-      ? interpolate(ms, [durationMs - fadeMs, durationMs], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })
-      : interpolate(ms, [0, fadeMs], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // The card shares the video's backdrop, so only its text moves: the intro's text leaves before
+  // the app window comes in, and the outro's arrives after the window has gone (see handover.ts).
+  const start = kind === "outro" ? fadeMs * HANDOVER_SPLIT : 0;
+  const enter = (delay: number) => spring({ frame: frame - ((delay + start) * fps) / 1000, fps, config: { damping: 200, mass: 0.8 } });
+  const leave = kind === "intro" ? handoverOut(ms, durationMs, fadeMs) : 0;
   const rise = (delay: number) => ({
     opacity: enter(delay),
     transform: `translateY(${interpolate(enter(delay), [0, 1], [px(p, 24), 0])}px)`,
@@ -22,8 +23,8 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
   return (
     <AbsoluteFill
       style={{
-        background: backdrop(p),
-        opacity,
+        opacity: 1 - leave,
+        transform: `translateY(${-px(p, 36) * leave}px)`,
         fontFamily: fontStack(p.brand.font),
         justifyContent: "center",
         padding: `0 ${px(p, 160)}px`,

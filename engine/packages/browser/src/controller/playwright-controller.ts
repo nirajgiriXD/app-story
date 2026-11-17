@@ -392,10 +392,12 @@ export class PlaywrightController implements BrowserController {
     const distance = Math.hypot(to.x - from.x, to.y - from.y);
     const duration = Math.min(this.options.pacing.cursorMoveMs, 250 + distance * 0.6);
     const steps = Math.max(8, Math.round(duration / 16));
+    const bend = curveControl(from, to);
     for (let i = 1; i <= steps; i++) {
       const k = easeInOut(i / steps);
-      const x = from.x + (to.x - from.x) * k;
-      const y = from.y + (to.y - from.y) * k;
+      // A gentle arc, as a hand moves a mouse, rather than a ruler-straight line.
+      const x = (1 - k) * (1 - k) * from.x + 2 * (1 - k) * k * bend.x + k * k * to.x;
+      const y = (1 - k) * (1 - k) * from.y + 2 * (1 - k) * k * bend.y + k * k * to.y;
       await this.page.mouse.move(x, y);
       this.cursor.push({ t: this.now(), x, y });
       await sleep(duration / steps);
@@ -573,6 +575,24 @@ function waitForDomQuiet({ quietMs, maxMs }: { quietMs: number; maxMs: number })
     timer = setTimeout(finish, quietMs);
     const cap = setTimeout(finish, maxMs);
   });
+}
+
+/**
+ * The middle point of a pointer move's arc: off the straight line by a tenth of its length,
+ * always bowing upward (a wrist pivots, so moves curve the same way). Viewport px.
+ */
+export function curveControl(from: { x: number; y: number }, to: { x: number; y: number }): { x: number; y: number } {
+  const mid = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1) return mid;
+  // The normal that points up the screen.
+  let nx = -dy / length;
+  let ny = dx / length;
+  if (ny > 0) [nx, ny] = [-nx, -ny];
+  const offset = Math.min(80, length * 0.1);
+  return { x: mid.x + nx * offset, y: mid.y + ny * offset };
 }
 
 /**

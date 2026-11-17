@@ -1,5 +1,5 @@
 import { copyFile, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import type { AudioClip, VideoKind, Workflow } from "@app-story/contracts";
 import { AppStoryError, ensureDir, fileExists } from "@app-story/shared";
 import type { Job } from "../job-manager/job";
@@ -35,8 +35,14 @@ export function takesDir(dataDir: string): string {
   return join(dataDir, "takes");
 }
 
+export interface KeptTake {
+  dir: string;
+  /** The name in the take folder of a job file that was kept (the recording or a clip). */
+  nameOf(path: string): string | undefined;
+}
+
 /** Copy a job's recording and clips into its take folder, then drop the oldest takes of the product. */
-export async function keepTake(job: Job, take: Take): Promise<string> {
+export async function keepTake(job: Job, take: Take): Promise<KeptTake> {
   const dir = join(takesDir(job.store.dataDir), job.id);
   await ensureDir(dir);
   await copyFile(take.recorded.recording.path, join(dir, RECORDING));
@@ -61,7 +67,8 @@ export async function keepTake(job: Job, take: Take): Promise<string> {
   };
   await writeFile(join(dir, TAKE_FILE), JSON.stringify(stored));
   await pruneTakes(job.store.dataDir, take.product_id);
-  return dir;
+  const byFile = new Map([[resolve(take.recorded.recording.path), RECORDING], ...[...clipFiles].map(([path, name]) => [resolve(path), name] as const)]);
+  return { dir, nameOf: (path) => byFile.get(resolve(path)) };
 }
 
 /** A kept take, with absolute paths to its files. */

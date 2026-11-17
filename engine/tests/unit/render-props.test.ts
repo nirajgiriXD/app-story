@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import type { Step, StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
 import { curveControl } from "@app-story/browser";
-import { buildAudioMix, buildRenderProps, cursorPresence, getTemplate, planTimeline, shotBox, soundEffects, type BuildPropsInput } from "@app-story/video";
+import {
+  buildAudioMix,
+  buildRenderProps,
+  cursorPresence,
+  getTemplate,
+  planTimeline,
+  shotBox,
+  soundEffects,
+  toOtio,
+  type BuildPropsInput,
+} from "@app-story/video";
 
 const { config } = parseProductFile("---\nurl: https://acme.test\n---\n\n# Acme\n", "acme.md", "acme");
 const template = getTemplate("modern-saas");
@@ -176,5 +186,36 @@ describe("sound effects", () => {
     expect(mix.filter).toContain("aevalsrc=");
     expect(mix.filter).toMatch(/\[s\d+\]/);
     expect(getTemplate("minimal").sounds).toBe(false);
+  });
+});
+
+describe("editable timeline", () => {
+  it("lays out the take and the voice for an editor, cutting fast-forwarded stretches", () => {
+    const plan = planTimeline({ template, recordingMs: 10_000 });
+    const p = props({
+      plan,
+      recordingMs: 10_000,
+      // 0-4 s as recorded, then 8 s of take shown in 2 s, then 4 s as recorded.
+      timeMap: [
+        [0, 0],
+        [4000, 4000],
+        [6000, 12_000],
+        [10_000, 16_000],
+      ],
+      placements: [{ src: "narration/seg-01.wav", text: "Hi.", startMs: plan.recordingStartMs + 500, durationMs: 2000 }],
+      workflowSteps: [{ id: "s1", description: "open", action: "click", target: { name: "New" }, section: "Start" } as Step],
+      results: [result({ step_id: "s1", action: "click", started_ms: 500, ended_ms: 900 })],
+    });
+    const otio = JSON.parse(toOtio(p, (src) => `take/${src}`));
+    const [app, voice] = otio.tracks.children;
+    const frames = (ms: number) => Math.round((ms * p.fps) / 1000);
+    expect(app.children.map((c: { OTIO_SCHEMA: string }) => c.OTIO_SCHEMA)).toEqual(["Gap.1", "Clip.2", "Clip.2", "Clip.2"]);
+    const cut = app.children[2];
+    expect(cut.source_range.duration.value).toBe(frames(2000));
+    expect(cut.source_range.start_time.value).toBe(frames(4000 + 3000)); // the middle of the skipped 8 s
+    expect(cut.media_references.DEFAULT_MEDIA.target_url).toBe("take/recording.mp4");
+    expect(app.markers[0].name).toBe("Start");
+    expect(voice.children.map((c: { OTIO_SCHEMA: string }) => c.OTIO_SCHEMA)).toEqual(["Gap.1", "Clip.2"]);
+    expect(voice.children[0].source_range.duration.value).toBe(frames(plan.recordingStartMs + 500));
   });
 });

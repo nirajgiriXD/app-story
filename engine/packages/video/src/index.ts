@@ -8,3 +8,4 @@ export { interpolate, spring } from "./compositions/animation";
 export type { RenderProps, SoundEffect } from "./props";
 export { HANDOVER_SPLIT, handoverIn, handoverOut } from "./compositions/handover";
 export * from "./edit";
+export { toOtio } from "./otio";

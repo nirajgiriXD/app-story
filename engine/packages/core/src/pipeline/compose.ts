@@ -4,7 +4,17 @@ import { pickTemplate, type AudioClip, type CaptionCue, type VideoKind, type Wor
 import { buildCues, toSrt, toVtt } from "@app-story/captions";
 import { resolveProductPath, type LoadedProduct } from "@app-story/products";
 import { ensureDir, extractFrame, fileExists, toPosixRelative } from "@app-story/shared";
-import { activeStretches, buildRenderProps, editTimes, getTemplate, placeNarration, planEdit, renderVideo, type TimelinePlan } from "@app-story/video";
+import {
+  activeStretches,
+  buildRenderProps,
+  editTimes,
+  getTemplate,
+  placeNarration,
+  planEdit,
+  renderVideo,
+  type RenderProps,
+  type TimelinePlan,
+} from "@app-story/video";
 import { saveRecord, type Job } from "../job-manager/job";
 import type { RecordingOutcome } from "./record";
 
@@ -13,6 +23,8 @@ export interface ComposeResult {
   cues: CaptionCue[];
   /** Each narration line over the recording, where it is in the finished video (global ms). */
   lines: { text: string; stepIds: string[]; startMs: number; durationMs: number }[];
+  /** What was rendered (for the editable timeline). */
+  props: RenderProps;
 }
 
 async function copyAsset(job: Job, product: LoadedProduct, path: string | undefined, name: string): Promise<string | undefined> {
@@ -113,7 +125,7 @@ export async function composeVideo(
   const thumbnail = await readFile(job.paths.thumbnail).catch(() => undefined);
   if (thumbnail) saveRecord(job, "thumbnail", thumbnail);
   const lines = edited.voice.map((v) => ({ text: v.text, stepIds: v.step_ids, startMs: plan.recordingStartMs + v.start_ms, durationMs: v.duration_ms }));
-  return { plan, cues, lines };
+  return { plan, cues, lines, props };
 }
 
 /** A still of the app as the take opens, for the intro card. Optional: the intro works without it. */

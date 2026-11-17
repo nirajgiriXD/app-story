@@ -1,9 +1,11 @@
+import { writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { JobMetadata, JobStatus, VideoKind, Workflow } from "@app-story/contracts";
 import { WORKFLOW_VERSION } from "@app-story/contracts";
 import type { LoadedProduct } from "@app-story/products";
 import { validateWorkflow } from "@app-story/workflow";
 import { AppStoryError, isAppStoryError, probeMedia, slugify } from "@app-story/shared";
-import { prepareRenderer } from "@app-story/video";
+import { prepareRenderer, toOtio } from "@app-story/video";
 import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type Job } from "../job-manager/job";
 import { withProviderFallback, type ProviderOverrides } from "../pipeline/providers";
 import { rehearseWorkflow } from "../pipeline/rehearse";
@@ -11,7 +13,7 @@ import { prepareNarration } from "../pipeline/narrate";
 import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
 import { composeVideo, type ComposeResult } from "../pipeline/compose";
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
-import { keepTake, type Take } from "../pipeline/takes";
+import { keepTake, type KeptTake, type Take } from "../pipeline/takes";
 import { statusForError } from "../pipeline/status";
 import { exclusive } from "../pipeline/exclusive";
 import { runQualityChecks } from "../qa/quality";
@@ -183,7 +185,10 @@ export async function renderTake(
   const config = product.config;
   const kind = take.kind ?? undefined;
   // Kept before rendering, so a video whose render failed can be made again with `redo`.
-  await keepTake(job, take).catch((error: Error) => job.log.warn({ error: error.message }, "could not keep the recording for redo"));
+  const kept = await keepTake(job, take).catch((error: Error) => {
+    job.log.warn({ error: error.message }, "could not keep the recording for redo");
+    return undefined;
+  });
 
   options.onPhase?.("render");
   let composed = await exclusive(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
@@ -191,6 +196,7 @@ export async function renderTake(
     options.onPhase?.("review");
     composed = (await reviewAndFix(job, product, take, composed, options.review.overrides)) ?? composed;
   }
+  if (kept) await writeTimeline(job, kept, composed);
   const final = await probeMedia(job.paths.finalVideo);
   job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
 
@@ -285,4 +291,14 @@ async function reviewAndFix(
     job.metadata.warnings.push(`AI review skipped: ${(error as Error).message}`);
     return undefined;
   }
+}
+
+/** The edit as an OpenTimelineIO file next to the take, pointing at the take's own files. */
+async function writeTimeline(job: Job, kept: KeptTake, composed: ComposeResult): Promise<void> {
+  const fileOf = (src: string) => kept.nameOf(join(job.paths.root, src)) ?? kept.nameOf(src) ?? src;
+  const file = join(kept.dir, "timeline.otio");
+  await writeFile(file, toOtio(composed.props, fileOf)).then(
+    () => job.log.info({ file }, "editable timeline saved (opens in DaVinci Resolve and other OpenTimelineIO editors)"),
+    (error: Error) => job.log.warn({ error: error.message }, "could not save the editable timeline"),
+  );
 }

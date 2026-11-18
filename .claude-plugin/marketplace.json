@@ -1,0 +1,15 @@
+{
+  "name": "app-story",
+  "description": "Product demo videos of your web app, made by AI in a real browser.",
+  "owner": {
+    "name": "nirajgiriXD",
+    "url": "https://github.com/nirajgiriXD"
+  },
+  "plugins": [
+    {
+      "name": "app-story",
+      "source": "./",
+      "description": "The app-story skill: sets AppStory up for your project and makes its demo videos."
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "app-story",
+  "description": "Make narrated product demo videos of your web app with AppStory: the app-story skill sets it up for your project and runs it.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "homepage": "https://github.com/nirajgiriXD/app-story",
+  "repository": "https://github.com/nirajgiriXD/app-story",
+  "keywords": ["video", "demo", "playwright", "release", "skill"]
+}

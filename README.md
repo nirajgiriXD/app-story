@@ -35,6 +35,16 @@ Inside Docker, an app running on your own computer is at `host.docker.internal`,
 
 **From this repository**, to work on AppStory itself: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**With your coding agent.** The `app-story` skill teaches Claude Code, Codex, Cursor and
+other agents to set AppStory up for your project (the product file, from your README and
+changelog) and to make the videos. Then ask it for "a demo video of what's new".
+
+```bash
+npx skills add https://github.com/nirajgiriXD/app-story --skill app-story   # most agents
+/plugin marketplace add nirajgiriXD/app-story                              # Claude Code, then:
+/plugin install app-story@app-story
+```
+
 Then add your AI key to `.env` (`ANTHROPIC_API_KEY=...` or `OPENAI_API_KEY=...`), fill in
 `products/acme.md`, and run `npx app-story acme`. See [docs/getting-started.md](docs/getting-started.md).
 

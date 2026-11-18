@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AIProvider } from "@app-story/ai";
 import { ProductConfigSchema, resolveKokoroVoice, type FeaturePlan } from "@app-story/contracts";
-import { planFeatures } from "@app-story/core";
+import { isNothingNew, planFeatures } from "@app-story/core";
 import { createTTSProvider } from "@app-story/narration";
 import { applyVoiceSettings, loadProduct, objectiveForAllFeatures, objectiveForFeature } from "@app-story/products";
 import { AppStoryError } from "@app-story/shared";
@@ -59,6 +59,23 @@ describe("picking features from the product file", () => {
     expect(error).toBeInstanceOf(AppStoryError);
     expect((error as AppStoryError).code).toBe("UNSUPPORTED_WORKFLOW");
     expect((error as AppStoryError).message).toContain("Crash when saving an empty report (bug fix with nothing to show)");
+  });
+
+  it("remembers that there is nothing new, and points to the listed videos", async () => {
+    const product = await productWith("# Shop\n\nA web shop for bakeries.\n\n## Videos\n- Add a cake to the basket\n");
+    const outputDir = join(await mkdtemp(join(tmpdir(), "df-notes-")), "output");
+    const ai = new ScriptedProvider([], { feature_plan: { title: null, features: [], skipped: [] } });
+    const first = await planFeatures({ product, outputDir, logLevel: "silent", providers: { createAI: () => ai } }).catch((e: unknown) => e);
+    expect(isNothingNew(first)).toBe(true);
+    expect((first as AppStoryError).hint).toContain("npx app-story shop --videos");
+
+    // Same file again: the answer comes from the first run, without the AI.
+    const createAI = () => {
+      throw new Error("must not be called");
+    };
+    const again = await planFeatures({ product, outputDir, logLevel: "silent", providers: { createAI } }).catch((e: unknown) => e);
+    expect(isNothingNew(again)).toBe(true);
+    expect(isNothingNew(new AppStoryError("UNSUPPORTED_WORKFLOW", "other"))).toBe(false);
   });
 
   it("reports an empty product file before calling the AI", async () => {

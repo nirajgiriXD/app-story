@@ -122,8 +122,9 @@ instead of typing each one after the product name:
 ```
 
 `npx app-story acme --videos` makes one video of each, exactly as
-`npx app-story acme "<goal>"` would, and they share the same saved plan. The section is
-for AppStory only: the AI never reads it as release notes or as part of another video.
+`npx app-story acme "<goal>"` would, and they share the same saved plan. Plain
+`npx app-story acme` makes them too when the release notes have nothing new. The section
+is for AppStory only: the AI never reads it as release notes or as part of another video.
 
 **Form data.** When the demo fills a form, the AI uses any values your file gives for it
 (for example "use the customer Bob's Bakery"). Otherwise it reads what the product and the

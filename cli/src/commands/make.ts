@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import type { VideoKind } from "@app-story/contracts";
-import { generateDemo, planFeatures } from "@app-story/core";
+import { generateDemo, isNothingNew, planFeatures } from "@app-story/core";
 import { objectiveForAllFeatures, objectiveForFeature, type LoadedProduct } from "@app-story/products";
 import { AppStoryError, mapWithConcurrency, slugify } from "@app-story/shared";
 import { globals, openProduct } from "../context";
@@ -36,7 +36,12 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
     ? [howTo(goal)]
     : opts.videos
       ? listedVideos(product)
-      : await featureJobs(product, Boolean(opts.each), { logLevel, outputDir, fresh: opts.fresh });
+      : await featureJobs(product, Boolean(opts.each), { logLevel, outputDir, fresh: opts.fresh }).catch((error: unknown) => {
+          // Nothing new in the release notes, but the file lists videos: make those instead.
+          if (!isNothingNew(error) || !product.videos?.length) throw error;
+          console.log(dim(`Nothing new in the release notes, so making the videos listed under "## Videos".`));
+          return listedVideos(product);
+        });
 
   // Two videos at a time: the next one is planned by the AI while the current one records
   // and renders (those heavy phases still take turns, see `exclusive` in core).

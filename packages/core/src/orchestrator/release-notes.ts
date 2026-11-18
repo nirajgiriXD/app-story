@@ -49,7 +49,9 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
   const saved = request.fresh ? undefined : store?.getCachedText(key);
   if (saved) {
     const plan = FeaturePlanSchema.safeParse(JSON.parse(saved));
-    if (plan.success && plan.data.features.length > 0) {
+    if (plan.success) {
+      // "Nothing new" is remembered too, so asking again costs nothing until the file changes.
+      if (plan.data.features.length === 0) throw nothingNew(product, plan.data);
       log.info("features from the earlier run (product file unchanged)");
       return { plan: plan.data, provider: config.providers.ai.provider, model: config.providers.ai.model ?? "(cached)", costUsd: null, cached: true };
     }
@@ -72,12 +74,21 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
   }
 
   const { plan, provider } = result;
-  if (plan.features.length === 0) {
-    const skipped = plan.skipped.map((s) => `\n- ${s.item} (${s.reason})`).join("");
-    throw new AppStoryError("UNSUPPORTED_WORKFLOW", `Nothing new to demo in ${product.file}.${skipped}`, {
-      hint: `Add release notes with user-visible features, or say what to show: npx app-story ${product.id} "..."`,
-    });
-  }
   store?.setCached(key, "features", JSON.stringify(plan));
+  if (plan.features.length === 0) throw nothingNew(product, plan);
   return { plan, provider: provider.name, model: provider.model, costUsd: usage.summary().estimated_cost_usd, cached: false };
+}
+
+/** The release notes have no new feature a viewer can see. */
+export function isNothingNew(error: unknown): boolean {
+  return isAppStoryError(error) && error.details?.nothingNew === true;
+}
+
+export function nothingNew(product: LoadedProduct, plan: FeaturePlan): AppStoryError {
+  const skipped = plan.skipped.map((s) => `\n- ${s.item} (${s.reason})`).join("");
+  const listed = product.videos?.length ? `, make the videos listed under "## Videos": npx app-story ${product.id} --videos,` : "";
+  return new AppStoryError("UNSUPPORTED_WORKFLOW", `Nothing new to demo in ${product.file}.${skipped}`, {
+    details: { nothingNew: true },
+    hint: `Add release notes with user-visible features${listed} or say what to show: npx app-story ${product.id} "..."`,
+  });
 }

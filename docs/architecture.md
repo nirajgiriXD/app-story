@@ -125,7 +125,7 @@ uses one per process; a test or a long-running host can make its own and `close(
 
 ## Storage
 
-`output/` receives only what is posted: the finished MP4, its captions (`.srt`), its thumbnail (`.png`) and a description to paste (`.description.txt`, with YouTube chapters). A plan made by the AI is saved, after its video
+`output/` receives only what is posted: the finished MP4, its captions (`.srt`), its thumbnail (`.png`) a description to paste (`.description.txt`, with YouTube chapters) and a short post to share it with (`.post.txt`). A plan made by the AI is saved, after its video
 passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`, see
 `pipeline/plans.ts`), so it can be committed, reviewed and shared. Everything else is in
 `.app-story/` in the user's project, which ignores itself in git:

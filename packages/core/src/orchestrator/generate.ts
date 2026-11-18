@@ -300,7 +300,26 @@ async function publishKit(job: Job, product: LoadedProduct, workflow: Workflow, 
   const file = join(job.paths.videoDir, "description.txt");
   await writeFile(file, videoDescription(product, workflow, composed.props), "utf8");
   kit.push({ file, suffix: ".description.txt" });
+  const post = join(job.paths.videoDir, "post.txt");
+  await writeFile(post, videoPost(product, workflow), "utf8");
+  kit.push({ file: post, suffix: ".post.txt" });
   return kit;
+}
+
+/** X counts a post's length up to here. */
+const POST_MAX_CHARS = 280;
+
+/**
+ * A short post to share the video with, as it is, on X, LinkedIn, Bluesky or a chat: what the
+ * video shows, in the product's own words, and the link. No chapters, no "excited to share".
+ * The summary is left out when the post would be too long for X.
+ */
+export function videoPost(product: LoadedProduct, workflow: Pick<Workflow, "title" | "summary">): string {
+  const config = product.config;
+  const site = config.product.website ?? config.product.base_url;
+  const headline = `${config.product.name}: ${workflow.title}`;
+  const full = [headline, workflow.summary ?? "", site].filter(Boolean).join("\n\n");
+  return `${full.length <= POST_MAX_CHARS ? full : [headline, site].join("\n\n")}\n`;
 }
 
 /** The text to paste under the video: title, summary, chapters (when YouTube would show them) and where to try it. */

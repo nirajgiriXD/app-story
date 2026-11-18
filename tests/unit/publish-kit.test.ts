@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { videoDescription } from "@app-story/core";
+import { videoDescription, videoPost } from "@app-story/core";
 import { parseProductFile } from "@app-story/products";
 import { chaptersOf, ffmetadata, youtubeChapters, type RenderProps } from "@app-story/video";
 
@@ -74,5 +74,21 @@ describe("description", () => {
         "Start free at acme.com: https://acme.com",
       ].join("\n\n") + "\n",
     );
+  });
+});
+
+describe("post", () => {
+  const { config, brief } = parseProductFile("---\nurl: https://staging.acme.test\nwebsite: https://acme.com\n---\n# Acme\n", "acme.md", "acme");
+  const product = { id: "acme", file: "acme.md", dir: ".", config, brief };
+
+  it("is what the video shows and the public link, ready to paste", () => {
+    expect(videoPost(product, { title: "Export invoices in bulk", summary: "Download many invoices as one CSV." })).toBe(
+      "Acme: Export invoices in bulk\n\nDownload many invoices as one CSV.\n\nhttps://acme.com\n",
+    );
+  });
+
+  it("drops the summary rather than run past X's 280 characters", () => {
+    const post = videoPost(product, { title: "Export invoices in bulk", summary: "Long. ".repeat(60) });
+    expect(post).toBe("Acme: Export invoices in bulk\n\nhttps://acme.com\n");
   });
 });

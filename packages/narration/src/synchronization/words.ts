@@ -11,7 +11,7 @@ import { AppStoryError, serialQueue } from "@app-story/shared";
 
 /** English Whisper exported with the attention the word times come from. About 300 MB, downloaded once. */
 export const WORD_TIMING_MODEL = "onnx-community/whisper-base.en_timestamped";
-/** The same model for every other language Whisper knows (MIT licensed, like the English one). Downloaded on first use. */
+/** The same model for every other language Whisper knows (Apache-2.0, like the English one). Downloaded on first use. */
 export const WORD_TIMING_MODEL_MULTILINGUAL = "onnx-community/whisper-base_timestamped";
 
 /**

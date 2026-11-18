@@ -11,6 +11,9 @@ Found a security problem? Do not open an issue; follow [SECURITY.md](SECURITY.md
   is a bug.
 - **New features or bigger changes:** open an issue first, so we can agree on the idea
   before you spend time on it.
+- **A new dependency, model, font or media file:** it must be free to use commercially.
+  Check its own licence (a model's weights can differ from its code) against the rule in
+  [docs/licenses.md](docs/licenses.md), and add it to the tables there.
 
 ## Set up
 

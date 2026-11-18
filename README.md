@@ -398,3 +398,6 @@ privately, as described in [SECURITY.md](SECURITY.md).
 ## License
 
 [MIT](LICENSE)
+
+Everything AppStory installs, downloads or ships (packages, FFmpeg, voice and word timing
+models, the Inter font) is free to use commercially; see [docs/licenses.md](docs/licenses.md).

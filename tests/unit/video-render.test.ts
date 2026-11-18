@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { VOICE_CHAIN } from "@app-story/narration";
 import {
   activeStretches,
+  beatOffsetMs,
   buildAudioMix,
+  findBeats,
+  onsets,
   deliveryEncoding,
   getTemplate,
   MASTER_LOUDNESS,
@@ -129,6 +132,59 @@ describe("audio mix", () => {
     expect(at(0.75)).toBeGreaterThan(0.04); // dipping as the voice starts
     expect(at(9)).toBeCloseTo(0.05); // fading out over the last 2 seconds
     expect(at(10)).toBe(0);
+  });
+
+  it("starts the music where it was put on the beat", () => {
+    const mix = buildAudioMix({ ...props, music: { src: "assets/music.mp3", volume: 0.1, offsetMs: 230 } } as RenderProps, 1, (src) => src);
+    expect(mix.filter).toContain("atrim=start=0.23:duration=10,asetpts=PTS-STARTPTS");
+  });
+});
+
+describe("the music's beat", () => {
+  /** A drum loop as the analysis reads it: [low, high] samples, a kick on each beat and a hat between. */
+  function drums(bpm: number, firstBeatSec: number, seconds: number): Float32Array {
+    const rate = 11025;
+    const period = 60 / bpm;
+    const out = new Float32Array(rate * seconds * 2);
+    let noise = 1;
+    for (let i = 0; i < rate * seconds; i++) {
+      const t = i / rate;
+      const sinceBeat = (((t - firstBeatSec) % period) + period) % period;
+      const sinceHat = (((t - firstBeatSec - period / 2) % period) + period) % period;
+      noise = (noise * 16807) % 2147483647; // the same "random" noise every run
+      const hiss = (noise / 2147483647) * 2 - 1;
+      out[i * 2] = 0.8 * Math.exp(-sinceBeat * 30) * Math.sin(2 * Math.PI * 60 * t) + 0.01 * hiss;
+      out[i * 2 + 1] = 0.2 * Math.exp(-sinceHat * 60) * hiss + 0.01 * hiss;
+    }
+    return out;
+  }
+
+  it("finds the tempo and where the beats fall", () => {
+    const beats = findBeats(onsets(drums(124, 0.37, 30)), 11025 / 256);
+    expect(beats?.bpm).toBeCloseTo(124, 0);
+    // Within one analysis frame (23 ms) of the first kick.
+    expect(Math.abs((beats?.phaseSec ?? 0) - 0.37)).toBeLessThan(0.03);
+  });
+
+  it("finds no beat in a steady hiss", () => {
+    let noise = 7;
+    const hiss = new Float32Array(11025 * 20 * 2).map(() => {
+      noise = (noise * 16807) % 2147483647;
+      return ((noise / 2147483647) * 2 - 1) * 0.1;
+    });
+    expect(findBeats(onsets(hiss), 11025 / 256)).toBeUndefined();
+  });
+
+  it("starts the music so a beat lands on the moment, never more than a beat in", () => {
+    const beats = { periodSec: 0.5, phaseSec: 0.1, bpm: 120, confidence: 0.6, durationSec: 60 };
+    const at = 13_420;
+    const offset = beatOffsetMs(beats, at);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    expect(offset).toBeLessThan(500);
+    // Where the track is at that moment, from its first beat: a whole number of beats.
+    expect(((at + offset - 100) / 500) % 1).toBeCloseTo(0);
+    // The music loops: the moment counts from the start of its loop.
+    expect(beatOffsetMs({ ...beats, durationSec: 10 }, at)).toBe(beatOffsetMs({ ...beats, durationSec: 10 }, at - 10_000));
   });
 });
 

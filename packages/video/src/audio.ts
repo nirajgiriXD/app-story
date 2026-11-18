@@ -63,7 +63,8 @@ export function buildAudioMix(props: RenderProps, firstInput: number, fileOf: (s
 
   if (props.music) {
     inputArgs.push("-stream_loop", "-1", "-i", fileOf(props.music.src));
-    chains.push(`[${input}:a]${FORMAT},atrim=duration=${totalSec},asetpts=PTS-STARTPTS,volume='${musicVolumeExpression(props)}':eval=frame[music]`);
+    const start = props.music.offsetMs ? `start=${seconds(props.music.offsetMs)}:` : "";
+    chains.push(`[${input}:a]${FORMAT},atrim=${start}duration=${totalSec},asetpts=PTS-STARTPTS,volume='${musicVolumeExpression(props)}':eval=frame[music]`);
     mixed.push("[music]");
   }
 

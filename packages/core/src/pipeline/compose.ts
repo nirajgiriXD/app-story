@@ -6,9 +6,12 @@ import { resolveProductPath, type LoadedProduct } from "@app-story/products";
 import { ensureDir, extractFrame, fileExists, toPosixRelative } from "@app-story/shared";
 import {
   activeStretches,
+  beatOffsetMs,
   buildRenderProps,
   editTimes,
   getTemplate,
+  HANDOVER_SPLIT,
+  musicBeats,
   placeNarration,
   planEdit,
   renderGif,
@@ -125,6 +128,7 @@ export async function composeVideo(
     heroSrc: await heroStill(job, recorded),
     musicSrc: await copyAsset(job, product, config.branding.background_music, "music"),
   });
+  if (props.music) props.music.offsetMs = await musicOnBeat(job, props);
 
   // Thumbnail: the poster, which is also frame 0 (the title card once its words have settled:
   // the title, the badge and the app's first screen), the kind video sites show best.
@@ -216,6 +220,28 @@ export async function renderLanguages(
     }
   }
   return extras;
+}
+
+/**
+ * Where the music starts, so a beat lands as the end card's words arrive (see beats.ts).
+ * Optional: music without a steady beat, or a failure, leaves the music as it is.
+ */
+async function musicOnBeat(job: Job, props: RenderProps): Promise<number | undefined> {
+  if (!props.music) return undefined;
+  const cardAt = props.outro.startMs + props.template.transitionMs * HANDOVER_SPLIT;
+  try {
+    const beats = await musicBeats(join(job.paths.root, props.music.src));
+    if (!beats) {
+      job.log.info("the music has no steady beat; it starts at its beginning");
+      return undefined;
+    }
+    const offsetMs = beatOffsetMs(beats, cardAt);
+    job.log.info({ bpm: Math.round(beats.bpm), offsetMs }, "the music starts so a beat lands on the end card");
+    return offsetMs;
+  } catch (error) {
+    job.log.warn({ error: (error as Error).message }, "could not find the music's beat; it starts at its beginning");
+    return undefined;
+  }
 }
 
 /** Drawn video chunks, kept across jobs: a re-render (the AI review's, a redo's) only draws what changed. */

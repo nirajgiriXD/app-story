@@ -17,5 +17,6 @@ export { renderGif, reshapeProps, type FrameFormat } from "./formats";
 export { chunkKey, chunksOf, chunkView, pruneRenderCache, type Chunk } from "./render-cache";
 
 export { drawnFrame, posterTime } from "./poster";
+export { beatOffsetMs, findBeats, musicBeats, onsets, type Beats } from "./beats";
 
 export { toOtio } from "./otio";

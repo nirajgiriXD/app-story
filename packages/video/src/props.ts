@@ -59,7 +59,8 @@ export interface RenderProps {
     /** `position` per cue: a cue that would cover what is shown moves to the top (see placeCaptions). */
     cues: { startMs: number; endMs: number; text: string; position?: "bottom" | "top" }[];
   };
-  music: { src: string; volume: number } | null;
+  /** `offsetMs`: how far into the track it starts, so a beat lands on the end card (see beats.ts). */
+  music: { src: string; volume: number; offsetMs?: number } | null;
   /** Sound effects (global times). */
   sfx?: SoundEffect[];
   /** Keys pressed on camera, shown as keycaps (recording-relative times). */

@@ -183,7 +183,8 @@ allow: delete, emails                      # risky actions are blocked unless li
   sets light or dark words by itself; an image is dimmed a little so white words read on
   it, so pick a calm one (a soft gradient, a blurred photo) over a busy pattern.
 - **music**: an audio file (MP3, WAV, M4A…) looped under the whole video, faded in and out,
-  and lowered while the voice speaks. Use music you are allowed to publish: tracks marked
+  and lowered while the voice speaks. When it has a steady beat, it starts so that a beat
+  lands as the end card comes in. Use music you are allowed to publish: tracks marked
   CC0 (public domain) need no credit.
 - **tone**: `calm` suits tutorials, `friendly` product updates, and `energetic` launch and
   marketing videos: a hook first, short punchy lines, a clear call to try it. Every tone only

@@ -246,6 +246,10 @@ not treated as products. Product names are lowercase letters, numbers and dashes
 - Finishes a failed video without planning it again: `npx app-story resume acme`
   replays the plan the AI already made (or renders the kept recording again, if the
   render failed), so a failure late in the run does not cost a second AI planning pass.
+- Lets you check a plan before it is recorded, with `--review`: once the AI has worked out
+  the clicks in the app, it shows them as numbered steps and asks. Say no, and the video
+  stops there with its plan kept; `npx app-story resume acme` records it later, with no
+  new AI planning. Saved plans are not asked about again. It needs a terminal to ask in.
 - Reuses what has not changed: the feature list of an unchanged product file, the
   narration of a replayed plan, and every line already spoken in the same voice.
 - Fits the narration to the clicks: each line is about as long as its steps take on

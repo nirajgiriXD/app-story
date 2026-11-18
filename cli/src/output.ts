@@ -20,6 +20,12 @@ export function printError(error: unknown): void {
 const GOOD = new Set(["success", "success_with_warnings"]);
 
 export function printJob(m: JobMetadata): void {
+  if (m.status === "awaiting_approval") {
+    console.log(`\n${yellow("⏸")} ${bold("awaiting approval")}  ${dim(`job ${m.job_id}`)}`);
+    console.log("  Planned, not recorded. The plan is kept with the job.");
+    console.log(`  Record it: npx app-story resume ${m.product_id} ${m.job_id}`);
+    return;
+  }
   const ok = GOOD.has(m.status);
   console.log("");
   console.log(`${ok ? green("✔") : red("✖")} ${bold(m.status.replace(/_/g, " "))}  ${dim(`job ${m.job_id}`)}`);
@@ -45,6 +51,7 @@ export function printJob(m: JobMetadata): void {
   if (ok && m.video) console.log(dim("\n  Review the video before publishing. Nothing is published automatically."));
 }
 
+/** A plan stopped for review is the user's choice, not a failure. */
 export function exitCodeFor(m: JobMetadata): number {
-  return GOOD.has(m.status) ? 0 : 1;
+  return GOOD.has(m.status) || m.status === "awaiting_approval" ? 0 : 1;
 }

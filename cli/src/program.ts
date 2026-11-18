@@ -15,6 +15,7 @@ Examples:
   npx app-story acme "show how to export"     a video of anything else, in plain words
   npx app-story acme --videos                 one video per goal listed under "## Videos"
   npx app-story redo acme --template tutorial the newest video again, in another look
+  npx app-story acme --videos --review        see each new plan's steps and approve it before recording
   npx app-story resume acme                   finish the newest failed video, without planning again
   npx app-story replay acme                   every saved plan's video again, with no AI (for CI)
   npx app-story test acme                     check the saved plans still work in the app
@@ -30,6 +31,7 @@ export function buildProgram(): Command {
     .argument("[goal...]", "what to show, in plain words (default: what's new in the release notes)")
     .option("--each", "one video per new feature instead of one for all")
     .option("--videos", 'one video per goal listed under "## Videos" in the product file')
+    .option("--review", "show each newly planned video's steps and ask before recording it")
     .option("--fresh", "plan again instead of replaying a saved plan")
     .option("--headed", "show the browser window while working")
     .option("--log-level <level>", "debug, info, warn, error, silent")

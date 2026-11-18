@@ -49,6 +49,20 @@ export interface GenerateRequest {
   resumedFrom?: string;
   /** Default: the process's runtime. */
   runtime?: Runtime;
+  /**
+   * Asked once the AI has planned a new video, before anything is narrated or recorded
+   * (`--review`). False stops the job with its plan kept, so `resume` records it later.
+   * Saved and given plans are not asked about: they were approved when they were made.
+   */
+  approve?: (review: PlanReview) => Promise<boolean>;
+}
+
+/** What `approve` is shown. */
+export interface PlanReview {
+  jobId: string;
+  name: string;
+  objective: string;
+  workflow: Workflow;
 }
 
 /** Recording failures that mean "the steps no longer match the app", not "the app is down". */
@@ -96,6 +110,19 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       { objective: request.objective, audience: config.demo.audience, kind: request.kind, durationS, headless: request.headless },
       overrides,
     );
+
+  // A plan the AI just made waits for the reviewer, when there is one.
+  const approve = async (workflow: Workflow) => {
+    if (!request.approve) return;
+    const approved = await request.approve({ jobId: job.id, name, objective: request.objective, workflow });
+    job.metadata.approval = { status: approved ? "approved" : "pending_review" };
+    await saveMetadata(job);
+    if (!approved) {
+      throw new AppStoryError("SCENARIO_NOT_APPROVED", "Not recorded: the plan is waiting for your approval.", {
+        hint: `Record it when you are ready: npx app-story resume ${product.id} ${job.id}`,
+      });
+    }
+  };
 
   const check = async (workflow: Workflow) => {
     job.metadata.workflow_version = WORKFLOW_VERSION;
@@ -160,8 +187,13 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
         job.log.info({ plan: name }, "replaying the saved plan (no AI planning needed)");
       }
     }
-    workflow ??= await planWithAI();
-    await check(workflow);
+    if (!workflow) {
+      workflow = await planWithAI();
+      await check(workflow);
+      await approve(workflow);
+    } else {
+      await check(workflow);
+    }
 
     // 2–3. Narration and recording. A saved plan that no longer matches the app is
     // dropped and the demo is planned again, once, in the same job.
@@ -178,6 +210,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       phase = "plan";
       workflow = await planWithAI();
       await check(workflow);
+      await approve(workflow);
       take = await narrateAndRecord(workflow);
     }
     const { clips, silent, recorded, script, source, voices } = take;
@@ -207,7 +240,8 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     return await finishJob(job, rendered.status);
   } catch (error) {
     recordError(job, error, phase);
-    job.log.error({ phase, error: (error as Error).message }, "job failed");
+    if (isAppStoryError(error) && error.code === "SCENARIO_NOT_APPROVED") job.log.info("stopped before recording: the plan waits for approval");
+    else job.log.error({ phase, error: (error as Error).message }, "job failed");
     return finishJob(job, statusForError(error));
   }
 }

@@ -3,6 +3,8 @@ import { z } from "zod";
 /** Every job ends in exactly one of these outcomes. */
 export const JOB_STATUSES = [
   "running",
+  /** Planned, then stopped by `--review` before recording: `resume` records it. */
+  "awaiting_approval",
   "success",
   "success_with_warnings",
   "recoverable_failure",

@@ -184,6 +184,35 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(ai.received.length).toBe(agentTurns); // no AI planning the second time
   });
 
+  it("with a reviewer, stops a new plan before recording until it is approved; resume records it", async () => {
+    const { product, out } = await productIn("review");
+    const ai = plannerAI();
+    const providers = { createAI: (_config: unknown, deps: { usage: unknown }) => Object.assign(ai, { usage: deps.usage }), createTTS: () => new ToneTTS() };
+    const shown: string[][] = [];
+    const declined = await generateDemo({
+      product,
+      outputDir: out,
+      objective: OBJECTIVE,
+      name: "create-project",
+      logLevel: "silent",
+      providers,
+      approve: async ({ workflow }) => {
+        shown.push(workflow.steps.map((s) => s.description));
+        return false;
+      },
+    });
+    expect(shown).toEqual([["Open the new project form", "Name the project", "Save the project", "The new project is listed"]]);
+    expect(declined.status).toBe("awaiting_approval");
+    expect(declined.approval.status).toBe("pending_review");
+    expect(declined.recording).toBeNull(); // nothing narrated or recorded
+    expect(existsSync(planFile(product, "create-project"))).toBe(false); // saved only once a video passes
+
+    const resumed = await resumeDemo({ product, outputDir: out, logLevel: "silent", providers });
+    expect(["success", "success_with_warnings"]).toContain(resumed.status);
+    expect(resumed.resumed_from).toBe(declined.job_id);
+    expect(existsSync(planFile(product, "create-project"))).toBe(true);
+  });
+
   it("plans again by itself when a saved plan no longer matches the app", async () => {
     const { product, out } = await productIn("stale");
     // A saved plan for the same objective whose button no longer exists.

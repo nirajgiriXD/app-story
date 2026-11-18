@@ -119,13 +119,13 @@ npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
 
 | Command | Purpose |
 | --- | --- |
-| `npx app-story <product> [goal]` | make videos (options: `--each`, `--videos`, `--fresh`, `--headed`) |
+| `npx app-story <product> [goal]` | make videos (options: `--each`, `--videos`, `--review`, `--fresh`, `--headed`) |
 | `npx app-story new <name>` | create `apps/<name>.md` |
 | `npx app-story check <product>` | check settings, keys, login, the app and local tools |
 | `npx app-story list` | list your products |
 | `npx app-story history [product]` | recent videos, with their ids |
 | `npx app-story redo <product> [video]` | make a video again from its kept recording (option: `--template`) |
-| `npx app-story resume <product> [video]` | finish a failed video without planning it again (option: `--headed`) |
+| `npx app-story resume <product> [video]` | finish a failed video, or record one stopped by `--review`, without planning it again (option: `--headed`) |
 | `npx app-story replay <product> [plans...]` | make the videos of saved plans again, with their saved narration: no AI (for CI) |
 | `npx app-story test <product> [plans...]` | check the saved plans still work in the app: fast, no recording, voice or AI; exits with 1 if one broke |
 | `npx app-story import <product> <trace.zip>` | turn a Playwright test's trace into a saved plan (options: `--name`, `--title`, `--force`) |

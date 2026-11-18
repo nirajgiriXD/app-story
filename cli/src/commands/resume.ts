@@ -5,7 +5,7 @@ import { dim, exitCodeFor, printJob } from "../output";
 
 export function resumeCommand(): Command {
   return new Command("resume")
-    .description("Finish a failed video without planning it again (no AI planning cost)")
+    .description("Finish a failed video, or record one stopped by --review, without planning it again (no AI planning cost)")
     .argument("<product>", "product name")
     .argument("[video]", "the failed video's id from `history` (default: the newest failed one)")
     .option("--headed", "show the browser window while working")

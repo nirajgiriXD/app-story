@@ -8,6 +8,7 @@ import { getTemplate } from "@app-story/video";
 import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@app-story/products";
 import { makeVideos } from "../../cli/src/commands/make";
 import { buildProgram } from "../../cli/src/program";
+import { terminalReviewer } from "../../cli/src/review";
 import { type AppStoryError, aiKeySource, anthropicGatewayOptions, openaiGatewayOptions, redactSecrets, resolveCredential } from "@app-story/shared";
 
 const KEYS = [
@@ -238,6 +239,11 @@ describe("## Videos in a product file", () => {
   it("is empty without the section, and the brief is untouched", () => {
     const plain = file("url: https://acme.test", "# Acme\n\n## Release notes\n- Videos of invoices.\n");
     expect(parse(plain)).toMatchObject({ videos: [], brief: "# Acme\n\n## Release notes\n- Videos of invoices." });
+  });
+
+  it("--review needs a terminal to ask in", () => {
+    // Tests run without one, like CI.
+    expect(() => terminalReviewer()).toThrow(/--review asks in the terminal/);
   });
 
   it("cannot be mixed with a goal or --each", async () => {

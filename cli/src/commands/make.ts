@@ -5,10 +5,12 @@ import { objectiveForAllFeatures, objectiveForFeature, type LoadedProduct } from
 import { AppStoryError, mapWithConcurrency, slugify } from "@app-story/shared";
 import { globals, openProduct } from "../context";
 import { bold, dim, exitCodeFor, green, printJob } from "../output";
+import { terminalReviewer } from "../review";
 
 export interface MakeOptions {
   each?: boolean;
   videos?: boolean;
+  review?: boolean;
   fresh?: boolean;
   headed?: boolean;
 }
@@ -30,6 +32,8 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
   if (opts.videos && (goal || opts.each)) {
     throw new AppStoryError("CONFIG_INVALID", `--videos makes the videos listed in the product file, so it cannot be used with ${goal ? "a goal" : "--each"}.`);
   }
+  // Before any AI work: --review needs a terminal to ask in.
+  const approve = opts.review ? terminalReviewer() : undefined;
   const { outputDir, logLevel } = globals(cmd);
   const product = await openProduct(productId);
   const jobs = goal
@@ -52,6 +56,7 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
       logLevel,
       ...job,
       fresh: opts.fresh,
+      approve,
       headless: opts.headed ? false : undefined,
       onJobCreated: (j) => console.log(dim(`Making "${job.name}" → ${j.paths.root}`)),
     }),

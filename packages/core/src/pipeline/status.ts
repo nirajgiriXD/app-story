@@ -6,7 +6,7 @@ const STATUS_BY_CODE: Partial<Record<ErrorCode, JobStatus>> = {
   AUTH_FAILED: "authentication_failure",
   UNSUPPORTED_WORKFLOW: "unsupported_workflow",
   POLICY_VIOLATION: "unsupported_workflow",
-  SCENARIO_NOT_APPROVED: "unsupported_workflow",
+  SCENARIO_NOT_APPROVED: "awaiting_approval",
   WORKFLOW_FAILED: "workflow_failure",
   VERIFICATION_FAILED: "workflow_failure",
   TIMEOUT: "workflow_failure",

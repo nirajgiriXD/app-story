@@ -110,7 +110,7 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
     ok(`languages: ${[config.demo.default_language, ...config.demo.languages].join(", ")} (one video each, from one recording)`);
   if (config.demo.formats.length) ok(`also made with every video: ${config.demo.formats.join(", ")}`);
 
-  for (const path of [config.branding.logo, config.branding.font_file, config.branding.background_music]) {
+  for (const path of [config.branding.logo, config.branding.font_file, config.branding.background_image, config.branding.background_music]) {
     if (path && !(await fileExists(resolveProductPath(product, path)))) warn(`file not found: ${path}`);
   }
 

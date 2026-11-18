@@ -137,6 +137,7 @@ blur: ".api-key, #customer-email"          # CSS selectors blurred on screen (qu
 logo: acme-logo.png                        # next to this file
 color: "#4F46E5"                           # in quotes
 font: acme-sans.woff2                      # a font file next to this file, or a font name (default: Inter)
+background: brand-backdrop.jpg             # behind the cards and the app: an image next to this file, or "#0B1020"
 music: calm-track.mp3                      # background music, next to this file (default: none)
 music volume: 0.08                         # 0 to 1; it dips under the voice by itself
 allow: delete, emails                      # risky actions are blocked unless listed here
@@ -178,6 +179,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **font**: the titles, captions and end card use Inter, which ships with AppStory, so a
   video looks the same on every computer. A font file (`.woff2`, `.woff`, `.ttf`, `.otf`)
   is loaded the same way; a plain name uses that font only if the computer has it.
+- **background**: replaces the template's backdrop with your brand's. A colour (in quotes)
+  sets light or dark words by itself; an image is dimmed a little so white words read on
+  it, so pick a calm one (a soft gradient, a blurred photo) over a busy pattern.
 - **music**: an audio file (MP3, WAV, M4A…) looped under the whole video, faded in and out,
   and lowered while the voice speaks. Use music you are allowed to publish: tracks marked
   CC0 (public domain) need no credit.

@@ -199,6 +199,10 @@ export const ProductConfigSchema = z.object({
       music_volume: z.number().min(0).max(1).default(0.08),
       /** The end card's call to action; `{host}` is the website's address. Default: "Try it at {host}". */
       cta: z.string().min(1).optional(),
+      /** The backdrop behind the cards and the app window: a colour. Default: the template's. */
+      background_color: hexColor.optional(),
+      /** The backdrop as an image next to the product file (it wins over `background_color`). */
+      background_image: z.string().optional(),
     })
     .prefault({}),
   providers: z.object({

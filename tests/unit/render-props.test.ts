@@ -8,6 +8,7 @@ import {
   buildAudioMix,
   buildRenderProps,
   interCss,
+  luminance,
   cursorPresence,
   cursorShape,
   editTimes,
@@ -106,6 +107,15 @@ describe("render props", () => {
     expect(p.brand).toMatchObject({ host: "acme.com", cta: "Start free at {host}" });
     // Without a website, the app's own address is shown, as before.
     expect(props().brand).toMatchObject({ host: "acme.test", cta: "Try it at {host}" });
+  });
+
+  it("puts the brand's own backdrop behind the video, with words that read on it", () => {
+    const branded = (setting: string) => parseProductFile(`---\nurl: https://acme.test\nbackground: ${setting}\n---\n\n# Acme\n`, "acme.md", "acme").config;
+    expect(props({ config: branded('"#0B1020"') }).brand.background).toEqual({ color: "#0B1020" });
+    expect(props({ config: branded("brand/bg.jpg"), backgroundSrc: "assets/background.jpg" }).brand.background).toEqual({ image: "assets/background.jpg" });
+    expect(props().brand.background).toBeNull();
+    expect(luminance("#0B1020")).toBeLessThan(0.05);
+    expect(luminance("#F8FAFC")).toBeGreaterThan(0.9);
   });
 
   it("ships Inter with the render page and loads a brand font file under its own name", async () => {

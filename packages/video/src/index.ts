@@ -7,6 +7,7 @@ export { jpegEnd, RecordingFrames } from "./frames";
 export { interpolate, spring } from "./compositions/animation";
 export type { RenderProps, SoundEffect } from "./props";
 export { HANDOVER_SPLIT, handoverIn, handoverOut } from "./compositions/handover";
+export { luminance } from "./compositions/theme";
 export * from "./edit";
 export { keyLabels } from "./keys";
 export { DEFAULT_CTA, shownUrl } from "./labels";

@@ -121,6 +121,7 @@ export async function composeVideo(
     cues,
     logoSrc: await copyAsset(job, product, config.branding.logo, "logo"),
     fontSrc: await copyAsset(job, product, config.branding.font_file, "font"),
+    backgroundSrc: await copyAsset(job, product, config.branding.background_image, "background"),
     heroSrc: await heroStill(job, recorded),
     musicSrc: await copyAsset(job, product, config.branding.background_music, "music"),
   });

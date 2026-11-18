@@ -107,6 +107,8 @@ export interface BuildPropsInput {
   logoSrc?: string;
   /** The brand's font file (`font:` in the product file). */
   fontSrc?: string;
+  /** The brand's backdrop image (`background:` in the product file). */
+  backgroundSrc?: string;
   musicSrc?: string;
   heroSrc?: string;
   /** The cards' words in another language (default: English, and the template's badge). */
@@ -167,6 +169,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       fontFile: input.fontSrc ?? null,
       host: new URL(website ?? config.product.base_url).host,
       cta: config.branding.cta ?? DEFAULT_CTA,
+      background: input.backgroundSrc ? { image: input.backgroundSrc } : config.branding.background_color ? { color: config.branding.background_color } : null,
     },
     title: input.title,
     subtitle: input.subtitle ?? null,

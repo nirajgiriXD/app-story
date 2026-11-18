@@ -99,7 +99,12 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
     ...global,
     // Where in the video: the title cards animate by their own time, so two chunks of a card differ.
     frames: [chunk.from, chunk.to],
-    brand: { ...brand, logo: brand.logo ? "(file)" : null, fontFile: brand.fontFile ? "(file)" : null },
+    brand: {
+      ...brand,
+      logo: brand.logo ? "(file)" : null,
+      fontFile: brand.fontFile ? "(file)" : null,
+      background: brand.background?.image ? { image: "(file)" } : (brand.background ?? null),
+    },
     hero: props.hero ? "(file)" : null,
     recording: { startMs: recording.startMs, durationMs: recording.durationMs, viewport: recording.viewport, frames },
     captions: { ...captions, cues: captions.cues.filter((c) => c.endMs > lo && c.startMs < hi) },

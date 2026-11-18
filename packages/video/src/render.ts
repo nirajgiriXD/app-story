@@ -259,10 +259,10 @@ export function splitChunks(chunks: readonly Chunk[], workers: number): Chunk[][
   return groups;
 }
 
-/** The hash of the files a frame can show: the recording, the logo, the intro's still and the brand font. */
+/** The hash of the files a frame can show: the recording, the logo, the intro's still, the brand font and backdrop. */
 async function filesHash(options: RenderVideoOptions): Promise<string> {
   const { props, publicDir } = options;
-  const files = [props.recording.src, props.brand.logo, props.hero, props.brand.fontFile].map((src) =>
+  const files = [props.recording.src, props.brand.logo, props.hero, props.brand.fontFile, props.brand.background?.image].map((src) =>
     src ? hashFile(fileIn(publicDir, src)) : Promise.resolve(null),
   );
   return sha256(JSON.stringify(await Promise.all(files)));

@@ -22,6 +22,8 @@ export interface RenderProps {
     host: string;
     /** The end card's call to action in the first language; `{host}` is `host`. */
     cta?: string;
+    /** The brand's own backdrop instead of the template's: a colour, or an image (a job file). */
+    background?: { color?: string; image?: string } | null;
   };
   title: string;
   subtitle: string | null;

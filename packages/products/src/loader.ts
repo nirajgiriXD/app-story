@@ -86,6 +86,7 @@ const SettingsSchema = z
     resolution: z.enum(["1080p", "1440p", "4k"], { error: "resolution is 1080p, 1440p or 4k" }).optional(),
     logo: z.string().optional(),
     font: z.string({ error: "font is a font file next to the product file (e.g. brand.woff2) or a font name" }).min(1).optional(),
+    background: z.string({ error: 'background is a color in quotes (e.g. background: "#0B1020") or an image next to the product file' }).min(1).optional(),
     music: z.string({ error: "music is an audio file next to the product file, e.g. music: calm-track.mp3" }).min(1).optional(),
     "music volume": z.number({ error: "music volume is a number from 0 to 1, e.g. 0.1" }).min(0).max(1).optional(),
     color: z
@@ -268,6 +269,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
       background_music: s.music,
       music_volume: s["music volume"],
       cta: s.cta,
+      ...(s.background && /^#/.test(s.background.trim()) ? { background_color: s.background.trim() } : { background_image: s.background }),
     },
     providers: {
       ai: { provider: ai, model: s.model },

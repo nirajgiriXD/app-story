@@ -152,6 +152,16 @@ export function cursorAt(t: number, points: readonly CursorPoint[]): { x: number
   return { x: prev.x, y: prev.y, sinceClickMs: lastClick === null ? null : t - lastClick };
 }
 
+/** The pointer's shape at `t`: the last one the recording noted (an arrow while it travels). */
+export function cursorShape(t: number, points: readonly CursorPoint[]): NonNullable<CursorPoint["shape"]> {
+  let shape: NonNullable<CursorPoint["shape"]> = "arrow";
+  for (const p of points) {
+    if (p.t > t) break;
+    if (p.shape) shape = p.shape;
+  }
+  return shape;
+}
+
 /** The pointer hides after this long without moving, as screen-recording editors do. */
 export const CURSOR_IDLE_MS = 2500;
 export const CURSOR_FADE_MS = 400;

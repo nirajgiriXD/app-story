@@ -46,6 +46,8 @@ export class PlaywrightController implements BrowserController {
   private origin = Date.now();
   private presentation = false;
   private mouse = { x: 0, y: 0 };
+  /** The pointer's shape where it rests, as the page sets it. */
+  private shape: CursorPoint["shape"] = "arrow";
   /** Requests in flight, with their start time, for `settle()`. */
   private readonly inflight = new Map<Request, number>();
   private settledAt = 0;
@@ -176,7 +178,8 @@ export class PlaywrightController implements BrowserController {
       const viewport = this.page.viewportSize() ?? { width: 1280, height: 720 };
       const list = menuLayout(box, { options: native.options, to }, viewport);
       const row = { x: list.x + 8, y: list.y + 4 + (to - list.first) * list.rowHeight, width: Math.min(list.width, box.width) - 16, height: list.rowHeight };
-      await this.moveCursorTo(row);
+      // A list's rows show the arrow, whatever is on the page under the drawn list.
+      await this.moveCursorTo(row, { shape: "arrow" });
     }
     try {
       await locator.selectOption({ label: value }, { timeout: this.timeout(options) });
@@ -407,7 +410,8 @@ export class PlaywrightController implements BrowserController {
     return { locator, box, region, info };
   }
 
-  private async moveCursorTo(box: Box | undefined): Promise<void> {
+  /** `shape` names the pointer's shape where it lands, when the page under it is not what is shown (a drawn list). */
+  private async moveCursorTo(box: Box | undefined, landing?: { shape: NonNullable<CursorPoint["shape"]> }): Promise<void> {
     if (!box) return;
     const to = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     if (!this.presentation) {
@@ -426,15 +430,42 @@ export class PlaywrightController implements BrowserController {
       const x = (1 - k) * (1 - k) * from.x + 2 * (1 - k) * k * bend.x + k * k * to.x;
       const y = (1 - k) * (1 - k) * from.y + 2 * (1 - k) * k * bend.y + k * k * to.y;
       await this.page.mouse.move(x, y);
-      this.cursor.push({ t: this.now(), x, y });
+      // While it travels the pointer is an arrow; where it lands, it takes the page's shape.
+      this.cursor.push({ t: this.now(), x, y, ...(i === 1 ? { shape: "arrow" as const } : {}) });
       await sleep(duration / steps);
     }
     this.mouse = to;
+    this.shape = landing?.shape ?? (await this.pointerShapeAt(to));
+    const last = this.cursor[this.cursor.length - 1];
+    if (last && this.shape !== "arrow") last.shape = this.shape;
     await sleep(120);
   }
 
+  /** The pointer the page shows at a point: a hand over links and buttons, a text bar over text. */
+  private async pointerShapeAt(at: { x: number; y: number }): Promise<CursorPoint["shape"]> {
+    return this.page
+      .evaluate(
+        inPage(({ x, y }: { x: number; y: number }) => {
+          const el = document.elementFromPoint(x, y) as HTMLElement | null;
+          if (!el) return "arrow" as const;
+          const cursor = getComputedStyle(el).cursor;
+          if (cursor === "pointer") return "hand" as const;
+          if (cursor === "text" || cursor === "vertical-text") return "text" as const;
+          if (cursor !== "auto") return "arrow" as const;
+          // `auto`: the browser shows a text bar over editable text, an arrow elsewhere.
+          const editable =
+            el.isContentEditable ||
+            el instanceof HTMLTextAreaElement ||
+            (el instanceof HTMLInputElement && !["button", "submit", "reset", "checkbox", "radio", "range", "color", "file", "image"].includes(el.type));
+          return editable ? ("text" as const) : ("arrow" as const);
+        }),
+        at,
+      )
+      .catch(() => "arrow" as const);
+  }
+
   private recordClick(): void {
-    this.cursor.push({ t: this.now(), x: this.mouse.x, y: this.mouse.y, click: true });
+    this.cursor.push({ t: this.now(), x: this.mouse.x, y: this.mouse.y, click: true, ...(this.shape !== "arrow" ? { shape: this.shape } : {}) });
   }
 
   private async focusedElementInfo(): Promise<ElementInfo | undefined> {

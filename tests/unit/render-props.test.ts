@@ -9,6 +9,7 @@ import {
   buildRenderProps,
   interCss,
   cursorPresence,
+  cursorShape,
   editTimes,
   getTemplate,
   menuAt,
@@ -117,6 +118,20 @@ describe("render props", () => {
     expect(props().brand).toMatchObject({ font: "Inter", fontFile: null });
     expect(props({ fontSrc: "assets/font.woff2" }).brand).toMatchObject({ font: BRAND_FONT_FAMILY, fontFile: "assets/font.woff2" });
     expect(brandFontCss("/files/assets/font.woff2")).toContain(`font-family:'${BRAND_FONT_FAMILY}'`);
+  });
+});
+
+describe("pointer shape", () => {
+  it("is an arrow while it travels and takes the page's shape where it lands", () => {
+    const points = [
+      { t: 0, x: 0, y: 0 },
+      { t: 100, x: 10, y: 10, shape: "arrow" as const },
+      { t: 400, x: 50, y: 50, shape: "hand" as const },
+      { t: 600, x: 50, y: 50, click: true, shape: "hand" as const },
+      { t: 900, x: 60, y: 60, shape: "arrow" as const },
+      { t: 1200, x: 90, y: 90, shape: "text" as const },
+    ];
+    expect([0, 200, 450, 700, 1000, 1500].map((t) => cursorShape(t, points))).toEqual(["arrow", "arrow", "hand", "hand", "arrow", "text"]);
   });
 });
 

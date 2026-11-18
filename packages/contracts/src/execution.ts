@@ -47,7 +47,14 @@ export const StepResultSchema = z.object({
 });
 export type StepResult = z.infer<typeof StepResultSchema>;
 
-export const CursorPointSchema = z.object({ t: z.number(), x: z.number(), y: z.number(), click: z.boolean().optional() });
+export const CursorPointSchema = z.object({
+  t: z.number(),
+  x: z.number(),
+  y: z.number(),
+  click: z.boolean().optional(),
+  /** The pointer's shape from here on, as the page sets it: a hand over links and buttons, a text bar over text fields. */
+  shape: z.enum(["arrow", "hand", "text"]).optional(),
+});
 export type CursorPoint = z.infer<typeof CursorPointSchema>;
 
 export const BrowserIssueSchema = z.object({

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { CursorPoint } from "@app-story/contracts";
 import { sourceFrame } from "./edit";
 import type { RenderProps } from "./props";
-import { CURSOR_FADE_MS, CURSOR_IDLE_MS, MENU_FADE_MS, mergeFocusWindows } from "./timeline";
+import { CURSOR_FADE_MS, CURSOR_IDLE_MS, cursorShape, MENU_FADE_MS, mergeFocusWindows } from "./timeline";
 
 /*
  * Rendering in cached pieces. The video is drawn in short chunks (two seconds, one keyframe
@@ -107,6 +107,8 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
       ? {
           shots,
           cursor: cursorWithin(cursor, rLo - CURSOR_BEFORE_MS, rHi + CURSOR_AFTER_MS),
+          // The shape can come from a point before the window.
+          cursorShape: cursorShape(rLo - CURSOR_BEFORE_MS, cursor),
           sections: latestAndWithin(sections, rLo, rHi),
           urls: latestAndWithin(urls, rLo, rHi),
           keys: latestAndWithin(keys ?? [], rLo, rHi),

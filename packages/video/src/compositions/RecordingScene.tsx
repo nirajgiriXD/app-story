@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
 import { menuLayout } from "@app-story/contracts/menu";
-import { cameraAt, cameraTransform, cursorAt, cursorPresence, latestAt, menuAt, mergeFocusWindows } from "../timeline";
+import { cameraAt, cameraTransform, cursorAt, cursorPresence, cursorShape, latestAt, menuAt, mergeFocusWindows } from "../timeline";
 import { sourceFrame } from "../edit";
 import { handoverIn, handoverOut } from "./handover";
 import { layout } from "./layout";
@@ -227,18 +227,41 @@ const DropdownList: React.FC<{
   );
 };
 
-/** The pointer's arrow, drawn at the tip (0, 0). */
-const Arrow: React.FC<{ size: number; style?: React.CSSProperties }> = ({ size, style }) => (
-  <svg
-    aria-hidden="true"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    style={{ position: "absolute", left: -size * 0.12, top: -size * 0.06, filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))", ...style }}
-  >
-    <path d="M4 2 L4 20 L9 15.5 L12.5 22.5 L15.5 21 L12 14 L19 14 Z" fill="#0F172A" stroke="#FFFFFF" strokeWidth="1.6" strokeLinejoin="round" />
-  </svg>
-);
+/**
+ * The pointer's shapes, each drawn so its hot spot (where it clicks) is at (0, 0): the
+ * arrow's tip, the hand's fingertip, the middle of the text bar. In 24-unit boxes.
+ */
+const POINTER_SHAPES = {
+  arrow: { hotspot: [4, 2], path: "M4 2 L4 20 L9 15.5 L12.5 22.5 L15.5 21 L12 14 L19 14 Z" },
+  hand: {
+    hotspot: [9.5, 2],
+    path: "M8 3.5a1.5 1.5 0 0 1 3 0V10h.6V8a1.5 1.5 0 0 1 3 0v2h.6V9a1.5 1.5 0 0 1 3 0v1.5h.6a1.5 1.5 0 0 1 3 0V16c0 4-2.6 6.5-6.5 6.5h-1.6c-2.4 0-3.9-.9-5.3-2.9L4.6 15a1.5 1.5 0 0 1 2.4-1.8L8 14.6Z",
+  },
+  text: { hotspot: [12, 12], path: "M8 3h3l1 1 1-1h3v2h-2.5v14H16v2h-3l-1-1-1 1H8v-2h2.5V5H8Z" },
+} as const;
+
+/** The pointer, drawn with its hot spot at (0, 0). */
+const Pointer: React.FC<{ size: number; shape: keyof typeof POINTER_SHAPES; style?: React.CSSProperties }> = ({ size, shape, style }) => {
+  const { hotspot, path } = POINTER_SHAPES[shape];
+  return (
+    <svg
+      aria-hidden="true"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      style={{
+        position: "absolute",
+        left: (-size * hotspot[0]) / 24,
+        top: (-size * hotspot[1]) / 24,
+        filter: "drop-shadow(0 2px 3px rgba(0,0,0,0.35))",
+        transformOrigin: `${(hotspot[0] / 24) * 100}% ${(hotspot[1] / 24) * 100}%`,
+        ...style,
+      }}
+    >
+      <path d={path} fill="#0F172A" stroke="#FFFFFF" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+};
 
 const Cursor: React.FC<{ p: RenderProps; t: number; x: number; y: number; sinceClickMs: number | null; zoom: number }> = ({
   p,
@@ -254,6 +277,7 @@ const Cursor: React.FC<{ p: RenderProps; t: number; x: number; y: number; sinceC
   const press = sinceClickMs !== null && sinceClickMs >= 0 && sinceClickMs < 240 ? Math.sin((sinceClickMs / 240) * Math.PI) : 0;
   const presence = cursorPresence(t, p.cursor);
   if (presence <= 0.001) return null;
+  const shape = cursorShape(t, p.cursor);
   // On fast moves a faint trail follows the arrow, like motion blur.
   const trail = [14, 28, 42].flatMap((ago, i) => {
     const at = cursorAt(t - ago, p.cursor);
@@ -290,9 +314,9 @@ const Cursor: React.FC<{ p: RenderProps; t: number; x: number; y: number; sinceC
         />
       ) : null}
       {trail.map((g) => (
-        <Arrow key={g.opacity} size={size} style={{ transform: `translate(${g.dx}px, ${g.dy}px)`, opacity: g.opacity, filter: "none" }} />
+        <Pointer key={g.opacity} size={size} shape="arrow" style={{ transform: `translate(${g.dx}px, ${g.dy}px)`, opacity: g.opacity, filter: "none" }} />
       ))}
-      <Arrow size={size} style={{ transform: `scale(${1 - 0.18 * press})`, transformOrigin: "0 0" }} />
+      <Pointer size={size} shape={shape} style={{ transform: `scale(${1 - 0.18 * press})` }} />
     </div>
   );
 };

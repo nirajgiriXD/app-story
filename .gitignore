@@ -9,3 +9,4 @@ coverage/
 .secrets/
 *.log
 test-results/
+.mypy_cache/

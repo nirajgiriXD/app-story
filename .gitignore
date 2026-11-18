@@ -12,3 +12,4 @@ test-results/
 .mypy_cache/
 apps/*
 !apps/example.md
+.DS_Store

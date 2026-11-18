@@ -29,6 +29,8 @@ window.appStory = {
     const container = document.getElementById("root");
     if (!container) throw new Error("The render page has no root element.");
     root = createRoot(container);
+    // Load the Latin faces before the first frame; other scripts load when text needs them.
+    await Promise.all([document.fonts.load("16px Inter", "Aa"), document.fonts.load(`16px "${p.brand.font}"`, "Aa")]).catch(() => undefined);
   },
 
   async renderFrame(frame) {
@@ -44,6 +46,8 @@ window.appStory = {
     });
     // Every image (the recording frame, the logo) must be decoded, and every font loaded, before the capture.
     await Promise.all(Array.from(document.images, (img) => img.decode().catch(() => undefined)));
+    // Laying out first starts the loads of any font the new text needs, which `ready` then waits for.
+    void document.body.offsetHeight;
     await document.fonts.ready;
   },
 };

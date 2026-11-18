@@ -93,6 +93,16 @@ describe("product file", () => {
     expect(errorOf(() => parse(file("url: https://acme.test\nwebsite: acme.com"))).message).toMatch(/website must be a full address/);
   });
 
+  it("reads font as a font file next to the product file, or as a font name", () => {
+    const fontOf = (settings: string) => {
+      const { font, font_file } = parse(file(`url: https://acme.test${settings}`)).config.branding;
+      return { font, font_file };
+    };
+    expect(fontOf("")).toEqual({ font: "Inter", font_file: undefined });
+    expect(fontOf("\nfont: brand/Acme-Sans.woff2")).toEqual({ font: "Inter", font_file: "brand/Acme-Sans.woff2" });
+    expect(fontOf("\nfont: Roboto")).toEqual({ font: "Roboto", font_file: undefined });
+  });
+
   it("turns on background music from the file", () => {
     expect(parse(file("url: https://acme.test")).config.branding.background_music).toBeUndefined();
     const { config } = parse(file("url: https://acme.test\nmusic: calm.mp3\nmusic volume: 0.12"));

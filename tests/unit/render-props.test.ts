@@ -3,8 +3,11 @@ import type { Step, StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
 import { curveControl } from "@app-story/browser";
 import {
+  BRAND_FONT_FAMILY,
+  brandFontCss,
   buildAudioMix,
   buildRenderProps,
+  interCss,
   cursorPresence,
   getTemplate,
   planTimeline,
@@ -99,6 +102,18 @@ describe("render props", () => {
     expect(p.brand).toMatchObject({ host: "acme.com", cta: "Start free at {host}" });
     // Without a website, the app's own address is shown, as before.
     expect(props().brand).toMatchObject({ host: "acme.test", cta: "Try it at {host}" });
+  });
+
+  it("ships Inter with the render page and loads a brand font file under its own name", async () => {
+    const css = await interCss();
+    expect(css).toContain("font-family: 'Inter'");
+    expect(css).toContain("font-display: block");
+    expect(css).toContain("url(/fonts/inter/inter-latin-wght-normal.woff2)");
+    expect(css).not.toContain("./files/");
+
+    expect(props().brand).toMatchObject({ font: "Inter", fontFile: null });
+    expect(props({ fontSrc: "assets/font.woff2" }).brand).toMatchObject({ font: BRAND_FONT_FAMILY, fontFile: "assets/font.woff2" });
+    expect(brandFontCss("/files/assets/font.woff2")).toContain(`font-family:'${BRAND_FONT_FAMILY}'`);
   });
 });
 

@@ -5,6 +5,7 @@ import type { RenderProps, SoundEffect } from "./props";
 import type { VideoTemplate } from "./templates";
 import { keyLabels } from "./keys";
 import { DEFAULT_CTA, shownUrl } from "./labels";
+import { BRAND_FONT_FAMILY } from "./fonts";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
 
 const FOCUS_ACTIONS = new Set(["click", "fill", "select", "check", "uncheck", "hover"]);
@@ -103,6 +104,8 @@ export interface BuildPropsInput {
   placements: NarrationPlacement[];
   cues: { start_ms: number; end_ms: number; text: string }[];
   logoSrc?: string;
+  /** The brand's font file (`font:` in the product file). */
+  fontSrc?: string;
   musicSrc?: string;
   heroSrc?: string;
   /** The cards' words in another language (default: English, and the template's badge). */
@@ -159,7 +162,8 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       logo: input.logoSrc ?? null,
       primary: config.branding.primary_color,
       accent: config.branding.accent_color,
-      font: config.branding.font,
+      font: input.fontSrc ? BRAND_FONT_FAMILY : config.branding.font,
+      fontFile: input.fontSrc ?? null,
       host: new URL(website ?? config.product.base_url).host,
       cta: config.branding.cta ?? DEFAULT_CTA,
     },

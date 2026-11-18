@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Route } from "playwright";
 import { AppStoryError, ensureDir, extractFrame, measureLoudness, runFfmpeg, type Logger } from "@app-story/shared";
 import { buildAudioMix, MASTER_LOUDNESS, masterChain } from "./audio";
+import { brandFontCss, INTER_PATH, interCss, interDir } from "./fonts";
 import { sourceFrame } from "./edit";
 import { RecordingFrames } from "./frames";
 import type { RenderProps } from "./props";
@@ -116,6 +117,7 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
   let workDir: string | undefined;
   try {
     const script = await prepareRenderer();
+    const fonts = await pageFonts(props);
     workDir = await mkdtemp(join(tmpdir(), "app-story-render-"));
     const chunks = chunksOf(total, props.fps);
     const limit = renderCacheLimitBytes();
@@ -125,7 +127,7 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
     let todo: Chunk[] = chunks;
     if (cacheDir) {
       await ensureDir(cacheDir);
-      const inputs = { page: sha256(script), files: await filesHash(options), encoding: deliveryEncoding(props.fps) };
+      const inputs = { page: sha256(script + fonts), files: await filesHash(options), encoding: deliveryEncoding(props.fps) };
       todo = [];
       for (const chunk of chunks) {
         const file = join(cacheDir, `${chunkKey(props, chunk, inputs)}.mp4`);
@@ -153,7 +155,7 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
     const state = { failed: false };
     await Promise.all(
       groups.map((group) =>
-        renderChunks({ script, options, chunks: group, fileOf: (c) => fileOf.get(c.index) as string, onFrame, state }).catch((error: unknown) => {
+        renderChunks({ script, fonts, options, chunks: group, fileOf: (c) => fileOf.get(c.index) as string, onFrame, state }).catch((error: unknown) => {
           state.failed = true;
           throw error;
         }),
@@ -247,15 +249,25 @@ export function splitChunks(chunks: readonly Chunk[], workers: number): Chunk[][
   return groups;
 }
 
-/** The hash of the files a frame can show: the recording, the logo and the intro's still. */
+/** The hash of the files a frame can show: the recording, the logo, the intro's still and the brand font. */
 async function filesHash(options: RenderVideoOptions): Promise<string> {
   const { props, publicDir } = options;
-  const files = [props.recording.src, props.brand.logo, props.hero].map((src) => (src ? hashFile(fileIn(publicDir, src)) : Promise.resolve(null)));
+  const files = [props.recording.src, props.brand.logo, props.hero, props.brand.fontFile].map((src) =>
+    src ? hashFile(fileIn(publicDir, src)) : Promise.resolve(null),
+  );
   return sha256(JSON.stringify(await Promise.all(files)));
+}
+
+/** The render page's @font-face rules: the shipped Inter, and the brand's font file if any. */
+async function pageFonts(props: RenderProps): Promise<string> {
+  const brand = props.brand.fontFile ? brandFontCss(`/files/${props.brand.fontFile.split("/").map(encodeURIComponent).join("/")}`) : "";
+  return (await interCss()) + brand;
 }
 
 interface ChunksJob {
   script: string;
+  /** The page's @font-face rules. */
+  fonts: string;
   options: RenderVideoOptions;
   chunks: Chunk[];
   /** Where each chunk's video goes. */
@@ -347,11 +359,16 @@ async function renderChunks(job: ChunksJob): Promise<void> {
 }
 
 /** Answer the render page's requests: the page, its script, job files and recording frames. */
-async function serve(route: Route, job: Pick<ChunksJob, "script" | "options">, recording: RecordingFrames | undefined): Promise<void> {
+async function serve(route: Route, job: Pick<ChunksJob, "script" | "fonts" | "options">, recording: RecordingFrames | undefined): Promise<void> {
   const url = new URL(route.request().url());
   if (url.origin !== ORIGIN) return route.abort();
   const { props, publicDir } = job.options;
-  if (url.pathname === "/") return route.fulfill({ contentType: "text/html; charset=utf-8", body: pageHtml(props) });
+  if (url.pathname === "/") return route.fulfill({ contentType: "text/html; charset=utf-8", body: pageHtml(props, job.fonts) });
+  if (url.pathname.startsWith(INTER_PATH)) {
+    const name = url.pathname.slice(INTER_PATH.length);
+    if (!/^[a-z0-9-]+\.woff2$/.test(name)) return route.abort();
+    return route.fulfill({ contentType: "font/woff2", path: join(interDir(), name) });
+  }
   if (url.pathname === "/main.js") return route.fulfill({ contentType: "text/javascript; charset=utf-8", body: job.script });
   const frame = /^\/recording\/(\d+)\.jpg$/.exec(url.pathname);
   if (frame) {
@@ -365,11 +382,11 @@ async function serve(route: Route, job: Pick<ChunksJob, "script" | "options">, r
   return route.abort();
 }
 
-function pageHtml(props: RenderProps): string {
+function pageHtml(props: RenderProps, fonts: string): string {
   return [
     "<!doctype html>",
     '<html><head><meta charset="utf-8">',
-    `<style>*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0;overflow:hidden}#root{position:relative;width:${props.width}px;height:${props.height}px;overflow:hidden}</style>`,
+    `<style>${fonts}*,*::before,*::after{box-sizing:border-box}html,body{margin:0;padding:0;overflow:hidden}#root{position:relative;width:${props.width}px;height:${props.height}px;overflow:hidden}</style>`,
     '</head><body><div id="root"></div><script src="/main.js"></script></body></html>',
   ].join("");
 }

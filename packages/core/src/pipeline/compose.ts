@@ -120,6 +120,7 @@ export async function composeVideo(
     placements,
     cues,
     logoSrc: await copyAsset(job, product, config.branding.logo, "logo"),
+    fontSrc: await copyAsset(job, product, config.branding.font_file, "font"),
     heroSrc: await heroStill(job, recorded),
     musicSrc: await copyAsset(job, product, config.branding.background_music, "music"),
   });

@@ -134,6 +134,7 @@ formats: vertical, gif                     # also make a 9:16 and/or 1:1 (square
 blur: ".api-key, #customer-email"          # CSS selectors blurred on screen (quote them when one starts with #)
 logo: acme-logo.png                        # next to this file
 color: "#4F46E5"                           # in quotes
+font: acme-sans.woff2                      # a font file next to this file, or a font name (default: Inter)
 music: calm-track.mp3                      # background music, next to this file (default: none)
 music volume: 0.08                         # 0 to 1; it dips under the voice by itself
 allow: delete, emails                      # risky actions are blocked unless listed here
@@ -160,6 +161,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **website**: demos usually run on a staging or local copy of the app. The video's browser
   bar shows the app's pages under this address instead, and the end card and the voice
   send viewers there, so a video never shows `staging.acme.com` or `localhost:3000`.
+- **font**: the titles, captions and end card use Inter, which ships with AppStory, so a
+  video looks the same on every computer. A font file (`.woff2`, `.woff`, `.ttf`, `.otf`)
+  is loaded the same way; a plain name uses that font only if the computer has it.
 - **music**: an audio file (MP3, WAV, M4A…) looped under the whole video, faded in and out,
   and lowered while the voice speaks. Use music you are allowed to publish: tracks marked
   CC0 (public domain) need no credit.

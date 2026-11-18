@@ -174,7 +174,10 @@ export const ProductConfigSchema = z.object({
       logo: z.string().optional(),
       primary_color: hexColor.default("#2563EB"),
       accent_color: hexColor.default("#0F172A"),
+      /** A font family name. "Inter" is shipped with AppStory, so it looks the same on every machine. */
       font: z.string().default("Inter"),
+      /** A font file (.woff2, .woff, .ttf, .otf) next to the product file; it then replaces `font`. */
+      font_file: z.string().optional(),
       background_music: z.string().optional(),
       music_volume: z.number().min(0).max(1).default(0.08),
       /** The end card's call to action; `{host}` is the website's address. Default: "Try it at {host}". */

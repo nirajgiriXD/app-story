@@ -16,6 +16,8 @@ export interface RenderProps {
     primary: string;
     accent: string;
     font: string;
+    /** The brand's font file, loaded as the `font` family (BRAND_FONT_FAMILY). */
+    fontFile?: string | null;
     /** The address viewers are sent to: the product's public website, else the app's own host. */
     host: string;
     /** The end card's call to action in the first language; `{host}` is `host`. */

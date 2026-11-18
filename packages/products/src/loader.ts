@@ -81,6 +81,7 @@ const SettingsSchema = z
     fps: z.union([z.literal(30), z.literal(60)], { error: "fps is 30 or 60" }).optional(),
     resolution: z.enum(["1080p", "1440p", "4k"], { error: "resolution is 1080p, 1440p or 4k" }).optional(),
     logo: z.string().optional(),
+    font: z.string({ error: "font is a font file next to the product file (e.g. brand.woff2) or a font name" }).min(1).optional(),
     music: z.string({ error: "music is an audio file next to the product file, e.g. music: calm-track.mp3" }).min(1).optional(),
     "music volume": z.number({ error: "music volume is a number from 0 to 1, e.g. 0.1" }).min(0).max(1).optional(),
     color: z
@@ -98,6 +99,9 @@ type Settings = z.infer<typeof SettingsSchema>;
 export const PRODUCT_SETTINGS = Object.keys(SettingsSchema.shape);
 
 const ID = /^[a-z0-9][a-z0-9-]*$/;
+
+/** `font:` names a file when it ends like one; otherwise it is a font family name. */
+const FONT_FILE = /\.(woff2?|ttf|otf)$/i;
 
 export function productFilePath(productsDir: string, id: string): string {
   return join(productsDir, `${id}.md`);
@@ -248,7 +252,14 @@ export function parseProductFile(text: string, file: string, id: string): { conf
       default_resolution: s.resolution,
       formats: parseFormats(s.formats, file),
     },
-    branding: { logo: s.logo, primary_color: s.color, background_music: s.music, music_volume: s["music volume"], cta: s.cta },
+    branding: {
+      logo: s.logo,
+      primary_color: s.color,
+      ...(s.font && FONT_FILE.test(s.font) ? { font_file: s.font } : { font: s.font }),
+      background_music: s.music,
+      music_volume: s["music volume"],
+      cta: s.cta,
+    },
     providers: {
       ai: { provider: ai, model: s.model },
       ai_fallback: hasKey(other) ? { provider: other } : undefined,

@@ -120,6 +120,8 @@ url: https://staging.acme.com              # required: the running app (and the 
 login: demo@acme.com / env:ACME_PASSWORD   # user / password; either part may be env:NAME
 login page: /login                         # default: found automatically
 start page: /dashboard                     # default: the page in url
+website: https://acme.com                  # the public address viewers see (default: the url's)
+cta: "Start your free trial at {host}"     # the end card's words; {host} is the website
 ai: anthropic                              # anthropic | openai (default: whichever key you have)
 model: claude-opus-5-5                     # default: the provider's default model
 voice: kokoro                              # kokoro (free) | chatterbox (free, needs Python) | openai | elevenlabs | none
@@ -155,6 +157,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **blur**: anything matching these CSS selectors is blurred in the page itself, so the
   recording, screenshots and video never show it readable: API keys, customer emails.
   YAML reads ` #` as a comment, so put the selectors in quotes when one starts with `#`.
+- **website**: demos usually run on a staging or local copy of the app. The video's browser
+  bar shows the app's pages under this address instead, and the end card and the voice
+  send viewers there, so a video never shows `staging.acme.com` or `localhost:3000`.
 - **music**: an audio file (MP3, WAV, M4A…) looped under the whole video, faded in and out,
   and lowered while the voice speaks. Use music you are allowed to publish: tracks marked
   CC0 (public domain) need no credit.

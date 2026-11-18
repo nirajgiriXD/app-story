@@ -14,6 +14,7 @@ export function productContext(product: LoadedProduct): ProductContext {
     name: product.config.product.name,
     description: product.config.product.description,
     baseUrl: product.config.product.base_url,
+    website: product.config.product.website,
     brief: product.brief,
   };
 }

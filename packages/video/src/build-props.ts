@@ -4,6 +4,7 @@ import type { TimeMap } from "./edit";
 import type { RenderProps, SoundEffect } from "./props";
 import type { VideoTemplate } from "./templates";
 import { keyLabels } from "./keys";
+import { DEFAULT_CTA, shownUrl } from "./labels";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
 
 const FOCUS_ACTIONS = new Set(["click", "fill", "select", "check", "uncheck", "hover"]);
@@ -124,6 +125,9 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     : passed.flatMap((r) => (r.url_after ? [{ atMs: r.ended_ms, url: r.url_after }] : []));
   for (const change of changes) if (change.url !== urls[urls.length - 1]?.url) urls.push(change);
   const cuts = urls.slice(1).map((u) => u.atMs);
+  // The browser bar shows the public website's address, not the staging copy's.
+  const website = config.product.website;
+  const shown = urls.map((u) => ({ ...u, url: shownUrl(u.url, config.product.base_url, website) }));
 
   for (const [i, result] of passed.entries()) {
     const step = byId.get(result.step_id);
@@ -156,7 +160,8 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       primary: config.branding.primary_color,
       accent: config.branding.accent_color,
       font: config.branding.font,
-      host: new URL(config.product.base_url).host,
+      host: new URL(website ?? config.product.base_url).host,
+      cta: config.branding.cta ?? DEFAULT_CTA,
     },
     title: input.title,
     subtitle: input.subtitle ?? null,
@@ -174,7 +179,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     focus,
     cuts,
     cursor: input.cursor,
-    urls,
+    urls: shown,
     audio: input.placements.map((p) => ({ src: p.src, startMs: p.startMs, durationMs: p.durationMs })),
     captions: {
       enabled: config.captions.enabled && config.captions.burn_in,

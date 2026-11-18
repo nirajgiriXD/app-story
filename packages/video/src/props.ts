@@ -16,7 +16,10 @@ export interface RenderProps {
     primary: string;
     accent: string;
     font: string;
+    /** The address viewers are sent to: the product's public website, else the app's own host. */
     host: string;
+    /** The end card's call to action in the first language; `{host}` is `host`. */
+    cta?: string;
   };
   title: string;
   subtitle: string | null;

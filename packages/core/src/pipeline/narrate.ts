@@ -11,7 +11,7 @@ import {
 } from "@app-story/contracts";
 import { AppStoryError, toAppStoryError } from "@app-story/shared";
 import { PHASE_EFFORT, PROMPT_VERSIONS, loadPrompt } from "@app-story/ai";
-import { getTemplate } from "@app-story/video";
+import { DEFAULT_CTA, getTemplate } from "@app-story/video";
 import { estimateStepMs } from "@app-story/workflow";
 import { synthesizeNarration, writeNarrationScript, type SpeechCache, type TTSProvider } from "@app-story/narration";
 import type { LoadedProduct } from "@app-story/products";
@@ -131,7 +131,7 @@ export async function prepareTranslations(
     title: workflow.title,
     summary: workflow.summary ?? null,
     badge: getTemplate(pickTemplate(config.demo.template, options.kind)).title.badge ?? null,
-    cta: DEFAULT_CTA,
+    cta: config.branding.cta ?? DEFAULT_CTA,
     script: base.script,
   };
   const tts = makeTTS(config.providers.tts, overrides);
@@ -177,9 +177,6 @@ export async function prepareTranslations(
   saveRecord(job, "narration_translations", Object.fromEntries(voices.map((v) => [v.language, v.translation])));
   return voices;
 }
-
-/** The end card's call to action, in English; `{host}` is the app's address. */
-export const DEFAULT_CTA = "Try it at {host}";
 
 function translationPrompt(
   original: { language: string; title: string; summary: string | null; badge: string | null; cta: string; script: NarrationScript },

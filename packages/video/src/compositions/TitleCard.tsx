@@ -3,6 +3,7 @@ import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig
 import type { RenderProps } from "../props";
 import { HANDOVER_SPLIT, handoverOut } from "./handover";
 import { asset, fontStack, px, shape, textColor } from "./theme";
+import { DEFAULT_CTA } from "../labels";
 
 export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; durationMs: number }> = ({ p, kind, durationMs }) => {
   const frame = useCurrentFrame();
@@ -22,7 +23,7 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
 
   const form = shape(p);
   const badge = p.labels ? p.labels.badge : p.template.title.badge;
-  const cta = (p.labels?.cta ?? "Try it at {host}").replace("{host}", p.brand.host);
+  const cta = (p.labels?.cta ?? p.brand.cta ?? DEFAULT_CTA).replace("{host}", p.brand.host);
   // Portrait: the text in the upper part and the app's still under it. Square: no room for the still.
   const hero = form === "square" ? null : p.hero;
   return (

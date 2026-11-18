@@ -80,6 +80,26 @@ describe("render props", () => {
     });
     expect(p.keys).toEqual([{ atMs: 1000, labels: ["Ctrl", "K"] }]);
   });
+
+  it("shows the public website, not the staging app, in the browser bar and on the end card", () => {
+    const staging = parseProductFile(
+      '---\nurl: https://staging.acme.test\nwebsite: https://acme.com\ncta: "Start free at {host}"\n---\n\n# Acme\n',
+      "acme.md",
+      "acme",
+    ).config;
+    const p = props({
+      config: staging,
+      startUrl: "https://staging.acme.test/projects?tab=all",
+      navigations: [
+        { t: 0, url: "https://staging.acme.test/projects?tab=all" },
+        { t: 900, url: "https://docs.other.test/help" },
+      ],
+    });
+    expect(p.urls.map((u) => u.url)).toEqual(["https://acme.com/projects?tab=all", "https://docs.other.test/help"]);
+    expect(p.brand).toMatchObject({ host: "acme.com", cta: "Start free at {host}" });
+    // Without a website, the app's own address is shown, as before.
+    expect(props().brand).toMatchObject({ host: "acme.test", cta: "Try it at {host}" });
+  });
 });
 
 describe("captions on title cards", () => {

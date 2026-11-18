@@ -86,6 +86,13 @@ describe("product file", () => {
     expect(config.safety.allow).toMatchObject({ delete: true, invite_users: true, payments: false });
   });
 
+  it("reads the public website and the end card's call to action", () => {
+    const { config } = parse(file('url: https://staging.acme.test/app\nwebsite: https://acme.com\ncta: "Start free at {host}"'));
+    expect(config.product).toMatchObject({ base_url: "https://staging.acme.test", website: "https://acme.com" });
+    expect(config.branding.cta).toBe("Start free at {host}");
+    expect(errorOf(() => parse(file("url: https://acme.test\nwebsite: acme.com"))).message).toMatch(/website must be a full address/);
+  });
+
   it("turns on background music from the file", () => {
     expect(parse(file("url: https://acme.test")).config.branding.background_music).toBeUndefined();
     const { config } = parse(file("url: https://acme.test\nmusic: calm.mp3\nmusic volume: 0.12"));

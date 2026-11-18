@@ -126,6 +126,11 @@ export const ProductConfigSchema = z.object({
     description: z.string().min(1),
     base_url: z.url(),
     start_path: z.string().default("/"),
+    /**
+     * The public website viewers are sent to. The demo usually runs on a staging or local
+     * copy; the video's browser bar and end card show this address instead.
+     */
+    website: z.url().optional(),
   }),
   browser: z
     .object({
@@ -172,6 +177,8 @@ export const ProductConfigSchema = z.object({
       font: z.string().default("Inter"),
       background_music: z.string().optional(),
       music_volume: z.number().min(0).max(1).default(0.08),
+      /** The end card's call to action; `{host}` is the website's address. Default: "Try it at {host}". */
+      cta: z.string().min(1).optional(),
     })
     .prefault({}),
   providers: z.object({

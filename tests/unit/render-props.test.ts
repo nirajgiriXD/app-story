@@ -71,6 +71,23 @@ describe("render props", () => {
     ]);
   });
 
+  it("hides keycaps with --no-keys, and shows chapter labels only with --chapters", () => {
+    const take = {
+      workflowSteps: [{ id: "s1", description: "search", action: "press", key: "Control+K", section: "Search" } as Step],
+      results: [result({ step_id: "s1", action: "press", started_ms: 1000, ended_ms: 1500 })],
+    };
+    const plain = props(take);
+    expect(plain.keys).toEqual([{ atMs: 1000, labels: ["Ctrl", "K"] }]);
+    expect(plain.template.sectionStyle).toBe("none");
+    expect(plain.sections.map((s) => s.title)).toEqual(["Search"]); // still listed in the MP4
+    const asked = structuredClone(config);
+    asked.demo.keys = false;
+    asked.demo.chapters = true;
+    const p = props({ ...take, config: asked });
+    expect(p.keys).toEqual([]);
+    expect(p.template.sectionStyle).toBe("chip");
+  });
+
   it("falls back to step ends for takes recorded without page changes", () => {
     const p = props({
       workflowSteps: [{ id: "s1", description: "open", action: "click", target: { name: "New" } } as Step],

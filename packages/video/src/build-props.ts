@@ -165,7 +165,8 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     fps: config.demo.fps,
     durationMs: plan.totalMs,
     posterMs: posterTime(plan, template),
-    template,
+    // The chapter chip only with `--chapters` (and a template that has one); the MP4 lists the chapters either way.
+    template: config.demo.chapters ? template : { ...template, sectionStyle: "none" },
     brand: {
       productName: config.product.name,
       logo: input.logoSrc ?? null,
@@ -205,10 +206,13 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     music: input.musicSrc ? { src: input.musicSrc, volume: config.branding.music_volume } : null,
     sfx: template.sounds ? soundEffects(passed, input.cursor, plan, template.transitionMs) : [],
     labels: input.labels,
-    keys: passed.flatMap((r) => {
-      const key = r.action === "press" ? byId.get(r.step_id)?.key : undefined;
-      return key ? [{ atMs: Math.max(0, r.started_ms), labels: keyLabels(key) }] : [];
-    }),
+    // Keycaps unless `--no-keys`.
+    keys: !config.demo.keys
+      ? []
+      : passed.flatMap((r) => {
+          const key = r.action === "press" ? byId.get(r.step_id)?.key : undefined;
+          return key ? [{ atMs: Math.max(0, r.started_ms), labels: keyLabels(key) }] : [];
+        }),
     menus: passed.flatMap((r) =>
       r.menu && r.box ? [{ openMs: r.menu.opened_ms, closeMs: r.menu.closed_ms, field: r.box, options: r.menu.options, from: r.menu.from, to: r.menu.to }] : [],
     ),

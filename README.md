@@ -263,7 +263,7 @@ not treated as products. Product names are lowercase letters, numbers and dashes
   steps, a click lands on the word that names it ("…then **save** it").
 - Saves the narration (and every translation) in the plan file, so the next video of the
   plan, on any machine, needs no AI at all.
-- Shows keys pressed on camera as keycaps (`Ctrl` `K`), and tells the AI up front which
+- Shows keys pressed on camera as keycaps (`Ctrl` `K`; `--no-keys` hides them), and tells the AI up front which
   buttons the safety rules block, so it does not waste a turn trying them.
 
 ## Plans as tests, CI and Playwright
@@ -349,9 +349,14 @@ as the preview.
 
 **Captions** are written next to the video as `.srt`, which players and YouTube show and let
 viewers turn off. `--captions` also draws them on the video itself, for places that play
-videos muted without subtitles (feeds, a GIF in a README). `--intro` and `--captions` work
-when making a video and with `redo`, `resume` and `replay`, so `npx app-story redo acme
---intro --captions` adds both to the newest video without the app or the AI.
+videos muted without subtitles (feeds, a GIF in a README).
+
+**Chapter labels** are off too. `--chapters` shows a label with each chapter's name over the
+app as it begins (not in the `minimal` look, which has none); the MP4 lists its chapters
+either way. Keys pressed on camera show as keycaps (`Ctrl` `K`); `--no-keys` hides them.
+`--intro`, `--captions`, `--chapters` and `--no-keys` work when making a video and with `redo`,
+`resume` and `replay`, so `npx app-story redo acme --intro --captions` adds both to the
+newest video without the app or the AI.
 A vertical video keeps its words out of the places where Reels, TikTok and Shorts draw their
 own buttons and caption.
 

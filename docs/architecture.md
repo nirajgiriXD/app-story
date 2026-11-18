@@ -88,7 +88,7 @@ at login time and registered as secrets.
    (pulling back at page changes, pushing in on the verified outcome, drifting slowly while
    it holds; every move takes the same `CAMERA_MOVE_MS`, one second, shifted rather than
    hurried when steps come quickly), a soft spotlight on that area, the pointer (press, idle fade, motion trail),
-   click ripples, chapter chips and branding. The
+   click ripples, chapter chips (with `--chapters`), keycaps (unless `--no-keys`) and branding. The
    compositions (React) are bundled once per process with esbuild. The frames are split
    into stretches, one per worker (`APP_STORY_RENDER_WORKERS`, default one per two CPU
    cores, up to 8). Each worker draws its frames in a headless Chromium of its own, with FFmpeg
@@ -170,6 +170,8 @@ These were chosen deliberately (and agreed before building):
   provider message format leaks out.
 - **Chapter titles as overlays.** Sections appear as animated chips above the app
   window instead of full-screen cards that would cut the recording and break audio sync.
+  They are off by default (`--chapters`, `demo.chapters`), like captions on the video:
+  the MP4's own chapter list carries them either way.
 
 ## AI providers
 

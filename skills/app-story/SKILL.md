@@ -9,7 +9,7 @@ AppStory makes demo videos of a running web app. It never needs the app's source
 opens the app in a browser, plans the clicks with an AI, proves each feature works, records
 it, adds a voice and captions, and renders an MP4 that opens on the app (`--intro` adds a
 full-screen intro first; `--captions` draws the captions on the video, not only in the
-`.srt`). Your job is to set it up for this project and run it. The full reference is the AppStory README
+`.srt`; `--chapters` shows a label naming each chapter over the app; `--no-keys` hides the keycaps shown when a key is pressed). Your job is to set it up for this project and run it. The full reference is the AppStory README
 (https://github.com/nirajgiriXD/app-story#readme).
 
 ## 1. Check what is there

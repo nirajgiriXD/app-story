@@ -22,12 +22,13 @@ const { config: base } = parseProductFile(
   "acme",
 );
 
-/** `look`: the intro and captions on the video, as `--intro` and `--captions` ask (default: both, as most frames below check them). */
-function props(template = "product-update", look = { intro: true, captions: true }): RenderProps {
+/** `look`: the intro, captions and chapter labels on the video, as `--intro`, `--captions` and `--chapters` ask (default: all, as most frames below check them). */
+function props(template = "product-update", look = { intro: true, captions: true, chapters: true }): RenderProps {
   const t = getTemplate(template);
   const config = structuredClone(base);
   config.demo.intro = look.intro;
   config.captions.burn_in = look.captions;
+  config.demo.chapters = look.chapters;
   const { plan, placements } = placeNarration({
     introSequence: look.intro,
     template: t,
@@ -201,7 +202,13 @@ describe("golden frames", () => {
 });
 
 describe("opening on the app (no --intro, no --captions)", () => {
-  const p = props("product-update", { intro: false, captions: false });
+  const p = props("product-update", { intro: false, captions: false, chapters: false });
+
+  it("draws no chapter label, but keeps the chapters for the MP4", () => {
+    expect(frameAt(props(), props().recording.startMs + 1000)).toContain(">Open reports<"); // with --chapters
+    expect(frameAt(p, p.recording.startMs + 1000)).not.toContain(">Open reports<");
+    expect(p.sections.map((s) => s.title)).toEqual(["Open reports", "Choose"]);
+  });
 
   it("shows the app's first screen from frame 0, held while the intro line is spoken", () => {
     expect(p.intro.endMs).toBe(0);

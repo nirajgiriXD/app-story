@@ -119,7 +119,7 @@ npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
 
 | Command | Purpose |
 | --- | --- |
-| `npx app-story <product> [goal]` | make videos (options: `--each`, `--videos`, `--review`, `--intro`, `--captions`, `--fresh`, `--headed`) |
+| `npx app-story <product> [goal]` | make videos (options: `--each`, `--videos`, `--review`, `--intro`, `--captions`, `--chapters`, `--no-keys`, `--fresh`, `--headed`) |
 | `npx app-story new <name>` | create `apps/<name>.md` |
 | `npx app-story check <product>` | check settings, keys, login, the app and local tools |
 | `npx app-story list` | list your products |

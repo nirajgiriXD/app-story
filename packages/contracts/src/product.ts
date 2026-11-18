@@ -203,6 +203,10 @@ export const ProductConfigSchema = z.object({
       tone: z.enum(TONES).default("calm"),
       /** A full-screen intro before the app (`--intro`). Off: the video opens on the app itself. */
       intro: z.boolean().default(false),
+      /** A chip over the app naming the chapter (each step's section) as it begins (`--chapters`). The MP4 lists the chapters either way. */
+      chapters: z.boolean().default(false),
+      /** Keys pressed on camera shown as keycaps (`Ctrl` `K`) over the app. `--no-keys` hides them. */
+      keys: z.boolean().default(true),
     })
     .prefault({}),
   branding: z

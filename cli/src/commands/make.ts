@@ -13,6 +13,8 @@ export interface MakeOptions {
   review?: boolean;
   captions?: boolean;
   intro?: boolean;
+  chapters?: boolean;
+  keys?: boolean;
   fresh?: boolean;
   headed?: boolean;
 }

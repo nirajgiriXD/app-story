@@ -29,6 +29,6 @@ export class PlaywrightVideoRecorder implements Recorder {
     const webm = await video.path();
     const { width, height, fps } = this.options;
     await runFfmpeg(["-i", webm, ...intermediateVideoArgs(width, height, fps), outputPath]);
-    return { path: outputPath, durationMs: stoppedAt - this.startedAt, frames: 0, width, height };
+    return { path: outputPath, durationMs: stoppedAt - this.startedAt, frames: 0, width, height, source: { width, height } };
   }
 }

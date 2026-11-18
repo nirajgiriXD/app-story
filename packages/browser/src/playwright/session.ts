@@ -53,9 +53,10 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
   const fps = options.fps ?? config.demo.fps;
   await ensureDir(options.workDir);
 
+  const headless = options.headless ?? config.browser.headless;
   const browser: Browser = await chromium.launch({
-    headless: options.headless ?? config.browser.headless,
-    args: ["--hide-scrollbars", "--disable-features=Translate", "--force-color-profile=srgb"],
+    headless,
+    args: browserArgs(deviceScaleFactor, headless),
   });
 
   const recordWithPlaywright = options.record === true && engine === "playwright";
@@ -196,6 +197,18 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
     await closeAll();
     throw error;
   }
+}
+
+/**
+ * Chromium's flags for a session. The context's `deviceScaleFactor` alone makes the page
+ * lay out at 2x, but the screencast still sends frames at 1x (1600x900 for a 1600x900 view
+ * at 2x), which FFmpeg would only stretch. Forcing the same scale on the whole headless
+ * browser makes its frames really 2x. A headed browser is left alone: its window would grow.
+ */
+export function browserArgs(deviceScaleFactor: number, headless: boolean): string[] {
+  const args = ["--hide-scrollbars", "--disable-features=Translate", "--force-color-profile=srgb"];
+  if (headless && deviceScaleFactor !== 1) args.push(`--force-device-scale-factor=${deviceScaleFactor}`);
+  return args;
 }
 
 /** Open the start page with a saved login; true if the app did not ask to log in again. */

@@ -9,6 +9,31 @@ export interface RecorderResult {
   frames: number;
   width: number;
   height: number;
+  /**
+   * The size of the frames the browser really sent, before FFmpeg scaled them to
+   * `width` x `height`. Smaller means the recording was stretched and is less sharp.
+   */
+  source?: { width: number; height: number };
+}
+
+/** The pixel size of a JPEG or PNG image, read from its header. */
+export function imageSize(image: Buffer): { width: number; height: number } | undefined {
+  // PNG: the IHDR chunk comes first.
+  if (image.length >= 24 && image.readUInt32BE(0) === 0x89504e47) {
+    return { width: image.readUInt32BE(16), height: image.readUInt32BE(20) };
+  }
+  if (image.length < 4 || image[0] !== 0xff || image[1] !== 0xd8) return undefined;
+  // JPEG: walk the marker segments to the frame header (SOF0-SOF15, but not DHT, JPG or DAC).
+  let i = 2;
+  while (i + 9 < image.length) {
+    if (image[i] !== 0xff) return undefined;
+    const marker = image[i + 1] as number;
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: image.readUInt16BE(i + 5), width: image.readUInt16BE(i + 7) };
+    }
+    i += 2 + image.readUInt16BE(i + 2);
+  }
+  return undefined;
 }
 
 export interface Recorder {
@@ -90,6 +115,7 @@ export class CdpScreencastRecorder implements Recorder {
   private frames: Frame[] = [];
   private writes: Promise<void>[] = [];
   private framesDir: string;
+  private source: { width: number; height: number } | undefined;
 
   constructor(
     private readonly page: Page,
@@ -107,7 +133,9 @@ export class CdpScreencastRecorder implements Recorder {
       const file = join(this.framesDir, `${String(index).padStart(6, "0")}.jpg`);
       const drawnAt = event.metadata.timestamp ? event.metadata.timestamp * 1000 : undefined;
       this.frames.push({ file, receivedAt: Date.now(), drawnAt });
-      this.writes.push(writeFile(file, Buffer.from(event.data, "base64")));
+      const image = Buffer.from(event.data, "base64");
+      if (index === 0) this.source = imageSize(image);
+      this.writes.push(writeFile(file, image));
       this.session?.send("Page.screencastFrameAck", { sessionId: event.sessionId }).catch(() => undefined);
     });
     this.startedAt = Date.now();
@@ -154,7 +182,10 @@ export class CdpScreencastRecorder implements Recorder {
     const seconds = ((stoppedAt - this.startedAt) / 1000).toFixed(3);
     await runFfmpeg(["-f", "concat", "-safe", "0", "-i", listFile, ...intermediateVideoArgs(width, height, fps), "-t", seconds, outputPath]);
     await rm(this.framesDir, { recursive: true, force: true });
-    this.options.log.debug({ frames: frames.length }, "screen recording encoded");
-    return { path: outputPath, durationMs: stoppedAt - this.startedAt, frames: frames.length, width, height };
+    this.options.log.debug({ frames: frames.length, source: this.source }, "screen recording encoded");
+    if (this.source && (this.source.width < width || this.source.height < height)) {
+      this.options.log.warn({ sent: this.source, stored: { width, height } }, "the browser sent smaller frames than asked for: the recording is stretched");
+    }
+    return { path: outputPath, durationMs: stoppedAt - this.startedAt, frames: frames.length, width, height, source: this.source };
   }
 }

@@ -130,6 +130,17 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
       "error",
       `${rawProbe.width}x${rawProbe.height}`,
     );
+    // The file can be the right size while its frames were stretched up from smaller ones.
+    const source = input.recorded.recording.source;
+    if (source) {
+      add(
+        "recording",
+        "recorded at full sharpness",
+        source.width >= (rawProbe.width ?? 0) && source.height >= (rawProbe.height ?? 0),
+        "warning",
+        `the browser sent ${source.width}x${source.height}`,
+      );
+    }
     // A blank (single-colour) frame at the end means the app UI was not on screen.
     const contrast = await frameContrast(input.paths.rawRecording, Math.max(0, rawProbe.durationSec - 1.5)).catch(() => undefined);
     add(

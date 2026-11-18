@@ -7,6 +7,7 @@ import { resumeCommand } from "./commands/resume";
 import { replayCommand } from "./commands/replay";
 import { testCommand } from "./commands/test";
 import { importCommand } from "./commands/import";
+import { blogCommand } from "./commands/blog";
 import { CAPTIONS_HELP, CHAPTERS_HELP, INTRO_HELP, KEYS_HELP } from "./context";
 import { startProgress, stopProgress } from "./progress";
 
@@ -19,7 +20,9 @@ Examples:
   npx app-story acme --chapters --no-keys     with chapter labels, and without keycaps
   npx app-story acme --verbose                every log line, instead of one live line per task
   npx app-story acme --videos                 one video per goal listed under "## Videos"
+  npx app-story acme --no-blog                without the blog post written with each video
   npx app-story redo acme --template tutorial the newest video again, in another look
+  npx app-story blog acme                     the newest video's blog post again (steps, screenshots, video)
   npx app-story acme --videos --review        see each new plan's steps and approve it before recording
   npx app-story resume acme                   finish the newest failed video, without planning again
   npx app-story replay acme                   every saved plan's video again, with no AI (for CI)
@@ -42,6 +45,7 @@ export function buildProgram(): Command {
       .option("--intro", INTRO_HELP)
       .option("--chapters", CHAPTERS_HELP)
       .option("--no-keys", KEYS_HELP)
+      .option("--no-blog", "make the videos without a blog post")
       .option("--fresh", "plan again instead of replaying a saved plan")
       .option("--headed", "show the browser window while working")
       .option("--verbose", "print every log line instead of one live line per task")
@@ -57,6 +61,7 @@ export function buildProgram(): Command {
       .addCommand(listCommand())
       .addCommand(historyCommand())
       .addCommand(redoCommand())
+      .addCommand(blogCommand())
       .addCommand(resumeCommand())
       .addCommand(replayCommand())
       .addCommand(testCommand())

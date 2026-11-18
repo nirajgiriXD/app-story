@@ -14,6 +14,7 @@ export const PHASE_EFFORT = {
   narration: "low",
   translation: "low",
   review: "medium",
+  blog: "medium",
 } as const satisfies Record<string, Effort>;
 
 /**

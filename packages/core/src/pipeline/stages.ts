@@ -13,6 +13,7 @@ export const STAGE_TITLES = {
   render: "Render",
   review: "AI review",
   quality: "Quality checks",
+  blog: "Blog post",
   formats: "Delivery",
 } as const;
 

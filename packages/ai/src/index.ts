@@ -6,6 +6,7 @@ export * from "./prompts";
 export * from "./agents/tool-loop";
 export * from "./agents/context";
 export * from "./agents/release-notes";
+export * from "./agents/blog-post";
 export { AnthropicProvider } from "./providers/anthropic/anthropic.provider";
 export { OpenAIProvider } from "./providers/openai/openai.provider";
 export { LocalProvider, localBaseUrl } from "./providers/local/local.provider";

@@ -93,8 +93,9 @@ no AI cost; suggest committing that folder.
 ## 5. Hand over
 
 Tell the user where the files are, in `output/<name>/`: the `.mp4`, its captions (`.srt`),
-its thumbnail (`.png`), a description for YouTube (`.description.txt`) and a short post to
-share it with (`.post.txt`), plus any `vertical`, `square` or `gif` versions the product
+its thumbnail (`.png`), a description for YouTube (`.description.txt`), a short post to
+share it with (`.post.txt`) and a blog post (`.blog.md`, with its screenshots `.blog-1.png`, …;
+`npx app-story blog <name>` writes it again), plus any `vertical`, `square` or `gif` versions the product
 file asked for. If a run failed, `npx app-story resume <name>` finishes it without planning
 again. If they want the videos kept up to date, `npx app-story test <name>` checks every
 saved plan in CI (see the README's "Plans as tests, CI and Playwright").

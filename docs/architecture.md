@@ -113,6 +113,13 @@ at login time and registered as secrets.
    review's framing fixes (`planToSave`), so the next video of it needs no AI at all.
    Then the extras: the same cut in 9:16 or 1:1 (`reshapeProps`) and a GIF (`formats:`),
    and the video in each other language over the same recording (`renderLanguages`).
+   With a new video, the AI also writes a blog post (`pipeline/blog.ts`): screenshots of the
+   raw recording right after the steps of each narration line (`shotMoments`; no pointer, no
+   zoom), sent with the verified steps, the voice-over and the product file in one structured
+   request (`writeBlogPost`), which picks the screenshots to show. AppStory puts the Markdown
+   together itself (front matter, the video embedded, the chosen screenshots at full width).
+   A post that cannot be written is a warning, never a failed video. `blog`
+   (`orchestrator/blog.ts`) writes it again from a kept take.
    Videos are never published automatically.
 
 Each stage a job enters (plan, narration, recording, render, AI review, quality checks,
@@ -135,7 +142,7 @@ uses one per process; a test or a long-running host can make its own and `close(
 
 ## Storage
 
-`output/` receives only what is posted: the finished MP4, its captions (`.srt`), its thumbnail (`.png`) a description to paste (`.description.txt`, with YouTube chapters) and a short post to share it with (`.post.txt`). A plan made by the AI is saved, after its video
+`output/` receives only what is posted: the finished MP4, its captions (`.srt`), its thumbnail (`.png`) a description to paste (`.description.txt`, with YouTube chapters), a short post to share it with (`.post.txt`) and a blog post (`.blog.md`, with its screenshots `.blog-<n>.png`). A plan made by the AI is saved, after its video
 passed, as YAML next to the product file (`apps/<product>.plans/<name>.yaml`, see
 `pipeline/plans.ts`), so it can be committed, reviewed and shared. Everything else is in
 `.app-story/` in the user's project, which ignores itself in git:
@@ -189,7 +196,7 @@ These were chosen deliberately (and agreed before building):
 - Anthropic: Messages API via `@anthropic-ai/sdk`, default `claude-opus-5-5`, adaptive
   thinking with `effort`, streaming agent turns, prompt caching of the agent loop.
 - Effort is set per phase (`PHASE_EFFORT`: `high` for the practice run and feature
-  picking, `medium` for the visual review, `low` for the script); `APP_STORY_AI_EFFORT`
+  picking, `medium` for the visual review and the blog post, `low` for the script); `APP_STORY_AI_EFFORT`
   overrides all of them. The practice
   agent may call several actions in one turn (they run in order and stop at the first
   error); only the last one returns the page snapshot. Old snapshots are never trimmed

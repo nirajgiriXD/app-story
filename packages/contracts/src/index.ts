@@ -5,6 +5,7 @@ export * from "./narration";
 export * from "./job";
 export * from "./quality";
 export * from "./release-notes";
+export * from "./blog";
 export * from "./voices";
 
 import type { ZodError } from "zod";

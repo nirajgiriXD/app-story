@@ -15,6 +15,8 @@ export interface MakeOptions {
   intro?: boolean;
   chapters?: boolean;
   keys?: boolean;
+  /** False with `--no-blog`. */
+  blog?: boolean;
   fresh?: boolean;
   headed?: boolean;
 }
@@ -60,6 +62,7 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
       logLevel,
       ...job,
       fresh: opts.fresh,
+      blog: opts.blog,
       approve,
       headless: opts.headed ? false : undefined,
       onJobCreated: (j) => console.log(dim(`Making "${job.name}" → ${j.paths.root}`)),

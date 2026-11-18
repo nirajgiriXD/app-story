@@ -140,12 +140,17 @@ export interface ExtraFile {
   suffix: string;
 }
 
+/** The delivered video's file name without its extension: `<job-id>-<name>`. Its extra files share it. */
+export function deliveredName(job: Pick<Job, "id" | "name">): string {
+  return `${job.id}-${job.name}`;
+}
+
 /**
  * Move the rendered video to `<output>/<product>/<job-id>-<name>.mp4`, with its captions and
  * the extra files made with it: the only files a job leaves behind.
  */
 export async function deliverVideo(job: Job, extras: readonly ExtraFile[] = []): Promise<string> {
-  const base = join(job.outputDir, job.metadata.product_id, `${job.id}-${job.name}`);
+  const base = join(job.outputDir, job.metadata.product_id, deliveredName(job));
   const dest = `${base}.mp4`;
   await mkdir(dirname(dest), { recursive: true });
   const move = (from: string, to: string) =>

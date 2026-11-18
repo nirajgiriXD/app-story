@@ -119,12 +119,13 @@ npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
 
 | Command | Purpose |
 | --- | --- |
-| `npx app-story <product> [goal]` | make videos (options: `--each`, `--videos`, `--review`, `--intro`, `--captions`, `--chapters`, `--no-keys`, `--fresh`, `--headed`) |
+| `npx app-story <product> [goal]` | make videos, each with a blog post (options: `--each`, `--videos`, `--review`, `--intro`, `--captions`, `--chapters`, `--no-keys`, `--no-blog`, `--fresh`, `--headed`) |
 | `npx app-story new <name>` | create `apps/<name>.md` |
 | `npx app-story check <product>` | check settings, keys, login, the app and local tools |
 | `npx app-story list` | list your products |
 | `npx app-story history [product]` | recent videos, with their ids |
 | `npx app-story redo <product> [video]` | make a video again from its kept recording (option: `--template`) |
+| `npx app-story blog <product> [video]` | write a video's blog post again from its kept recording: no app, one AI request |
 | `npx app-story resume <product> [video]` | finish a failed video, or record one stopped by `--review`, without planning it again (option: `--headed`) |
 | `npx app-story replay <product> [plans...]` | make the videos of saved plans again, with their saved narration: no AI (for CI) |
 | `npx app-story test <product> [plans...]` | check the saved plans still work in the app: fast, no recording, voice or AI; exits with 1 if one broke |
@@ -174,6 +175,7 @@ sqlite3 .app-story/app-story.db "SELECT created_at, product_id, status, video_pa
 | `APP_STORY_KOKORO_DTYPE` | Kokoro weights: `fp32` (clearest, default), `fp16`, `q8`, `q4`, `q4f16` (smaller and faster, a little buzzy) |
 | `APP_STORY_WORD_TIMING` | `off` skips timing each spoken word (captions are then timed by length) |
 | `APP_STORY_AI_REVIEW` | `off` skips the AI's look at the finished video (it re-frames shots that miss their subject) |
+| `APP_STORY_BLOG` | `off` makes videos without a blog post (like `--no-blog`) |
 | `APP_STORY_AI_PROVIDER`, `APP_STORY_AI_MODEL`, `APP_STORY_TTS_PROVIDER` | override the product file's `ai`, `model` and `voice` |
 | `APP_STORY_AI_EFFORT` | `low`, `medium`, `high`, `xhigh` or `max`: how hard the AI thinks in every step (default: `high` for planning and picking features, `medium` for the review, `low` for the script) |
 | `APP_STORY_LOG_LEVEL` | `debug`, `info`, `warn`, `error`, `silent` |

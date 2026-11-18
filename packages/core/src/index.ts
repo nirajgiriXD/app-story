@@ -20,6 +20,8 @@ export { planFromTrace, readZip, selectorToTarget } from "./import/playwright-tr
 export * from "./pipeline/takes";
 export * from "./orchestrator/validate";
 export * from "./orchestrator/release-notes";
+export * from "./orchestrator/blog";
+export { blogMarkdown, blogEnabled, shotMoments, type BlogPage } from "./pipeline/blog";
 export * from "./store/store";
 export * from "./runtime";
 export * from "./qa/visual-review";

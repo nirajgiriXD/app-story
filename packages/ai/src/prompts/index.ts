@@ -12,6 +12,7 @@ export const PROMPT_VERSIONS = {
   narration: "v4",
 
   "release-notes": "v2",
+  "blog-post": "v1",
   review: "v1",
   translation: "v1",
 } as const;

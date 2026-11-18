@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Workflow } from "@app-story/contracts";
-import { generateDemo, listTakes, planFile, redoVideo, replayPlans, resumeDemo, savePlan, storeFor, testPlans } from "@app-story/core";
+import { generateDemo, listTakes, planFile, redoVideo, replayPlans, resumeDemo, savePlan, storeFor, testPlans, writeBlog } from "@app-story/core";
 import { loadProduct, parseWorkflow } from "@app-story/products";
 import { AppStoryError, probeMedia } from "@app-story/shared";
 import { startExampleApp } from "../support/example-app";
@@ -20,6 +20,8 @@ let plan: Workflow;
 beforeAll(async () => {
   // The AI review of the finished video would make a real, paid call: it has its own unit tests.
   process.env.APP_STORY_AI_REVIEW = "off";
+  // So would the blog post; one test below turns it on with a scripted AI.
+  process.env.APP_STORY_BLOG = "off";
   app = await startExampleApp(PORT);
   root = await mkdtemp(join(tmpdir(), "app-story-it-"));
   appsDir = join(root, "apps");
@@ -122,6 +124,53 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     ]);
     expect(await readFile(join(outputDir, "example", `${base}.description.txt`), "utf8")).toContain("Try it at");
     expect(existsSync(metadata.output_dir)).toBe(false);
+  });
+
+  it("writes a blog post with the video, with screenshots of the app; `blog` writes it again from the take", async () => {
+    const { product, out } = await productIn("blog");
+    const blogPost = (title: string) => ({
+      title,
+      description: "Start a project in a few clicks.",
+      tags: ["projects"],
+      intro: "Every piece of work starts as a project.",
+      sections: [
+        { heading: "Open the form", body: "Click **+ New project**.", shot: 1, alt: "The new project form" },
+        { heading: "Save it", body: "Click **Create project**.", shot: 99, alt: "Not offered" },
+      ],
+      closing: "Now you can track your work.",
+    });
+    const writer = new ScriptedProvider([], { blog_post: blogPost("Create a project in seconds") });
+    process.env.APP_STORY_BLOG = "on";
+    try {
+      const metadata = await generateDemo({
+        product,
+        outputDir: out,
+        objective: OBJECTIVE,
+        plan,
+        logLevel: "warn",
+        providers: { createAI: (_config, deps) => Object.assign(writer, { usage: deps.usage }), createTTS: () => new ToneTTS() },
+      });
+      expect(metadata.errors).toEqual([]);
+      const base = metadata.video!.path.replace(/\.mp4$/, "");
+      const name = basename(base);
+      expect(metadata.video?.extras).toEqual(expect.arrayContaining([`${base}.blog.md`, `${base}.blog-1.png`]));
+      const markdown = await readFile(`${base}.blog.md`, "utf8");
+      expect(markdown).toMatch(/^---\ntitle: "Create a project in seconds"\n/);
+      expect(markdown).toContain(`<video src="${name}.mp4" poster="${name}.png"`);
+      expect(markdown).toContain(`![The new project form](${name}.blog-1.png)`);
+      expect(markdown).not.toContain("Not offered");
+      // The screenshot is the app at full width, from the raw recording.
+      expect((await probeMedia(`${base}.blog-1.png`)).width).toBe(1920);
+      // The writer saw the verified steps and one screenshot per narration line.
+      expect(writer.structuredPrompts.at(-1)).toContain("# Verified steps, in order");
+
+      const again = new ScriptedProvider([], { blog_post: blogPost("Your first project") });
+      const result = await writeBlog({ product, outputDir: out, logLevel: "warn", providers: { createAI: () => again } });
+      expect([result.jobId, result.file, result.video]).toEqual([metadata.job_id, `${base}.blog.md`, true]);
+      expect(await readFile(result.file, "utf8")).toContain('title: "Your first project"');
+    } finally {
+      process.env.APP_STORY_BLOG = "off";
+    }
   });
 
   it("makes a video again from its kept recording, in another look, without the app", async () => {

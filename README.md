@@ -337,8 +337,19 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice; Chatte
 thumbnail (`.png`, the video's first frame) and a description to paste
 (`.description.txt`: the summary, YouTube chapters when the video has enough of them, and
 the link to try it), a short post to share it with as it is (`.post.txt`: what it shows and
-the link, short enough for X), plus any other languages and formats the product file asks for
-(`….de.mp4`, `….vertical.mp4`, `….gif`). The MP4 carries its chapters too, so players list them.
+the link, short enough for X), a blog post (`.blog.md`, see below), plus any other languages
+and formats the product file asks for (`….de.mp4`, `….vertical.mp4`, `….gif`). The MP4 carries
+its chapters too, so players list them.
+
+**Blog post.** Each new video comes with a post to publish next to it: `….blog.md`, Markdown
+with front matter (title, description, date, tags, image, video) for a static site, a CMS
+import or a paste, with the video embedded and screenshots of the app (`….blog-1.png`, …)
+taken from the recording, so they show no pointer, zoom or captions. The AI writes it from
+the product file, the verified steps and the voice-over, and looks at the screenshots to
+place them, so it only describes what the video really did. It costs one more AI request;
+`--no-blog` or `APP_STORY_BLOG=off` leaves it out. `npx app-story blog acme` writes the
+newest video's post again (after editing the product file, or for a `redo` or `replay`,
+which make none) from its kept recording, without the app.
 
 **How a video starts.** It opens on the app itself: its first screen, held while the voice
 says what the video shows, then the clicks. With `--intro`, a full-screen intro comes first:
@@ -367,7 +378,9 @@ output/
     ├── 20261116-141010-d4e5f6-bulk-export.srt
     ├── 20261116-141010-d4e5f6-bulk-export.png
     ├── 20261116-141010-d4e5f6-bulk-export.description.txt
-    └── 20261116-141010-d4e5f6-bulk-export.post.txt
+    ├── 20261116-141010-d4e5f6-bulk-export.post.txt
+    ├── 20261116-141010-d4e5f6-bulk-export.blog.md
+    └── 20261116-141010-d4e5f6-bulk-export.blog-1.png
 ```
 
 The saved plans are in `apps/<product>.plans/` (see above). Everything else is in

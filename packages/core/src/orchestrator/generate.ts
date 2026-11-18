@@ -7,7 +7,7 @@ import type { LoadedProduct } from "@app-story/products";
 import { validateWorkflow } from "@app-story/workflow";
 import { AppStoryError, fileExists, isAppStoryError, probeMedia, slugify } from "@app-story/shared";
 import { chaptersOf, DEFAULT_CTA, prepareRenderer, toOtio, youtubeChapters, type RenderProps } from "@app-story/video";
-import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type ExtraFile, type Job } from "../job-manager/job";
+import { createJob, deliveredName, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type ExtraFile, type Job } from "../job-manager/job";
 import { withProviderFallback, type ProviderOverrides } from "../pipeline/providers";
 import type { Runtime } from "../runtime";
 import { rehearseWorkflow } from "../pipeline/rehearse";
@@ -16,6 +16,7 @@ import { recordWorkflow, type RecordingOutcome } from "../pipeline/record";
 import { composeVideo, renderExtras, renderLanguages, type ComposeResult } from "../pipeline/compose";
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
 import { keepTake, type KeptTake, type Take } from "../pipeline/takes";
+import { blogEnabled, makeBlogPost } from "../pipeline/blog";
 import { statusForError } from "../pipeline/status";
 import { enterStage, type Stage } from "../pipeline/stages";
 import { runQualityChecks } from "../qa/quality";
@@ -50,6 +51,8 @@ export interface GenerateRequest {
   resumedFrom?: string;
   /** Default: the process's runtime. */
   runtime?: Runtime;
+  /** False: no blog post with this video (see also `APP_STORY_BLOG`). */
+  blog?: boolean;
   /**
    * Asked once the AI has planned a new video, before anything is narrated or recorded
    * (`--review`). False stops the job with its plan kept, so `resume` records it later.
@@ -232,8 +235,9 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     // 4–5. Captions, render and quality checks. A replayed plan whose narration was already
     // saved was reviewed when it was made: it needs no AI at all.
     phase = "render";
+    // The blog post follows the same rule: written by the AI, so not for a replay without it.
     const review = request.replay && source !== "ai" ? undefined : { overrides };
-    const rendered = await renderTake(job, product, kept, { onPhase: (p) => (phase = p), review });
+    const rendered = await renderTake(job, product, kept, { onPhase: (p) => (phase = p), review, blog: request.blog === false ? undefined : review });
     if (rendered.status !== "failed" && keepPlan) {
       const translations = Object.fromEntries(voices.map((v) => [v.language, v.translation]));
       const plan = planToSave(rendered.workflow, { kind: request.kind, language: config.demo.default_language, script, translations });
@@ -270,7 +274,7 @@ export async function renderTake(
   job: Job,
   product: LoadedProduct,
   take: Take,
-  options: { onPhase?: (phase: string) => void; review?: { overrides: ProviderOverrides } } = {},
+  options: { onPhase?: (phase: string) => void; review?: { overrides: ProviderOverrides }; blog?: { overrides: ProviderOverrides } } = {},
 ): Promise<{ status: JobStatus; workflow: Workflow }> {
   const { workflow, clips, recorded, silent } = take;
   const enter = (stage: Stage) => options.onPhase?.(enterStage(job.log, stage));
@@ -317,13 +321,18 @@ export async function renderTake(
       recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
     return { status: "failed", workflow: rendered };
   }
-  // Only the video, its captions, thumbnail and description, the extra formats and the
-  // other languages go to output/.
+  let blog: ExtraFile[] = [];
+  if (options.blog && blogEnabled()) {
+    enter("blog");
+    blog = await blogKit(job, product, { ...take, workflow: rendered }, options.blog.overrides);
+  }
+  // Only the video, its captions, thumbnail and description, the blog post, the extra formats
+  // and the other languages go to output/.
   enter("formats");
   const formats = await renderExtras(job, product, composed);
   const languages = await renderLanguages(job, product, rendered, recorded, take.languages ?? [], { kind });
   const kit = await publishKit(job, product, rendered, composed);
-  await deliverVideo(job, [...kit, ...formats, ...languages]);
+  await deliverVideo(job, [...kit, ...blog, ...formats, ...languages]);
   return { status: job.metadata.warnings.length > 0 ? "success_with_warnings" : "success", workflow: rendered };
 }
 
@@ -341,6 +350,28 @@ async function publishKit(job: Job, product: LoadedProduct, workflow: Workflow, 
   await writeFile(post, videoPost(product, workflow), "utf8");
   kit.push({ file: post, suffix: ".post.txt" });
   return kit;
+}
+
+/**
+ * A blog post to publish with the video (`<video>.blog.md` and its screenshots). It is an
+ * extra: if it cannot be written, the video is delivered without it, with a warning.
+ */
+async function blogKit(job: Job, product: LoadedProduct, take: Take, overrides: ProviderOverrides): Promise<ExtraFile[]> {
+  try {
+    const files = await makeBlogPost({
+      product,
+      take,
+      workDir: join(job.paths.videoDir, "blog"),
+      page: { base: deliveredName(job), video: true, poster: await fileExists(job.paths.thumbnail) },
+      generate: (write) => withProviderFallback(job, "blog", product.config, overrides, write),
+    });
+    job.log.info({ screenshots: files.length - 1 }, "blog post written");
+    return files;
+  } catch (error) {
+    job.log.warn({ error: (error as Error).message }, "could not write the blog post; the video is delivered without it");
+    job.metadata.warnings.push(`Blog post skipped: ${(error as Error).message.split("\n")[0]} (APP_STORY_BLOG=off turns it off)`);
+    return [];
+  }
 }
 
 /** X counts a post's length up to here. */

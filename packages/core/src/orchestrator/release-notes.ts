@@ -1,7 +1,8 @@
 import { PROMPT_VERSIONS, createAIProvider, pickFeatures, UsageTracker } from "@app-story/ai";
 import { FeaturePlanSchema, type AiProviderConfig, type FeaturePlan } from "@app-story/contracts";
 import type { LoadedProduct } from "@app-story/products";
-import { AppStoryError, createLogger, isAppStoryError } from "@app-story/shared";
+import { AppStoryError, createLogger, isAppStoryError, type Logger } from "@app-story/shared";
+import { endStages, enterStage } from "../pipeline/stages";
 import type { ProviderOverrides } from "../pipeline/providers";
 import { cacheKey } from "../store/store";
 import { storeFor, type Runtime } from "../runtime";
@@ -38,8 +39,22 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
       hint: `Describe the app and paste your release notes into it, or say what to show: npx app-story ${product.id} "..."`,
     });
   }
-  const usage = new UsageTracker();
   const log = createLogger({ level: request.logLevel });
+  enterStage(log, "features");
+  try {
+    const result = await readReleaseNotes(request, log);
+    endStages(log, { ok: true });
+    return result;
+  } catch (error) {
+    // Nothing new is an answer, not a failure: the CLI then makes the listed videos.
+    endStages(log, { ok: isNothingNew(error), error: (error as Error).message.split("\n")[0] });
+    throw error;
+  }
+}
+
+async function readReleaseNotes(request: PickFeaturesRequest, log: Logger): Promise<PickFeaturesResult> {
+  const { product } = request;
+  const usage = new UsageTracker();
   const { config } = product;
   const context = { name: config.product.name, description: config.product.description, baseUrl: config.product.base_url };
 

@@ -2,6 +2,7 @@ import { createInterface } from "node:readline/promises";
 import type { PlanReview } from "@app-story/core";
 import { AppStoryError, serialQueue } from "@app-story/shared";
 import { bold, dim, green } from "./output";
+import { pauseProgress } from "./progress";
 
 /**
  * `--review`: show each newly planned video as numbered steps and ask before it is narrated
@@ -14,7 +15,8 @@ export function terminalReviewer(): (review: PlanReview) => Promise<boolean> {
     });
   }
   const queue = serialQueue();
-  return (review) => queue(() => ask(review));
+  // The live progress lines step aside while the question is asked.
+  return (review) => queue(() => pauseProgress(() => ask(review)));
 }
 
 async function ask({ workflow, name }: PlanReview): Promise<boolean> {

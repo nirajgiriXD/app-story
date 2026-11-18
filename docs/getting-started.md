@@ -130,7 +130,10 @@ npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
 | `npx app-story test <product> [plans...]` | check the saved plans still work in the app: fast, no recording, voice or AI; exits with 1 if one broke |
 | `npx app-story import <product> <trace.zip>` | turn a Playwright test's trace into a saved plan (options: `--name`, `--title`, `--force`) |
 
-`--headed` shows the browser while it works. `--log-level` sets how much is printed.
+`--headed` shows the browser while it works. In a terminal, each running step of a video is
+one line that updates in place (`⠹ 0:12 Recording · create-project: ✓ Click "Save"`), ticked
+with how long it took once it is done; warnings stay above. `--verbose` prints every log line
+instead (as CI and other non-terminal output always do), and `--log-level` sets how much is printed.
 
 ## What a video job keeps
 

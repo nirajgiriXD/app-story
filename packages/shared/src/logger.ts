@@ -12,6 +12,24 @@ export interface LoggerOptions {
   collect?: string[];
 }
 
+/** A log line as pino writes it: level (30 info, 40 warn, 50 error), message, time and its fields. */
+export interface LogRecord {
+  level: number;
+  msg: string;
+  time: number;
+  [field: string]: unknown;
+}
+
+let display: ((record: LogRecord) => void) | undefined;
+
+/**
+ * Send what loggers made from now on would print to the terminal to `show` instead (the CLI's
+ * live progress lines), or back to the terminal with no argument. The level still applies.
+ */
+export function setLogDisplay(show?: (record: LogRecord) => void): void {
+  display = show;
+}
+
 const REDACT_PATHS = [
   "apiKey",
   "*.apiKey",
@@ -29,7 +47,10 @@ export function createLogger(options: LoggerOptions = {}): Logger {
   const level = options.level ?? process.env.APP_STORY_LOG_LEVEL ?? "info";
   const streams: { level: string; stream: DestinationStream }[] = [];
 
-  if (options.pretty ?? process.stdout.isTTY) {
+  if (display) {
+    const show = display;
+    streams.push({ level, stream: { write: (line: string) => show(JSON.parse(line) as LogRecord) } as DestinationStream });
+  } else if (options.pretty ?? process.stdout.isTTY) {
     streams.push({
       level,
       stream: pino.transport({

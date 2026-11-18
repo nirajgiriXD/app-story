@@ -5,6 +5,7 @@ import { UsageTracker } from "@app-story/ai";
 import type { LoginState } from "@app-story/browser";
 import { createJobId, createLogger, dataDirFor, ensureDir, fileExists, redactSecrets, slugify, toAppStoryError, type Logger } from "@app-story/shared";
 import type { RecordKind, Store } from "../store/store";
+import { endStages } from "../pipeline/stages";
 import { defaultRuntime, storeFor, type Runtime } from "../runtime";
 
 /**
@@ -87,7 +88,8 @@ export async function createJob(input: CreateJobInput): Promise<Job> {
   const paths = jobPaths(root);
   await ensureDir(paths.logsDir);
   const logLines: string[] = [];
-  const log = createLogger({ level: input.logLevel, collect: logLines }).child({ job: id });
+  // Every line names the job and its video, so the terminal can show several jobs at once.
+  const log = createLogger({ level: input.logLevel, collect: logLines }).child({ job: id, video: name });
   const metadata: JobMetadata = {
     job_id: id,
     product_id: input.productId,
@@ -179,6 +181,8 @@ export async function finishJob(job: Job, status: JobStatus): Promise<JobMetadat
       job.log.warn({ error: error.message }, "could not delete the job's scratch folder"),
     );
   }
+  const ok = SUCCESS.has(status) || status === "awaiting_approval";
+  endStages(job.log, { ok, status, error: ok ? undefined : job.metadata.errors.at(-1)?.message });
   saveRecord(job, "log", job.logLines.join(""));
   await saveMetadata(job);
   return job.metadata;

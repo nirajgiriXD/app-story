@@ -113,6 +113,11 @@ at login time and registered as secrets.
    and the video in each other language over the same recording (`renderLanguages`).
    Videos are never published automatically.
 
+Each stage a job enters (plan, narration, recording, render, AI review, quality checks,
+delivery: `pipeline/stages.ts`) is a log line with a `stage` field. In a terminal the CLI
+shows them as live lines, one per running video, updated in place (`cli/src/progress.ts`);
+`--verbose` and non-terminal output print every log line instead.
+
 Saved plans also serve without an AI: `replay` makes their videos again exactly
 (`replayPlans`; a plan that fails is not planned again), `test` runs them at full speed
 without recording and reports the step that broke (`testPlans`), and `import` turns a

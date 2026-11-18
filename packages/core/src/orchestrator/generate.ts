@@ -17,6 +17,7 @@ import { composeVideo, renderExtras, renderLanguages, type ComposeResult } from 
 import { forgetPlan, loadSavedPlan, savePlan } from "../pipeline/plans";
 import { keepTake, type KeptTake, type Take } from "../pipeline/takes";
 import { statusForError } from "../pipeline/status";
+import { enterStage, type Stage } from "../pipeline/stages";
 import { runQualityChecks } from "../qa/quality";
 import { grabFrames, linesToReview, REVIEW_REQUEST, reviewPrompt, stepsToShowWide, visualReviewEnabled } from "../qa/visual-review";
 
@@ -137,7 +138,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
   // Narration first (script + speech), so the recording can be paced to it.
   const narrateAndRecord = async (workflow: Workflow) => {
-    phase = "narration";
+    phase = enterStage(job.log, "narration");
     const narration = await prepareNarration(
       job,
       product,
@@ -157,7 +158,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     const holdMs = new Map<string, number>();
     for (const clip of voices.flatMap((v) => v.clips)) holdMs.set(clip.id, Math.max(holdMs.get(clip.id) ?? 0, clip.duration_ms));
     await saveMetadata(job);
-    phase = "recording";
+    phase = enterStage(job.log, "recording");
     const recorded = await job.runtime.heavy(async () => {
       // Never record while the renderer is still bundling: the screen capture would drop frames.
       await prepareRenderer().catch(() => undefined);
@@ -177,6 +178,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
 
   try {
     // 1. Plan: given, saved from an earlier video, or worked out by the AI in the real app.
+    enterStage(job.log, "plan");
     let workflow = request.plan;
     let fromSavedPlan = false;
     if (!workflow && reuse && !request.fresh) {
@@ -207,7 +209,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
       await forgetPlan(product, name);
       fromSavedPlan = false;
       job.metadata.mode = "guided";
-      phase = "plan";
+      phase = enterStage(job.log, "plan");
       workflow = await planWithAI();
       await check(workflow);
       await approve(workflow);
@@ -271,6 +273,7 @@ export async function renderTake(
   options: { onPhase?: (phase: string) => void; review?: { overrides: ProviderOverrides } } = {},
 ): Promise<{ status: JobStatus; workflow: Workflow }> {
   const { workflow, clips, recorded, silent } = take;
+  const enter = (stage: Stage) => options.onPhase?.(enterStage(job.log, stage));
   const config = product.config;
   const kind = take.kind ?? undefined;
   // Kept before rendering, so a video whose render failed can be made again with `redo`.
@@ -279,11 +282,11 @@ export async function renderTake(
     return undefined;
   });
 
-  options.onPhase?.("render");
+  enter("render");
   let composed = await job.runtime.heavy(() => composeVideo(job, product, workflow, clips, recorded, { kind }));
   let rendered = workflow;
   if (options.review && visualReviewEnabled()) {
-    options.onPhase?.("review");
+    enter("review");
     const fixed = await reviewAndFix(job, product, take, composed, options.review.overrides);
     if (fixed) [composed, rendered] = [fixed.composed, fixed.workflow];
   }
@@ -291,7 +294,7 @@ export async function renderTake(
   const final = await probeMedia(job.paths.finalVideo);
   job.metadata.video = { path: job.paths.finalVideo, thumbnail: null, duration_s: round(final.durationSec) };
 
-  options.onPhase?.("quality");
+  enter("quality");
   const quality = await runQualityChecks({
     jobId: job.id,
     paths: job.paths,
@@ -316,7 +319,7 @@ export async function renderTake(
   }
   // Only the video, its captions, thumbnail and description, the extra formats and the
   // other languages go to output/.
-  options.onPhase?.("formats");
+  enter("formats");
   const formats = await renderExtras(job, product, composed);
   const languages = await renderLanguages(job, product, rendered, recorded, take.languages ?? [], { kind });
   const kit = await publishKit(job, product, rendered, composed);

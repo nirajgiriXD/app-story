@@ -8,6 +8,7 @@ import { replayCommand } from "./commands/replay";
 import { testCommand } from "./commands/test";
 import { importCommand } from "./commands/import";
 import { CAPTIONS_HELP, CHAPTERS_HELP, INTRO_HELP, KEYS_HELP } from "./context";
+import { startProgress, stopProgress } from "./progress";
 
 const EXAMPLES = `
 Examples:
@@ -16,6 +17,7 @@ Examples:
   npx app-story acme "show how to export"     a video of anything else, in plain words
   npx app-story acme --intro --captions       with a full-screen intro, and captions drawn on the video
   npx app-story acme --chapters --no-keys     with chapter labels, and without keycaps
+  npx app-story acme --verbose                every log line, instead of one live line per task
   npx app-story acme --videos                 one video per goal listed under "## Videos"
   npx app-story redo acme --template tutorial the newest video again, in another look
   npx app-story acme --videos --review        see each new plan's steps and approve it before recording
@@ -27,31 +29,37 @@ Examples:
   npx app-story check acme                    check settings, keys, login and tools`;
 
 export function buildProgram(): Command {
-  return new Command("app-story")
-    .description("Make product demo videos from apps/<product>.md")
-    .version("0.1.0")
-    .argument("[product]", "product name: the file apps/<product>.md")
-    .argument("[goal...]", "what to show, in plain words (default: what's new in the release notes)")
-    .option("--each", "one video per new feature instead of one for all")
-    .option("--videos", 'one video per goal listed under "## Videos" in the product file')
-    .option("--review", "show each newly planned video's steps and ask before recording it")
-    .option("--captions", CAPTIONS_HELP)
-    .option("--intro", INTRO_HELP)
-    .option("--chapters", CHAPTERS_HELP)
-    .option("--no-keys", KEYS_HELP)
-    .option("--fresh", "plan again instead of replaying a saved plan")
-    .option("--headed", "show the browser window while working")
-    .option("--log-level <level>", "debug, info, warn, error, silent")
-    .showHelpAfterError()
-    .addHelpText("after", EXAMPLES)
-    .action((product: string | undefined, goal: string[], opts: MakeOptions, cmd: Command) => makeVideos(product, goal, opts, cmd))
-    .addCommand(newCommand())
-    .addCommand(checkCommand())
-    .addCommand(listCommand())
-    .addCommand(historyCommand())
-    .addCommand(redoCommand())
-    .addCommand(resumeCommand())
-    .addCommand(replayCommand())
-    .addCommand(testCommand())
-    .addCommand(importCommand());
+  return (
+    new Command("app-story")
+      .description("Make product demo videos from apps/<product>.md")
+      .version("0.1.0")
+      .argument("[product]", "product name: the file apps/<product>.md")
+      .argument("[goal...]", "what to show, in plain words (default: what's new in the release notes)")
+      .option("--each", "one video per new feature instead of one for all")
+      .option("--videos", 'one video per goal listed under "## Videos" in the product file')
+      .option("--review", "show each newly planned video's steps and ask before recording it")
+      .option("--captions", CAPTIONS_HELP)
+      .option("--intro", INTRO_HELP)
+      .option("--chapters", CHAPTERS_HELP)
+      .option("--no-keys", KEYS_HELP)
+      .option("--fresh", "plan again instead of replaying a saved plan")
+      .option("--headed", "show the browser window while working")
+      .option("--verbose", "print every log line instead of one live line per task")
+      .option("--log-level <level>", "debug, info, warn, error, silent")
+      .showHelpAfterError()
+      // One live line per task while a command runs (see progress.ts); `--verbose` prints every log line.
+      .hook("preAction", (_program, action) => startProgress({ verbose: Boolean(action.optsWithGlobals().verbose) }))
+      .hook("postAction", () => stopProgress())
+      .addHelpText("after", EXAMPLES)
+      .action((product: string | undefined, goal: string[], opts: MakeOptions, cmd: Command) => makeVideos(product, goal, opts, cmd))
+      .addCommand(newCommand())
+      .addCommand(checkCommand())
+      .addCommand(listCommand())
+      .addCommand(historyCommand())
+      .addCommand(redoCommand())
+      .addCommand(resumeCommand())
+      .addCommand(replayCommand())
+      .addCommand(testCommand())
+      .addCommand(importCommand())
+  );
 }

@@ -5,9 +5,9 @@ import type { JobMetadata, JobStatus, NarrationScript, NarrationTranslation, Vid
 import { WORKFLOW_VERSION } from "@app-story/contracts";
 import type { LoadedProduct } from "@app-story/products";
 import { validateWorkflow } from "@app-story/workflow";
-import { AppStoryError, isAppStoryError, probeMedia, slugify } from "@app-story/shared";
-import { prepareRenderer, toOtio } from "@app-story/video";
-import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type Job } from "../job-manager/job";
+import { AppStoryError, fileExists, isAppStoryError, probeMedia, slugify } from "@app-story/shared";
+import { chaptersOf, DEFAULT_CTA, prepareRenderer, toOtio, youtubeChapters, type RenderProps } from "@app-story/video";
+import { createJob, deliverVideo, finishJob, recordError, saveMetadata, saveRecord, type ExtraFile, type Job } from "../job-manager/job";
 import { withProviderFallback, type ProviderOverrides } from "../pipeline/providers";
 import type { Runtime } from "../runtime";
 import { rehearseWorkflow } from "../pipeline/rehearse";
@@ -280,12 +280,39 @@ export async function renderTake(
       recordError(job, new AppStoryError("RENDER_FAILED", `Quality check failed: ${e.name}${e.detail ? ` (${e.detail})` : ""}`), "quality");
     return { status: "failed", workflow: rendered };
   }
-  // Only the video, its captions, the extra formats and the other languages go to output/.
+  // Only the video, its captions, thumbnail and description, the extra formats and the
+  // other languages go to output/.
   options.onPhase?.("formats");
   const formats = await renderExtras(job, product, composed);
   const languages = await renderLanguages(job, product, rendered, recorded, take.languages ?? [], { kind });
-  await deliverVideo(job, [...formats, ...languages]);
+  const kit = await publishKit(job, product, rendered, composed);
+  await deliverVideo(job, [...kit, ...formats, ...languages]);
   return { status: job.metadata.warnings.length > 0 ? "success_with_warnings" : "success", workflow: rendered };
+}
+
+/**
+ * What posting the video needs besides the video: its thumbnail (the title card) and a
+ * description to paste, with the summary, YouTube chapters and the call to action.
+ */
+async function publishKit(job: Job, product: LoadedProduct, workflow: Workflow, composed: ComposeResult): Promise<ExtraFile[]> {
+  const kit: ExtraFile[] = [];
+  if (await fileExists(job.paths.thumbnail)) kit.push({ file: job.paths.thumbnail, suffix: ".png" });
+  const file = join(job.paths.videoDir, "description.txt");
+  await writeFile(file, videoDescription(product, workflow, composed.props), "utf8");
+  kit.push({ file, suffix: ".description.txt" });
+  return kit;
+}
+
+/** The text to paste under the video: title, summary, chapters (when YouTube would show them) and where to try it. */
+export function videoDescription(product: LoadedProduct, workflow: Pick<Workflow, "title" | "summary">, props: RenderProps): string {
+  const config = product.config;
+  const site = config.product.website ?? config.product.base_url;
+  const chapters = youtubeChapters(chaptersOf(props), props.durationMs);
+  const cta = (props.brand.cta ?? DEFAULT_CTA).replace("{host}", props.brand.host);
+  return [workflow.title, workflow.summary ?? "", chapters.length ? ["Chapters", ...chapters].join("\n") : "", `${cta}: ${site}`]
+    .filter(Boolean)
+    .join("\n\n")
+    .concat("\n");
 }
 
 function failIfIncomplete(recorded: RecordingOutcome): void {

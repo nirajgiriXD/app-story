@@ -10,6 +10,7 @@ export { HANDOVER_SPLIT, handoverIn, handoverOut } from "./compositions/handover
 export * from "./edit";
 export { keyLabels } from "./keys";
 export { DEFAULT_CTA, shownUrl } from "./labels";
+export { chaptersOf, ffmetadata, youtubeChapters, type Chapter } from "./chapters";
 export { BRAND_FONT_FAMILY, brandFontCss, interCss } from "./fonts";
 export { renderGif, reshapeProps, type FrameFormat } from "./formats";
 export { chunkKey, chunksOf, chunkView, pruneRenderCache, type Chunk } from "./render-cache";

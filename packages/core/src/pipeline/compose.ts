@@ -125,9 +125,9 @@ export async function composeVideo(
     musicSrc: await copyAsset(job, product, config.branding.background_music, "music"),
   });
 
-  // Thumbnail: the moment the outcome is verified.
-  const verified = [...edited.steps].reverse().find((s) => s.status === "passed" && s.verified && s.action === "assert");
-  const thumbAt = plan.recordingStartMs + (verified?.started_ms ?? edited.durationMs / 2) + 400;
+  // Thumbnail: the title card once its words have settled (the title, the badge and the
+  // app's first screen): a designed picture, the kind video sites show best.
+  const thumbAt = Math.max(0, Math.min(1500, plan.introEndMs - template.transitionMs - 200));
 
   await renderVideo({
     publicDir: job.paths.root,

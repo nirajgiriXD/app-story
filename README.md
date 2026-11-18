@@ -295,17 +295,19 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice; Chatte
 
 ## Output
 
-`output/` holds only the finished videos, each with its captions (`.srt`, when captions are on)
-for players and video sites, plus any other languages and formats the product file asks for
-(`….de.mp4`, `….vertical.mp4`, `….gif`):
+`output/` holds only what you post: each finished video with its captions (`.srt`, when
+captions are on), its thumbnail (`.png`, the title card) and a description to paste
+(`.description.txt`: the summary, YouTube chapters when the video has enough of them, and
+the link to try it), plus any other languages and formats the product file asks for
+(`….de.mp4`, `….vertical.mp4`, `….gif`). The MP4 carries its chapters too, so players list them.
 
 ```text
 output/
 └── acme/
-    ├── 20261116-134205-a1b2c3-whats-new-2-4.mp4
-    ├── 20261116-134205-a1b2c3-whats-new-2-4.srt
     ├── 20261116-141010-d4e5f6-bulk-export.mp4
-    └── 20261116-141010-d4e5f6-bulk-export.srt
+    ├── 20261116-141010-d4e5f6-bulk-export.srt
+    ├── 20261116-141010-d4e5f6-bulk-export.png
+    └── 20261116-141010-d4e5f6-bulk-export.description.txt
 ```
 
 The saved plans are in `products/<product>.plans/` (see above). Everything else is in

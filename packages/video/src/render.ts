@@ -9,6 +9,7 @@ import { chromium, type Browser, type Route } from "playwright";
 import { AppStoryError, ensureDir, extractFrame, measureLoudness, runFfmpeg, type Logger } from "@app-story/shared";
 import { buildAudioMix, MASTER_LOUDNESS, masterChain } from "./audio";
 import { brandFontCss, INTER_PATH, interCss, interDir } from "./fonts";
+import { chaptersOf, ffmetadata } from "./chapters";
 import { sourceFrame } from "./edit";
 import { RecordingFrames } from "./frames";
 import type { RenderProps } from "./props";
@@ -175,6 +176,9 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
       log.warn({ error: error.message }, "could not measure the mix; its loudness is left as it is");
       return undefined;
     });
+    // Chapters (the title card, then each section), which players list and jump to.
+    const chapters = join(workDir, "chapters.txt");
+    await writeFile(chapters, ffmetadata(chaptersOf(props), Math.round((total / props.fps) * 1000)), "utf8");
     await runFfmpeg([
       "-f",
       "concat",
@@ -184,10 +188,16 @@ export async function renderVideo(options: RenderVideoOptions): Promise<void> {
       list,
       "-i",
       mix,
+      "-f",
+      "ffmetadata",
+      "-i",
+      chapters,
       "-map",
       "0:v",
       "-map",
       "1:a",
+      "-map_chapters",
+      "2",
       "-af",
       masterChain(measured),
       "-c:v",

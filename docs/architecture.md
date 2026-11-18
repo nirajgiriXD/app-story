@@ -94,7 +94,7 @@ at login time and registered as secrets.
    stretches without re-encoding and mixes the sound: each voice clip at its place, soft
    sound effects (clicks, typing, whooshes, a chime on the outcome, made from formulas),
    and the music looped under it, dipping under the voice; the mix is mastered to -14 LUFS
-   with a peak limiter. The thumbnail is a frame of the finished MP4. For new videos, the
+   with a peak limiter. The MP4 carries chapters (the title card, then each section; `chapters.ts`), and the thumbnail is its title card once the words have settled. For new videos, the
    AI then looks at one frame per narration line (`qa/visual-review.ts`); steps whose shot
    misses its subject are shown wide and the video is rendered once more. The edit is
    also saved as an OpenTimelineIO timeline (`timeline.otio`) next to the take, for anyone
@@ -125,7 +125,7 @@ uses one per process; a test or a long-running host can make its own and `close(
 
 ## Storage
 
-`output/` receives only the finished MP4 and its captions (`.srt`). A plan made by the AI is saved, after its video
+`output/` receives only what is posted: the finished MP4, its captions (`.srt`), its thumbnail (`.png`) and a description to paste (`.description.txt`, with YouTube chapters). A plan made by the AI is saved, after its video
 passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`, see
 `pipeline/plans.ts`), so it can be committed, reviewed and shared. Everything else is in
 `.app-story/` in the user's project, which ignores itself in git:

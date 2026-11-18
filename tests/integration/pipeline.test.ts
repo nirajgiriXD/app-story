@@ -110,12 +110,11 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(store.getRecordText(metadata.job_id, "log")).toBeTruthy();
     expect(tts.calls.length).toBe(9); // intro + 7 segments + outro
 
-    // output/ holds only the video and its captions, and the scratch folder is gone.
+    // output/ holds only the video, its captions, thumbnail and description, and the scratch folder is gone.
     expect(metadata.video!.path).toBe(join(outputDir, "example", `${metadata.job_id}-${"demonstrate-how-to-create-a-new-project"}.mp4`));
-    expect((await readdir(join(outputDir, "example"))).sort()).toEqual([
-      basename(metadata.video!.path),
-      basename(metadata.video!.path).replace(/\.mp4$/, ".srt"),
-    ]);
+    const base = basename(metadata.video!.path).replace(/\.mp4$/, "");
+    expect((await readdir(join(outputDir, "example"))).sort()).toEqual([`${base}.description.txt`, `${base}.mp4`, `${base}.png`, `${base}.srt`]);
+    expect(await readFile(join(outputDir, "example", `${base}.description.txt`), "utf8")).toContain("Try it at");
     expect(existsSync(metadata.output_dir)).toBe(false);
   });
 
@@ -241,7 +240,9 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
     expect(metadata.errors).toEqual([]);
     expect(["success", "success_with_warnings"]).toContain(metadata.status);
     const base = metadata.video!.path.replace(/\.mp4$/, "");
-    expect(metadata.video?.extras?.sort()).toEqual([`${base}.de.mp4`, `${base}.de.srt`, `${base}.gif`, `${base}.vertical.mp4`].sort());
+    expect(metadata.video?.extras?.sort()).toEqual(
+      [`${base}.png`, `${base}.description.txt`, `${base}.de.mp4`, `${base}.de.srt`, `${base}.gif`, `${base}.vertical.mp4`].sort(),
+    );
     const [main, german, vertical] = await Promise.all([probeMedia(`${base}.mp4`), probeMedia(`${base}.de.mp4`), probeMedia(`${base}.vertical.mp4`)]);
     expect([german.width, german.height, german.audioCodec]).toEqual([1920, 1080, "aac"]);
     expect([vertical.width, vertical.height]).toEqual([1080, 1920]);

@@ -112,6 +112,19 @@ The headings are only a suggestion: the AI reads all of it. From the release not
 picks the new features a viewer can see and skips fixes and internal changes. You
 never write click-by-click steps. Text inside `<!-- -->` is ignored.
 
+**Videos you make again and again.** List them under `## Videos`, one goal per line,
+instead of typing each one after the product name:
+
+```markdown
+## Videos
+- Search for pliers, filter by brand, sort by price and add one to the cart
+- Compare hand tools and power tools using the category filters
+```
+
+`npx app-story acme --videos` makes one video of each, exactly as
+`npx app-story acme "<goal>"` would, and they share the same saved plan. The section is
+for AppStory only: the AI never reads it as release notes or as part of another video.
+
 **Form data.** When the demo fills a form, the AI uses any values your file gives for it
 (for example "use the customer Bob's Bakery"). Otherwise it reads what the product and the
 form are for, and types believable values that fit. Credentials that a feature needs
@@ -206,7 +219,7 @@ allow: delete, emails                      # risky actions are blocked unless li
   | --- | --- | --- |
   | `product-update` | app in a browser window, dark background, "New" badge on the title | `npx app-story acme` (what's new) |
   | `feature-highlight` | browser window, strongest zoom, biggest title | `npx app-story acme --each` (one feature per video) |
-  | `tutorial` | full screen, light, big cursor, close zoom | `npx app-story acme "show how to …"` (a how-to) |
+  | `tutorial` | full screen, light, big cursor, close zoom | `npx app-story acme "show how to …"` and `--videos` (a how-to) |
   | `modern-saas` | browser window, colorful background, medium zoom | — |
   | `minimal` | full screen, plain light, gentle zoom, no chapter labels | — |
 

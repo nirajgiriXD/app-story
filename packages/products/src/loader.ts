@@ -46,8 +46,10 @@ export interface LoadedProduct {
   /** The products folder; relative paths in the file (e.g. `logo`) start here. */
   dir: string;
   config: ProductConfig;
-  /** Everything below the settings block, without `<!-- -->` notes: what the AI reads. */
+  /** Everything below the settings block, without `<!-- -->` notes or `## Videos`: what the AI reads. */
   brief: string;
+  /** The goals listed under `## Videos`, one video each (`--videos`). */
+  videos?: string[];
 }
 
 export interface ProviderOverrides {
@@ -113,7 +115,7 @@ export function productFilePath(appsDir: string, id: string): string {
 }
 
 /** Split a product file into its settings block and the Markdown the AI reads. */
-export function splitProductFile(text: string, file: string): { settings: unknown; brief: string } {
+export function splitProductFile(text: string, file: string): { settings: unknown; brief: string; videos: string[] } {
   const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
   const match = /^---\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(normalized);
   if (!match) {
@@ -127,11 +129,38 @@ export function splitProductFile(text: string, file: string): { settings: unknow
   } catch (error) {
     throw new AppStoryError("CONFIG_INVALID", `The settings block in ${file} could not be read: ${(error as Error).message}`);
   }
-  const brief = normalized
+  const body = normalized
     .slice(match[0].length)
     .replace(/<!--[\s\S]*?-->\n?/g, "")
     .trim();
-  return { settings, brief };
+  return { settings, ...takeVideos(body) };
+}
+
+/**
+ * `## Videos`: one goal per list item, each made as its own how-to video, the same as typing
+ * it after the product name. The section is taken out of what the AI reads, so its goals
+ * are never mistaken for release notes or for steps of another video. It ends at the next
+ * heading of the same or a higher level. A list item may run on over indented lines.
+ */
+export function takeVideos(body: string): { brief: string; videos: string[] } {
+  const lines = body.split("\n");
+  const start = lines.findIndex((line) => /^#{1,6}\s+videos\s*#*\s*$/i.test(line.trim()));
+  if (start < 0) return { brief: body, videos: [] };
+  const level = (/^#+/.exec((lines[start] as string).trim()) as RegExpExecArray)[0].length;
+  let end = lines.findIndex((line, i) => i > start && (/^(#+)\s/.exec(line)?.[1]?.length ?? 99) <= level);
+  if (end < 0) end = lines.length;
+
+  const videos: string[] = [];
+  for (const line of lines.slice(start + 1, end)) {
+    const item = /^\s{0,3}(?:[-*+]|\d+[.)])\s+(.*)$/.exec(line);
+    if (item) videos.push((item[1] as string).trim());
+    else if (/^\s+\S/.test(line) && videos.length) videos[videos.length - 1] += ` ${line.trim()}`;
+  }
+  const brief = [...lines.slice(0, start), ...lines.slice(end)]
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { brief, videos: videos.filter(Boolean) };
 }
 
 function parseLogin(login: string, file: string): { username: string; password: string } {
@@ -228,8 +257,8 @@ function checkBlurNotCommented(text: string, file: string): void {
 
 /** Turn a product file's text into the engine's full configuration. */
 
-export function parseProductFile(text: string, file: string, id: string): { config: ProductConfig; brief: string } {
-  const { settings: raw, brief } = splitProductFile(text, file);
+export function parseProductFile(text: string, file: string, id: string): { config: ProductConfig; brief: string; videos: string[] } {
+  const { settings: raw, brief, videos } = splitProductFile(text, file);
   const parsed = SettingsSchema.safeParse(raw);
   if (!parsed.success) {
     throw new AppStoryError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(parsed.error)}`, {
@@ -288,7 +317,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
   if (!config.success) {
     throw new AppStoryError("CONFIG_INVALID", `Invalid settings in ${file}:\n${formatZodError(config.error)}`);
   }
-  return { config: config.data, brief };
+  return { config: config.data, brief, videos };
 }
 
 /**
@@ -402,8 +431,8 @@ export async function loadProduct(appsDir: string, id: string, overrides?: Provi
       hint: "Run `npx app-story list` to see your products, or `npx app-story new <name>` to create one.",
     });
   }
-  const { config, brief } = parseProductFile(await readFile(file, "utf8"), file, id);
-  return { id, file, dir: appsDir, config: applyOverrides(config, overrides), brief };
+  const { config, brief, videos } = parseProductFile(await readFile(file, "utf8"), file, id);
+  return { id, file, dir: appsDir, config: applyOverrides(config, overrides), brief, videos };
 }
 
 export interface ProductListing {

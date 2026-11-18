@@ -79,7 +79,11 @@ npx app-story check <name>          # settings, keys, login, the app, local tool
 npx app-story <name>                # one video of what's new in the release notes
 npx app-story <name> --each         # one video per new feature
 npx app-story <name> "show how to export a report"   # a video of anything else
+npx app-story <name> --videos       # one video per goal under "## Videos" in the product file
 ```
+
+When the user wants the same few videos again and again, list their goals under a
+`## Videos` heading in the product file, one per line, and use `--videos`.
 
 A video takes a few minutes and uses the AI key, which costs money: tell the user before
 the first run. Once a plan works, it is saved in `apps/<name>.plans/` and replayed with

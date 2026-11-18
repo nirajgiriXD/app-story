@@ -555,7 +555,7 @@ planning it again.
 # 7. CLI Interface
 
 ```bash
-app-story <product> [goal]      # make videos (--each, --fresh, --headed)
+app-story <product> [goal]      # make videos (--each, --videos, --fresh, --headed)
 app-story new <name>            # create apps/<name>.md
 app-story check <product>       # settings, keys, login, the app, local tools
 app-story list                  # list products

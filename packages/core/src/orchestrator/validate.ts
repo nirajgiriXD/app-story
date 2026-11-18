@@ -27,6 +27,8 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
 
   ok(`${product.file} is valid (${config.product.name})`);
   if (!product.brief.trim()) warn("the file has nothing below its settings block; describe the app and add release notes");
+  const videos = product.videos ?? [];
+  if (videos.length) ok(`videos: ${videos.length} listed under "## Videos"; make them with --videos`);
 
   const reachable = await fetch(startUrl, { redirect: "manual", signal: AbortSignal.timeout(5_000) }).then(
     (res) => res.status < 500,

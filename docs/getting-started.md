@@ -77,6 +77,7 @@ npx app-story check acme                    # settings, keys, login, the app, lo
 npx app-story acme                          # one video of everything new in the release notes
 npx app-story acme --each                   # one video per new feature
 npx app-story acme "show how to export"     # a video of anything else, in plain words
+npx app-story acme --videos                 # one video per goal listed under "## Videos" in the file
 ```
 
 What happens:
@@ -118,7 +119,7 @@ npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
 
 | Command | Purpose |
 | --- | --- |
-| `npx app-story <product> [goal]` | make videos (options: `--each`, `--fresh`, `--headed`) |
+| `npx app-story <product> [goal]` | make videos (options: `--each`, `--videos`, `--fresh`, `--headed`) |
 | `npx app-story new <name>` | create `apps/<name>.md` |
 | `npx app-story check <product>` | check settings, keys, login, the app and local tools |
 | `npx app-story list` | list your products |

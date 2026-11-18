@@ -6,6 +6,8 @@ import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } fro
 import { chatterboxLanguage } from "@app-story/narration";
 import { getTemplate } from "@app-story/video";
 import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@app-story/products";
+import { makeVideos } from "../../cli/src/commands/make";
+import { buildProgram } from "../../cli/src/program";
 import { type AppStoryError, aiKeySource, anthropicGatewayOptions, openaiGatewayOptions, redactSecrets, resolveCredential } from "@app-story/shared";
 
 const KEYS = [
@@ -198,6 +200,50 @@ describe("product file", () => {
     expect(switched.providers.ai).toMatchObject({ provider: "openai", model: undefined });
     expect(switched.providers.ai_fallback).toBeUndefined();
     expect(config.providers.ai.model).toBe("claude-opus-5-5"); // original untouched
+  });
+});
+
+describe("## Videos in a product file", () => {
+  const body = [
+    "# Toolshop",
+    "",
+    "An online hardware store.",
+    "",
+    "## Videos",
+    "- Search for pliers, filter by brand,",
+    "  sort by price and add one to the cart",
+    "* Compare hand tools and power tools",
+    "1. Switch the language to German",
+    "Plain text here is not a video.",
+    "",
+    "### Tips for these videos",
+    "- A sub-heading still belongs to the section",
+    "",
+    "## Release notes",
+    "- Dark mode.",
+  ].join("\n");
+
+  it("lists one goal per item, joins indented lines, and keeps the section from the AI", () => {
+    const { videos, brief, config } = parse(file("url: https://acme.test", body));
+    expect(videos).toEqual([
+      "Search for pliers, filter by brand, sort by price and add one to the cart",
+      "Compare hand tools and power tools",
+      "Switch the language to German",
+      "A sub-heading still belongs to the section",
+    ]);
+    expect(brief).toBe("# Toolshop\n\nAn online hardware store.\n\n## Release notes\n- Dark mode.");
+    expect(config.product.description).toBe("An online hardware store.");
+  });
+
+  it("is empty without the section, and the brief is untouched", () => {
+    const plain = file("url: https://acme.test", "# Acme\n\n## Release notes\n- Videos of invoices.\n");
+    expect(parse(plain)).toMatchObject({ videos: [], brief: "# Acme\n\n## Release notes\n- Videos of invoices." });
+  });
+
+  it("cannot be mixed with a goal or --each", async () => {
+    const program = buildProgram();
+    await expect(makeVideos("acme", ["show", "export"], { videos: true }, program)).rejects.toThrow(/cannot be used with a goal/);
+    await expect(makeVideos("acme", [], { videos: true, each: true }, program)).rejects.toThrow(/cannot be used with --each/);
   });
 });
 

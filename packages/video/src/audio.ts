@@ -1,4 +1,9 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { RenderProps, SoundEffect } from "./props";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 /*
  * The video's sound, mixed by FFmpeg: every voice clip at its place on the timeline, and
@@ -35,9 +40,25 @@ export function buildAudioMix(props: RenderProps, firstInput: number, fileOf: (s
     input++;
   }
 
-  for (const [i, effect] of (props.sfx ?? []).entries()) {
-    chains.push(`${effectSource(effect)},${FORMAT},adelay=${Math.max(0, Math.round(effect.atMs))}:all=1[s${i}]`);
+  const effects = props.sfx ?? [];
+  for (const [i, effect] of effects.entries()) {
+    if (effect.kind !== "whoosh" && effect.kind !== "chime") continue;
+    chains.push(`${effectSource(effect.kind)},${FORMAT},adelay=${Math.max(0, Math.round(effect.atMs))}:all=1[s${i}]`);
     mixed.push(`[s${i}]`);
+  }
+
+  // Recorded sounds: each file is read once and split into one copy per time it plays.
+  const hits = soundHits(effects);
+  const dir = soundsDir();
+  for (const [f, file] of [...new Set(hits.map((h) => h.file))].entries()) {
+    const uses = hits.filter((h) => h.file === file);
+    inputArgs.push("-i", join(dir, file));
+    chains.push(`[${input}:a]${FORMAT},asplit=${uses.length}${uses.map((_, k) => `[h${f}_${k}]`).join("")}`);
+    for (const [k, hit] of uses.entries()) {
+      chains.push(`[h${f}_${k}]volume=${num(hit.gain)},adelay=${Math.max(0, Math.round(hit.atMs))}:all=1[r${f}_${k}]`);
+      mixed.push(`[r${f}_${k}]`);
+    }
+    input++;
   }
 
   if (props.music) {
@@ -51,21 +72,55 @@ export function buildAudioMix(props: RenderProps, firstInput: number, fileOf: (s
   return { inputArgs, filter: chains.join(";") };
 }
 
+/** The recorded sounds (see assets/sfx/README.md): next to the bundle in the package, else in the repository. */
+export function soundsDir(): string {
+  const packaged = join(here, "sfx");
+  return existsSync(packaged) ? packaged : join(here, "..", "assets", "sfx");
+}
+
+const CLICKS = ["click-1.ogg", "click-2.ogg", "click-3.ogg"];
+const KEYS = Array.from({ length: 8 }, (_, i) => `key-${i + 1}.ogg`);
+
+/** A recorded sound at a time (global ms), at a gain. */
+export interface SoundHit {
+  file: string;
+  atMs: number;
+  gain: number;
+}
+
 /**
- * A sound effect, made by FFmpeg from a formula (no sound files): a short, soft tick for a
- * click, quiet taps while typing, an airy whoosh for a transition, a two-note chime when the
- * outcome is confirmed. All quiet: they are felt more than heard under the voice.
+ * Clicks and typing as recorded sounds: a real click for each click, and a real key press
+ * every 80-110 ms while a value is typed, never the same key twice in a row, each a little
+ * louder or softer, so typing does not sound like a machine. Quiet: felt more than heard
+ * under the voice. The same video always gets the same sounds.
  */
-export function effectSource(effect: SoundEffect): string {
-  const noise = "(random(0)*2-1)";
-  switch (effect.kind) {
-    case "click":
-      return `aevalsrc='0.35*exp(-t*260)*${noise}':d=0.06:s=${SAMPLE_RATE},highpass=f=1200,lowpass=f=7000`;
-    case "typing": {
-      const d = num(Math.max(0.05, (effect.durationMs ?? 500) / 1000));
-      // A tap every ~95 ms, each one a little different.
-      return `aevalsrc='0.12*exp(-mod(t,0.095)*320)*${noise}':d=${d}:s=${SAMPLE_RATE},highpass=f=1800,lowpass=f=6500`;
+export function soundHits(effects: readonly SoundEffect[]): SoundHit[] {
+  const hits: SoundHit[] = [];
+  let clicks = 0;
+  let keys = 0;
+  for (const effect of effects) {
+    if (effect.kind === "click") {
+      hits.push({ file: CLICKS[clicks++ % CLICKS.length] as string, atMs: effect.atMs, gain: 0.18 });
+    } else if (effect.kind === "typing") {
+      const end = effect.atMs + (effect.durationMs ?? 500);
+      for (let t = effect.atMs; t < end; ) {
+        const n = keys++;
+        // 5 and 8 share no factor: consecutive keys always differ.
+        hits.push({ file: KEYS[(n * 5 + 3) % KEYS.length] as string, atMs: t, gain: 0.15 * (0.85 + 0.05 * ((n * 7) % 4)) });
+        t += 80 + ((n * 37) % 31);
+      }
     }
+  }
+  return hits;
+}
+
+/**
+ * A sound made by FFmpeg from a formula (no sound file): an airy whoosh for a transition, a
+ * two-note chime when the outcome is confirmed. Quiet: felt more than heard under the voice.
+ */
+export function effectSource(kind: "whoosh" | "chime"): string {
+  const noise = "(random(0)*2-1)";
+  switch (kind) {
     case "whoosh":
       return `aevalsrc='0.10*pow(sin(PI*t/0.55),2)*${noise}':d=0.55:s=${SAMPLE_RATE},bandpass=f=900:width_type=o:w=2,lowpass=f=4000`;
     case "chime":

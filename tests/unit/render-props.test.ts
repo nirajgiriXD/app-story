@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { menuLayout, type Step, type StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
@@ -18,6 +20,8 @@ import {
   planTimeline,
   shotBox,
   soundEffects,
+  soundHits,
+  soundsDir,
   toOtio,
   type BuildPropsInput,
 } from "@app-story/video";
@@ -329,9 +333,38 @@ describe("sound effects", () => {
       ],
     });
     const mix = buildAudioMix(p, 0, (src) => src);
-    expect(mix.filter).toContain("aevalsrc=");
+    expect(mix.filter).toContain("aevalsrc="); // the whooshes
     expect(mix.filter).toMatch(/\[s\d+\]/);
+    // The click is a recorded sound, read once as an input of its own.
+    expect(mix.inputArgs).toEqual(["-i", join(soundsDir(), "click-1.ogg")]);
+    expect(mix.filter).toContain("[0:a]");
     expect(getTemplate("minimal").sounds).toBe(false);
+  });
+
+  it("are recorded clicks and key presses that never repeat a key twice in a row", () => {
+    const hits = soundHits([
+      { kind: "click", atMs: 100 },
+      { kind: "typing", atMs: 1000, durationMs: 1500 },
+      { kind: "click", atMs: 3000 },
+      { kind: "whoosh", atMs: 4000 },
+    ]);
+    const clicks = hits.filter((h) => h.file.startsWith("click"));
+    const keys = hits.filter((h) => h.file.startsWith("key"));
+    expect(clicks.map((h) => [h.file, h.atMs])).toEqual([
+      ["click-1.ogg", 100],
+      ["click-2.ogg", 3000],
+    ]);
+    // A key every 80-110 ms while the value is typed, and nothing after it.
+    expect(keys.length).toBeGreaterThanOrEqual(1500 / 110);
+    expect(keys.length).toBeLessThanOrEqual(1500 / 80 + 1);
+    expect(keys.every((h) => h.atMs >= 1000 && h.atMs < 2500)).toBe(true);
+    for (let i = 1; i < keys.length; i++) {
+      expect(keys[i]!.file).not.toBe(keys[i - 1]!.file);
+      expect(keys[i]!.atMs - keys[i - 1]!.atMs).toBeGreaterThanOrEqual(80);
+      expect(keys[i]!.atMs - keys[i - 1]!.atMs).toBeLessThanOrEqual(110);
+    }
+    // Every sound it plays ships with AppStory.
+    for (const file of new Set(hits.map((h) => h.file))) expect(existsSync(join(soundsDir(), file))).toBe(true);
   });
 });
 

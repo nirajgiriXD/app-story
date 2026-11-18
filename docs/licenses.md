@@ -38,6 +38,15 @@ The paid voices (OpenAI, ElevenLabs) and AI providers (Anthropic, OpenAI) are se
 under their own terms; AppStory only calls them when a product file picks them. With
 `ai: local`, the model is whatever your server runs: check its licence yourself.
 
+## Media AppStory ships
+
+| Media | Used for | Licence |
+| --- | --- | --- |
+| Clicks from Kenney's [Interface Sounds](https://kenney.nl/assets/interface-sounds) | the pointer's clicks | CC0 1.0 |
+| Key presses from [Keyboard Soundpack #1](https://opengameart.org/content/keyboard-soundpack-1-typing-and-single-keystrokes) by unicae_games | typing | CC0 1.0 |
+
+They are in `packages/video/assets/sfx/`, whose README names each file's source.
+
 ## Media you add
 
 `logo:`, `font:` and `music:` are your own files. Use only what you may publish: a font

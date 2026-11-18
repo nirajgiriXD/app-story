@@ -45,6 +45,8 @@ await build({
 });
 await writeFile(join(dist, "render-page.js"), await bundleRenderPage());
 await cp(join(root, "packages", "ai", "src", "prompts"), join(dist, "prompts"), { recursive: true, filter: (f) => !f.endsWith(".ts") });
+// The recorded sound effects (clicks, key presses).
+await cp(join(root, "packages", "video", "assets", "sfx"), join(dist, "sfx"), { recursive: true });
 // The Chatterbox voice's Python helper.
 await cp(join(root, "packages", "narration", "python"), join(dist, "python"), { recursive: true });
 

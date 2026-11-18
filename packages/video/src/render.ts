@@ -324,7 +324,9 @@ async function renderChunks(job: ChunksJob): Promise<void> {
         if (job.state.failed) return;
         await page.evaluate((n) => window.appStory.renderFrame(n), frame);
         if (serveError) throw serveError;
-        const shot = (await cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 100 })) as { data: string };
+        // PNG keeps full colour detail (Chromium's JPEG halves it even at quality 100);
+        // optimizeForSpeed makes it about as fast as JPEG, at the cost of a bigger image.
+        const shot = (await cdp.send("Page.captureScreenshot", { format: "png", optimizeForSpeed: true })) as { data: string };
         await encoder.write(Buffer.from(shot.data, "base64"));
         job.onFrame();
       }
@@ -404,9 +406,8 @@ export function deliveryEncoding(fps: number): string[] {
 }
 
 /**
- * Encodes captured frames (JPEG) to H.264 as they arrive. The page is captured in sRGB,
- * which JPEG stores as full-range BT.601; the video is tagged BT.709, like the recording,
- * so players show the same colours.
+ * Encodes captured frames (PNG, sRGB) to H.264 as they arrive. They are converted to
+ * BT.709 and tagged so, like the recording, so players show the same colours.
  */
 class FrameEncoder {
   private readonly ffmpeg;
@@ -427,11 +428,11 @@ class FrameEncoder {
         "-framerate",
         String(fps),
         "-c:v",
-        "mjpeg",
+        "png",
         "-i",
         "-",
         "-vf",
-        "scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv,format=yuv420p",
+        "scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p",
         ...deliveryEncoding(fps),
         "-colorspace",
         "bt709",

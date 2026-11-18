@@ -23,7 +23,7 @@ import { CURSOR_FADE_MS, CURSOR_IDLE_MS, mergeFocusWindows } from "./timeline";
  */
 
 /** Bump when anything below changes what a chunk's pixels depend on. */
-export const RENDER_CACHE_VERSION = 2;
+export const RENDER_CACHE_VERSION = 3;
 
 /** Seconds of video per chunk: one keyframe interval of the delivery encoding (see deliveryEncoding). */
 export const CHUNK_SECONDS = 2;

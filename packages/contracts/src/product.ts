@@ -185,6 +185,11 @@ export const ProductConfigSchema = z.object({
     .object({
       /** `cdp` captures sharp frames straight from Chromium; `playwright` uses Playwright's built-in recorder. */
       engine: z.enum(["cdp", "playwright"]).default("cdp"),
+      /**
+       * How `cdp` frames travel from Chromium. `png` is lossless with full colour detail;
+       * `jpeg` halves the colour resolution (fuzzy edges on coloured text) but uses less disk.
+       */
+      image_format: z.enum(["png", "jpeg"]).default("png"),
       jpeg_quality: z.number().int().min(50).max(100).default(92),
       min_step_ms: z.number().int().min(0).default(900),
       typing_delay_ms: z.number().int().min(0).default(45),

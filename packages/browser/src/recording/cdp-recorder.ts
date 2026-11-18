@@ -103,8 +103,9 @@ interface ScreencastFrameEvent {
 
 /**
  * Records a page by streaming frames from Chromium (CDP `Page.startScreencast`) and
- * encoding them with FFmpeg. Frames are lossless-ish JPEGs at the viewport's real size,
- * which keeps small UI text sharp, unlike Playwright's fixed-bitrate VP8 recorder.
+ * encoding them with FFmpeg. Frames are PNG (lossless, full colour) or JPEG at the
+ * viewport's real size, which keeps small UI text sharp, unlike Playwright's fixed-bitrate
+ * VP8 recorder. Chromium's JPEGs always halve the colour resolution, even at quality 100.
  *
  * Chromium only sends a frame when the screen changes, so each frame is held until the
  * next one arrives; FFmpeg then resamples to a constant frame rate.
@@ -117,10 +118,14 @@ export class CdpScreencastRecorder implements Recorder {
   private framesDir: string;
   private source: { width: number; height: number } | undefined;
 
+  private get format(): "png" | "jpeg" {
+    return this.options.format ?? "png";
+  }
+
   constructor(
     private readonly page: Page,
     workDir: string,
-    private readonly options: { width: number; height: number; fps: number; quality: number; log: Logger },
+    private readonly options: { width: number; height: number; fps: number; format?: "png" | "jpeg"; quality: number; log: Logger },
   ) {
     this.framesDir = join(workDir, "frames");
   }
@@ -130,7 +135,7 @@ export class CdpScreencastRecorder implements Recorder {
     this.session = await this.page.context().newCDPSession(this.page);
     this.session.on("Page.screencastFrame", (event: ScreencastFrameEvent) => {
       const index = this.frames.length;
-      const file = join(this.framesDir, `${String(index).padStart(6, "0")}.jpg`);
+      const file = join(this.framesDir, `${String(index).padStart(6, "0")}.${this.format === "png" ? "png" : "jpg"}`);
       const drawnAt = event.metadata.timestamp ? event.metadata.timestamp * 1000 : undefined;
       this.frames.push({ file, receivedAt: Date.now(), drawnAt });
       const image = Buffer.from(event.data, "base64");
@@ -140,8 +145,7 @@ export class CdpScreencastRecorder implements Recorder {
     });
     this.startedAt = Date.now();
     await this.session.send("Page.startScreencast", {
-      format: "jpeg",
-      quality: this.options.quality,
+      ...(this.format === "png" ? { format: "png" } : { format: "jpeg", quality: this.options.quality }),
       maxWidth: this.options.width,
       maxHeight: this.options.height,
       everyNthFrame: 1,

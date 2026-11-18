@@ -175,6 +175,7 @@ export async function launchBrowserSession(options: BrowserSessionOptions): Prom
                 width: viewport.width * deviceScaleFactor,
                 height: viewport.height * deviceScaleFactor,
                 fps,
+                format: config.recording.image_format,
                 quality: config.recording.jpeg_quality,
                 log,
               })

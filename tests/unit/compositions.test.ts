@@ -125,6 +125,33 @@ describe("golden frames", () => {
     expect(html).toMatchSnapshot();
   });
 
+  it("the middle of each transition", () => {
+    const fade = p.template.transitionMs;
+    expect(frameAt(p, p.recording.startMs + fade / 2)).toMatchSnapshot("title card → app");
+    expect(frameAt(p, p.outro.startMs + fade / 2)).toMatchSnapshot("app → end card");
+  });
+
+  it("never shows a card's words and the app at once, on any frame of a transition", () => {
+    // How visible the card's words and the app window are, read from a frame's markup: the
+    // card fades as a whole (its root) and its words rise in one by one (each line).
+    const card = (html: string) => {
+      const root = /opacity:([\d.e-]+);transform:translateY\([^)]*\);font-family/.exec(html);
+      if (!root) return 0;
+      const lines = [...html.slice(root.index + root[0].length).matchAll(/opacity:([\d.e-]+);transform:translateY\(/g)].map((m) => Number(m[1]));
+      return Number(root[1]) * Math.max(0, ...lines);
+    };
+    const app = (html: string) => Number(/opacity:([\d.e-]+);font-family/.exec(html)?.[1] ?? 0);
+    const fade = p.template.transitionMs;
+    const step = 1000 / p.fps;
+    for (const start of [p.recording.startMs, p.outro.startMs]) {
+      for (let ms = start; ms <= start + fade; ms += step) {
+        const html = frameAt(p, ms);
+        // A double exposure: both clearly there in the same frame.
+        expect(Math.min(card(html), app(html)), `at ${Math.round(ms)} ms`).toBeLessThan(0.15);
+      }
+    }
+  });
+
   it("the vertical version of the dropdown", () => {
     const tall = reshapeProps(p, "vertical");
     expect(frameAt(tall, at(4400))).toMatchSnapshot();

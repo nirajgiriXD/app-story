@@ -24,7 +24,7 @@ import { CURSOR_FADE_MS, CURSOR_IDLE_MS, cursorShape, MENU_FADE_MS, mergeFocusWi
  */
 
 /** Bump when anything below changes what a chunk's pixels depend on. */
-export const RENDER_CACHE_VERSION = 6;
+export const RENDER_CACHE_VERSION = 7;
 
 /** Seconds of video per chunk: one keyframe interval of the delivery encoding (see deliveryEncoding). */
 export const CHUNK_SECONDS = 2;
@@ -81,6 +81,7 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
     focus,
     cursor,
     cuts,
+    scrolls,
     sections,
     urls,
     keys,
@@ -104,6 +105,10 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
     if (end < rLo || start > rHi) return [];
     return [{ windows: g, prevEnd: groups[i - 1]?.at(-1)?.endMs ?? null, nextStart: groups[i + 1]?.[0]?.startMs ?? null }];
   });
+  // The scrolls that can move those shots' ramps and glides, or hide their highlight.
+  const near = (s: { startMs: number; endMs: number }) =>
+    shots.some((shot) => s.endMs >= (shot.windows[0]?.startMs ?? 0) - REACH_MS && s.startMs <= (shot.windows.at(-1)?.endMs ?? 0) + REACH_MS);
+  const nearScrolls = (scrolls ?? []).filter(near);
 
   // The recording frames shown, through the edit, in frames exactly as the composition places them.
   const span = recordingSpan(props);
@@ -129,6 +134,7 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
     ...(onRecording
       ? {
           shots,
+          scrolls: nearScrolls,
           cursor: cursorWithin(cursor, rLo - CURSOR_BEFORE_MS, rHi + CURSOR_AFTER_MS),
           // The shape can come from a point before the window.
           cursorShape: cursorShape(rLo - CURSOR_BEFORE_MS, cursor),

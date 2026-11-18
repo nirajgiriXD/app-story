@@ -46,6 +46,8 @@ export interface BrowserController {
   readonly cursor: CursorPoint[];
   /** Address changes of the page, timed on the same clock as `now()`. */
   readonly navigations?: { t: number; url: string }[];
+  /** Scrolls on camera (presentation mode), timed on the same clock as `now()`. */
+  readonly scrolls?: { start_ms: number; end_ms: number }[];
   /** Milliseconds since the clock origin (recording start). */
   now(): number;
   setClockOrigin(epochMs: number): void;

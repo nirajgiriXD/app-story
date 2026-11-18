@@ -49,8 +49,10 @@ export interface RenderProps {
   /** Recording-relative times below. */
   sections: { title: string; atMs: number }[];
   focus: { startMs: number; endMs: number; box: Box }[];
-  /** When the page changed: the camera never holds a shot across one. */
+  /** When the page changed or started to scroll: the camera never holds a shot across one. */
   cuts: number[];
+  /** When the page scrolled: the camera and the highlight hold still meanwhile. */
+  scrolls?: { startMs: number; endMs: number }[];
   cursor: CursorPoint[];
   urls: { atMs: number; url: string }[];
   /** Global times. */

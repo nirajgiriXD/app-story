@@ -106,6 +106,8 @@ export interface BuildPropsInput {
   startUrl: string;
   /** Address changes as they happened; without them, each step's address is used from its end. */
   navigations?: { t: number; url: string }[];
+  /** Scrolls on camera (none in takes recorded before they were noted). */
+  scrolls?: { start_ms: number; end_ms: number }[];
   placements: NarrationPlacement[];
   cues: { start_ms: number; end_ms: number; text: string }[];
   logoSrc?: string;
@@ -135,6 +137,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     : passed.flatMap((r) => (r.url_after ? [{ atMs: r.ended_ms, url: r.url_after }] : []));
   for (const change of changes) if (change.url !== urls[urls.length - 1]?.url) urls.push(change);
   const cuts = urls.slice(1).map((u) => u.atMs);
+  const scrolls = input.scrolls ?? [];
   // The browser bar shows the public website's address, not the staging copy's.
   const website = config.product.website;
   const shown = urls.map((u) => ({ ...u, url: shownUrl(u.url, config.product.base_url, website) }));
@@ -150,7 +153,10 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     const nextStart = passed[i + 1]?.started_ms ?? input.recordingMs - LAST_SHOT_GAP_MS;
     const cut = cuts.find((c) => c > result.started_ms && c <= result.ended_ms + 50);
     const hold = cut !== undefined ? cut - 250 : Math.min(nextStart, result.ended_ms + (result.action === "assert" ? 8000 : 2500));
-    focus.push({ startMs: result.started_ms, endMs: Math.max(hold, result.started_ms + 600), box });
+    // A step that scrolls its element into view is framed once the page is still: its area was measured there.
+    const scrolled = scrolls.filter((s) => s.start_ms >= result.started_ms && s.start_ms <= result.ended_ms).at(-1);
+    const start = scrolled ? scrolled.end_ms : result.started_ms;
+    focus.push({ startMs: start, endMs: Math.max(hold, start + 600), box });
   }
 
   // A card already shows its title and subtitle: a caption that repeats them only clutters it.
@@ -193,7 +199,9 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     },
     sections,
     focus,
-    cuts,
+    // A scroll ends a shot like a page change: the camera pulls back before the page moves.
+    cuts: [...cuts, ...scrolls.map((s) => s.start_ms)].sort((a, b) => a - b),
+    scrolls: scrolls.map((s) => ({ startMs: s.start_ms, endMs: s.end_ms })),
     cursor: input.cursor,
     urls: shown,
     audio: input.placements.map((p) => ({ src: p.src, startMs: p.startMs, durationMs: p.durationMs })),

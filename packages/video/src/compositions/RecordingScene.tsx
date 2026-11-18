@@ -21,7 +21,9 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const L = layout(p);
   const groups = useMemo(() => mergeFocusWindows(p.focus, undefined, p.cuts ?? []), [p.focus, p.cuts]);
 
-  const camera = p.template.zoom.enabled ? cameraAt(t, groups, viewport, p.template.zoom) : { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
+  const camera = p.template.zoom.enabled
+    ? cameraAt(t, groups, viewport, p.template.zoom, p.scrolls)
+    : { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
   const view = cameraTransform(camera, viewport);
   const cursor = cursorAt(t, p.cursor);
   const fade = p.template.transitionMs;

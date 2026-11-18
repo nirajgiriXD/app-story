@@ -1,5 +1,5 @@
 import type { Locator, Page, Request } from "playwright";
-import { menuLayout, type Box, type BrowserIssue, type Condition, type CursorPoint, type Expectation, type Target } from "@app-story/contracts";
+import { CAMERA_MOVE_MS, menuLayout, type Box, type BrowserIssue, type Condition, type CursorPoint, type Expectation, type Target } from "@app-story/contracts";
 import { AppStoryError, sleep, type Logger } from "@app-story/shared";
 import type { ActionOptions, ActionOutcome, BrowserController, PageObservation, VerificationResult } from "../types";
 import { inPage } from "../playwright/in-page";
@@ -43,6 +43,7 @@ export class PlaywrightController implements BrowserController {
   readonly issues: BrowserIssue[];
   readonly cursor: CursorPoint[] = [];
   readonly navigations: { t: number; url: string }[] = [];
+  readonly scrolls: { start_ms: number; end_ms: number }[] = [];
   private origin = Date.now();
   private presentation = false;
   private mouse = { x: 0, y: 0 };
@@ -87,6 +88,7 @@ export class PlaywrightController implements BrowserController {
     this.cursor.push({ t: this.now(), x: this.mouse.x, y: this.mouse.y });
     this.navigations.length = 0;
     this.navigations.push({ t: this.now(), url: this.page.url() });
+    this.scrolls.length = 0;
   }
 
   setPresentationMode(enabled: boolean): void {
@@ -221,15 +223,18 @@ export class PlaywrightController implements BrowserController {
     }
     const amount = (options.amount ?? 600) * (options.direction === "up" ? -1 : 1);
     if (this.presentation) {
-      const steps = 12;
-      for (let i = 0; i < steps; i++) {
-        await this.page.mouse.wheel(0, amount / steps);
-        await sleep(25);
-      }
+      await this.onCamera(async () => {
+        const steps = 12;
+        for (let i = 0; i < steps; i++) {
+          await this.page.mouse.wheel(0, amount / steps);
+          await sleep(25);
+        }
+        await sleep(250);
+      });
     } else {
       await this.page.mouse.wheel(0, amount);
+      await sleep(250);
     }
-    await sleep(250);
     return { urlAfter: this.page.url() };
   }
 
@@ -528,19 +533,35 @@ export class PlaywrightController implements BrowserController {
    */
   private async bringIntoView(locator: Locator, timeoutMs: number): Promise<void> {
     if (this.presentation) {
-      const scrolled = await locator
+      const off = await locator
         .evaluate(
           inPage((el: Element) => {
             const r = el.getBoundingClientRect();
-            const off = r.top < 0 || r.left < 0 || r.bottom > window.innerHeight || r.right > window.innerWidth;
-            if (off) el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-            return off;
+            return r.top < 0 || r.left < 0 || r.bottom > window.innerHeight || r.right > window.innerWidth;
           }),
         )
         .catch(() => false);
-      if (scrolled) await this.waitForStill(locator);
+      if (off) {
+        await this.onCamera(async () => {
+          await locator.evaluate(inPage((el: Element) => el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" }))).catch(() => undefined);
+          await this.waitForStill(locator);
+        });
+      }
     }
     await locator.scrollIntoViewIfNeeded({ timeout: timeoutMs }).catch(() => undefined);
+  }
+
+  /**
+   * A scroll on camera: the video's camera first pulls back (one move), the page scrolls while
+   * it is wide, and it pushes in again (one more move) before anything else happens. The scroll
+   * is noted, so the camera and the highlight hold still while the page moves.
+   */
+  private async onCamera(scroll: () => Promise<void>): Promise<void> {
+    await sleep(CAMERA_MOVE_MS);
+    const start = this.now();
+    await scroll();
+    this.scrolls.push({ start_ms: start, end_ms: this.now() });
+    await sleep(CAMERA_MOVE_MS);
   }
 
   /** Wait (up to 1.5s) until a smooth scroll has stopped moving the element. */

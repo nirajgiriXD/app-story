@@ -8,7 +8,7 @@
  * straight lines. Pure maths, shared by the Node side and the render page.
  */
 
-import type { CursorPoint, StepResult } from "@app-story/contracts";
+import { CAMERA_MOVE_MS, type CursorPoint, type StepResult } from "@app-story/contracts";
 
 /** [output ms, take ms]. */
 export type TimeMap = [number, number][];
@@ -114,6 +114,7 @@ interface TakeTimes<V extends { start_ms: number; duration_ms: number } = { star
   steps: readonly StepResult[];
   cursor: readonly CursorPoint[];
   navigations?: readonly { t: number; url: string }[];
+  scrolls?: readonly { start_ms: number; end_ms: number }[];
   /** Voice clips on the take (take ms). */
   voice: readonly V[];
 }
@@ -136,6 +137,8 @@ export function activeStretches(take: TakeTimes): [number, number][] {
     if (s.action === "fill" || s.action === "scroll" || s.action === "press") active.push([s.started_ms, s.ended_ms]);
   }
   for (const n of take.navigations ?? []) active.push([n.t - 200, n.t + 700]); // the new page appearing
+  // A scroll, and the camera's moves out before it and in after it.
+  for (const s of take.scrolls ?? []) active.push([s.start_ms - CAMERA_MOVE_MS, s.end_ms + CAMERA_MOVE_MS]);
   return active;
 }
 
@@ -143,7 +146,14 @@ export function activeStretches(take: TakeTimes): [number, number][] {
 export function editTimes<V extends { start_ms: number; duration_ms: number }>(
   map: TimeMap,
   take: TakeTimes<V>,
-): { durationMs: number; steps: StepResult[]; cursor: CursorPoint[]; navigations?: { t: number; url: string }[]; voice: V[] } {
+): {
+  durationMs: number;
+  steps: StepResult[];
+  cursor: CursorPoint[];
+  navigations?: { t: number; url: string }[];
+  scrolls?: { start_ms: number; end_ms: number }[];
+  voice: V[];
+} {
   const at = (ms: number) => Math.round(toOutput(map, ms));
   return {
     durationMs: at(take.durationMs),
@@ -155,6 +165,7 @@ export function editTimes<V extends { start_ms: number; duration_ms: number }>(
     })),
     cursor: take.cursor.map((p) => ({ ...p, t: at(p.t) })),
     navigations: take.navigations?.map((n) => ({ ...n, t: at(n.t) })),
+    scrolls: take.scrolls?.map((s) => ({ start_ms: at(s.start_ms), end_ms: at(s.end_ms) })),
     voice: take.voice.map((v) => ({ ...v, start_ms: at(v.start_ms) })),
   };
 }

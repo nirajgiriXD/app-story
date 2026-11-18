@@ -75,6 +75,7 @@ export async function composeVideo(
     steps: recorded.report.steps,
     cursor: recorded.report.cursor,
     navigations: recorded.report.navigations,
+    scrolls: recorded.report.scrolls,
     voice: recorded.placed,
   };
   const timeMap = planEdit(take.durationMs, activeStretches(take));
@@ -121,6 +122,7 @@ export async function composeVideo(
     cursor: edited.cursor,
     startUrl: recorded.startUrl,
     navigations: edited.navigations,
+    scrolls: edited.scrolls,
     placements,
     cues,
     logoSrc: await copyAsset(job, product, config.branding.logo, "logo"),

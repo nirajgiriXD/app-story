@@ -87,7 +87,9 @@ export function placeCaptions(p: RenderProps): RenderProps {
   const subjects = (ms: number): Box[] => {
     const t = ms - p.recording.startMs;
     if (t < 0 || t > p.recording.durationMs) return [];
-    const camera = p.template.zoom.enabled ? cameraAt(t, groups, viewport, p.template.zoom) : { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
+    const camera = p.template.zoom.enabled
+      ? cameraAt(t, groups, viewport, p.template.zoom, p.scrolls)
+      : { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
     const view = cameraTransform(camera, viewport);
     const k = L.scale * view.scale;
     const toScreen = (b: Box): Box => ({ x: L.x + k * (b.x + view.tx), y: L.y + L.bar + k * (b.y + view.ty), width: k * b.width, height: k * b.height });

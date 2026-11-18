@@ -135,7 +135,14 @@ function shotRamps(start: number, end: number, prevEnd: number | undefined, next
  * The highlight on the area appears only once a move has ended, so it never slides or grows
  * on screen while the camera travels.
  */
-export function cameraAt(t: number, groups: readonly FocusWindow[][], viewport: { width: number; height: number }, zoom: { scale: number }): Camera {
+export function cameraAt(
+  t: number,
+  groups: readonly FocusWindow[][],
+  viewport: { width: number; height: number },
+  zoom: { scale: number },
+  /** When the page scrolled: no move overlaps one, and nothing is highlighted while the page moves. */
+  scrolls: readonly Span[] = [],
+): Camera {
   const wide = { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
   for (const [g, group] of groups.entries()) {
     const first = group[0];
@@ -143,12 +150,16 @@ export function cameraAt(t: number, groups: readonly FocusWindow[][], viewport: 
     if (!first || !last) continue;
     const prevEnd = groups[g - 1]?.at(-1)?.endMs;
     const nextStart = groups[g + 1]?.[0]?.startMs;
-    const { inAt, outAt } = shotRamps(first.startMs, last.endMs, prevEnd, nextStart);
+    const ramps = shotRamps(first.startMs, last.endMs, prevEnd, nextStart);
+    // The page scrolls first, then the camera moves: a push-in waits for a scroll to end, and a
+    // pull-back is over before one starts.
+    const inAt = afterScrolls(ramps.inAt, scrolls);
+    const outAt = beforeScrolls(ramps.outAt, scrolls);
     if (t < inAt || t > outAt + CAMERA_MOVE_MS) continue;
 
     // A very short shot may start pulling back before it is fully in: it never moves faster.
     const amount = Math.min(ease((t - inAt) / CAMERA_MOVE_MS), ease((outAt + CAMERA_MOVE_MS - t) / CAMERA_MOVE_MS));
-    const moves = glides(group);
+    const moves = glides(group, scrolls);
     let shot = frameBox(first.box, viewport, zoom.scale);
     let box = first.box;
     let settled = first.box;
@@ -173,6 +184,7 @@ export function cameraAt(t: number, groups: readonly FocusWindow[][], viewport: 
       [inAt, inAt + CAMERA_MOVE_MS],
       ...moves.map((m): [number, number] => [m.at, m.at + CAMERA_MOVE_MS]),
       [outAt, outAt + CAMERA_MOVE_MS],
+      ...scrolls.map((s): [number, number] => [s.startMs, s.endMs]),
     ];
     return {
       scale: 1 + (scale - 1) * amount,
@@ -207,12 +219,12 @@ function stillness(t: number, travel: readonly [number, number][]): number {
  * while the camera was still moving are skipped for the latest one, so the camera is never
  * more than one move behind.
  */
-function glides(group: readonly FocusWindow[]): { at: number; from: Box; to: Box }[] {
+function glides(group: readonly FocusWindow[], scrolls: readonly Span[]): { at: number; from: Box; to: Box }[] {
   const moves: { at: number; from: Box; to: Box }[] = [];
   let box = (group[0] as FocusWindow).box;
   let free = Number.NEGATIVE_INFINITY;
   for (let i = 1; i < group.length; i++) {
-    const at = Math.max((group[i] as FocusWindow).startMs - PAN_LEAD_MS, free);
+    const at = afterScrolls(Math.max((group[i] as FocusWindow).startMs - PAN_LEAD_MS, free), scrolls);
     while (i + 1 < group.length && (group[i + 1] as FocusWindow).startMs - PAN_LEAD_MS <= at) i++;
     const target = (group[i] as FocusWindow).box;
     if (sameBox(target, box)) continue;
@@ -221,6 +233,27 @@ function glides(group: readonly FocusWindow[]): { at: number; from: Box; to: Box
     free = at + CAMERA_MOVE_MS;
   }
   return moves;
+}
+
+/** A stretch of recording time. */
+export interface Span {
+  startMs: number;
+  endMs: number;
+}
+
+/** A scroll that a camera move starting at `at` would overlap. */
+const overlapping = (at: number, scrolls: readonly Span[]) => scrolls.find((s) => s.startMs < at + CAMERA_MOVE_MS && s.endMs > at);
+
+/** The first time from `at` on that a camera move overlaps no scroll. */
+function afterScrolls(at: number, scrolls: readonly Span[]): number {
+  for (let s = overlapping(at, scrolls); s; s = overlapping(at, scrolls)) at = s.endMs;
+  return at;
+}
+
+/** The last time up to `at` that a camera move overlaps no scroll. */
+function beforeScrolls(at: number, scrolls: readonly Span[]): number {
+  for (let s = overlapping(at, scrolls); s; s = overlapping(at, scrolls)) at = s.startMs - CAMERA_MOVE_MS;
+  return at;
 }
 
 function sameBox(a: Box, b: Box): boolean {

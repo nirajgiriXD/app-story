@@ -72,7 +72,9 @@ at login time and registered as secrets.
    step times count that wait, so the voice fills it instead of running ahead. Every step is
    verified again. After every action the controller waits until the page stops changing
    (no DOM mutations or loading requests for 300 ms, capped at 2.5 s); off-screen elements
-   glide into view. For every action the controller also measures the area the element
+   glide into view. A scroll on camera waits one camera move before and after it and is
+   timed, so in the video the page scrolls first, wide, and the camera zooms after it; the
+   highlight shows only once the page and the camera are both still. For every action the controller also measures the area the element
    belongs to (its form, card, dialog or table), and for every check where its outcome
    shows on screen; page changes are timed as they happen. The take is captured at 2x and stored lossless (4:4:4, BT.709), so the
    zoom stays sharp. While rendering, each frame passes through the browser as a top-quality

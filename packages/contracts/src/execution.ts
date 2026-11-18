@@ -73,6 +73,8 @@ export const ExecutionReportSchema = z.object({
   issues: z.array(BrowserIssueSchema),
   /** Every change of the page's address, when it happened (ms on the recording clock). */
   navigations: z.array(z.object({ t: z.number(), url: z.string() })).optional(),
+  /** When the page scrolled on camera (ms on the recording clock): the video's camera holds still meanwhile. */
+  scrolls: z.array(z.object({ start_ms: z.number(), end_ms: z.number() })).optional(),
   final_url: z.string().optional(),
   duration_ms: z.number(),
 });

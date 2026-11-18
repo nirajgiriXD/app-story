@@ -5,6 +5,7 @@ import { menuLayout, type Step, type StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
 import { curveControl } from "@app-story/browser";
 import {
+  activeStretches,
   BRAND_FONT_FAMILY,
   brandFontCss,
   buildAudioMix,
@@ -86,6 +87,20 @@ describe("render props", () => {
     const p = props({ ...take, config: asked });
     expect(p.keys).toEqual([]);
     expect(p.template.sectionStyle).toBe("chip");
+  });
+
+  it("frames a step that scrolled its element into view once the page is still", () => {
+    const p = props({
+      workflowSteps: [{ id: "s1", description: "save", action: "click", target: { name: "Save" } } as Step],
+      results: [result({ step_id: "s1", action: "click", started_ms: 1000, ended_ms: 5000, box: { x: 10, y: 600, width: 80, height: 30 } })],
+      scrolls: [{ start_ms: 2000, end_ms: 2700 }],
+    });
+    expect(p.focus[0]?.startMs).toBe(2700);
+    expect(p.cuts).toContain(2000); // the shot before it ends before the page moves
+    expect(p.scrolls).toEqual([{ startMs: 2000, endMs: 2700 }]);
+    // The edit never fast-forwards the scroll or the camera's moves around it.
+    const active = activeStretches({ durationMs: 10_000, steps: [], cursor: [], voice: [], scrolls: [{ start_ms: 4000, end_ms: 4600 }] });
+    expect(active).toContainEqual([3000, 5600]);
   });
 
   it("falls back to step ends for takes recorded without page changes", () => {

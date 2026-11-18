@@ -210,6 +210,48 @@ describe("video timeline", () => {
     expect(end).toBeLessThan(middle * 0.02);
   });
 
+  it("lets the page scroll first, then zooms, and highlights nothing while the page moves", () => {
+    const viewport = { width: 1600, height: 900 };
+    const zoom = { scale: 1.5 };
+    const a = { x: 100, y: 100, width: 120, height: 40 };
+    const b = { x: 900, y: 500, width: 120, height: 40 };
+    // Step B scrolls its element into view at 3000-3600, then is framed: a scroll ends a shot.
+    const scrolls = [{ startMs: 3000, endMs: 3600 }];
+    const groups = mergeFocusWindows(
+      [
+        { startMs: 1000, endMs: 3000, box: a },
+        { startMs: 3600, endMs: 7000, box: b },
+      ],
+      undefined,
+      [3000],
+    );
+    expect(groups).toHaveLength(2);
+    const at = (t: number) => cameraAt(t, groups, viewport, zoom, scrolls);
+    // Pulled back before the page moves, wide while it scrolls...
+    for (let t = 3000; t <= 3600; t += 50) {
+      expect(at(t).scale).toBe(1);
+      expect(at(t).spotlight?.strength ?? 0).toBe(0);
+    }
+    // ...and only then pushing in, a full move long.
+    expect(at(3600 + CAMERA_MOVE_MS / 2).scale).toBeGreaterThan(1);
+    expect(at(3600 + CAMERA_MOVE_MS / 2).scale).toBeLessThan(1.4);
+    expect(at(3600 + CAMERA_MOVE_MS).scale).toBeGreaterThanOrEqual(1.5);
+    // The highlight shows on B once the page and the camera are both still.
+    expect(at(3600 + CAMERA_MOVE_MS - 1).spotlight?.strength).toBe(0);
+    expect(at(5500).spotlight).toEqual({ box: b, strength: 1 });
+  });
+
+  it("holds the highlight back while the page scrolls under a held shot", () => {
+    const viewport = { width: 1600, height: 900 };
+    const box = { x: 100, y: 100, width: 120, height: 40 };
+    const groups = mergeFocusWindows([{ startMs: 1000, endMs: 9000, box }]);
+    const strength = (t: number) => cameraAt(t, groups, viewport, { scale: 1.5 }, [{ startMs: 4000, endMs: 4500 }]).spotlight?.strength ?? 0;
+    expect(strength(3000)).toBe(1);
+    for (let t = 4000; t < 4500; t += 50) expect(strength(t)).toBe(0);
+    expect(strength(4550)).toBeLessThan(1); // fading back in
+    expect(strength(5500)).toBe(1);
+  });
+
   it("skips an area it had no time to glide to, so it never falls behind", () => {
     const viewport = { width: 1600, height: 900 };
     const zoom = { scale: 1.5 };

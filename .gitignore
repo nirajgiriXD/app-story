@@ -10,3 +10,5 @@ coverage/
 *.log
 test-results/
 .mypy_cache/
+products/*
+!products/example.md

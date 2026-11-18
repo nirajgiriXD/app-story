@@ -98,14 +98,8 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
 
   const blocked = report.issues.filter((i) => i.kind === "blocked_navigation");
   add("workflow", "no unexpected navigation", blocked.length === 0, "warning", blocked.map((b) => b.url).join(", ") || undefined);
-  const browserErrors = report.issues.filter((i) => i.kind !== "blocked_navigation");
-  add(
-    "workflow",
-    "no browser errors",
-    browserErrors.length === 0,
-    "warning",
-    browserErrors.length ? `${browserErrors.length} console/network issue(s), see logs/browser.json` : undefined,
-  );
+  const browserErrors = unexpectedIssues(report.issues, input.config.browser.ignore_errors);
+  add("workflow", "no browser errors", browserErrors.length === 0, "warning", browserErrors.length ? describeIssues(browserErrors) : undefined);
 
   // --- recording
   const rawProbe = await safeProbe(input.paths.rawRecording);
@@ -219,4 +213,27 @@ export async function runQualityChecks(input: QualityInput): Promise<QualityRepo
 async function safeProbe(path: string): Promise<MediaProbe | undefined> {
   if (!(await fileExists(path))) return undefined;
   return probeMedia(path).catch(() => undefined);
+}
+
+/** The browser's errors, without blocked navigations (checked on their own) and those `ignore errors:` expects. */
+export function unexpectedIssues<T extends { kind: string; message: string; url?: string }>(issues: readonly T[], ignore: readonly string[]): T[] {
+  const words = ignore.map((word) => word.toLowerCase());
+  return issues.filter((i) => i.kind !== "blocked_navigation" && !words.some((word) => `${i.message} ${i.url ?? ""}`.toLowerCase().includes(word)));
+}
+
+/**
+ * The browser's errors in a line: each distinct message once, with how often it came, so the
+ * warning says what happened (the full list is kept with the job as `browser_issues`).
+ */
+export function describeIssues(issues: readonly { message: string }[], shown = 3): string {
+  const counts = new Map<string, number>();
+  for (const issue of issues) {
+    const text = issue.message.replace(/\s+/g, " ").trim();
+    const short = text.length > 90 ? `${text.slice(0, 89)}…` : text;
+    counts.set(short, (counts.get(short) ?? 0) + 1);
+  }
+  const listed = [...counts].slice(0, shown).map(([text, n]) => `"${text}"${n > 1 ? ` ×${n}` : ""}`);
+  const more = counts.size > shown ? `, and ${counts.size - shown} more` : "";
+  const hint = ' (expected ones can go in "ignore errors:" in the product file)';
+  return `${issues.length} console/network issue(s): ${listed.join(", ")}${more}${hint}`;
 }

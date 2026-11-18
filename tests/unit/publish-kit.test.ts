@@ -67,12 +67,12 @@ describe("description", () => {
       70_000,
     );
     expect(videoDescription(product, { title: "Export invoices in bulk", summary: "Download many invoices as one CSV." }, props)).toBe(
-      [
+      `${[
         "Export invoices in bulk",
         "Download many invoices as one CSV.",
         "Chapters\n0:00 Export invoices in bulk\n0:14 Open reports\n0:42 The result",
         "Start free at acme.com: https://acme.com",
-      ].join("\n\n") + "\n",
+      ].join("\n\n")}\n`,
     );
   });
 });

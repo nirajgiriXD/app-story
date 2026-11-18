@@ -162,6 +162,12 @@ export const ProductConfigSchema = z.object({
        * the page itself, so the recording, screenshots and video never hold them readable.
        */
       blur: z.array(z.string().min(1)).default([]),
+      /**
+       * Browser console and network messages that are expected (`ignore errors:`), e.g. a
+       * logged-out visitor's "401 Unauthorized". One containing any of these words (any case)
+       * is still kept with the job, but is not a warning.
+       */
+      ignore_errors: z.array(z.string().min(1)).default([]),
 
       headless: z.boolean().default(true),
       navigation_timeout_ms: z.number().int().positive().default(30_000),

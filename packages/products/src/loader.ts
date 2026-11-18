@@ -98,6 +98,11 @@ const SettingsSchema = z
     allow: z.union([z.string(), z.array(z.string())]).optional(),
     blur: z.union([z.string().min(1), z.array(z.string().min(1))], { error: "blur is a CSS selector (or a list of them), e.g. blur: .api-key" }).optional(),
     formats: z.union([z.string(), z.array(z.string())]).optional(),
+    "ignore errors": z
+      .union([z.string().min(1), z.number(), z.array(z.union([z.string().min(1), z.number()]))], {
+        error: "ignore errors is a word or a list of them, e.g. ignore errors: 401, Unauthorized",
+      })
+      .optional(),
   })
   .strict();
 type Settings = z.infer<typeof SettingsSchema>;
@@ -243,6 +248,12 @@ function hasOwnKey(provider: AiProviderName): boolean {
   return source !== undefined && source !== CUSTOM_KEY_ENV;
 }
 
+/** `a, b` or a YAML list: the trimmed, non-empty items. A YAML number (`401`) counts as text. */
+function listOf(value: string | number | (string | number)[] | undefined): string[] {
+  if (value === undefined) return [];
+  return (Array.isArray(value) ? value : String(value).split(",")).map((v) => String(v).trim()).filter(Boolean);
+}
+
 /**
  * YAML reads ` #` as the start of a comment, so `blur: .card, #email` would quietly drop
  * `#email` and leave it readable in the video. An unquoted `#` on the blur line is an error.
@@ -286,6 +297,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
       device_scale_factor: 2,
       allowed_domains: [url.host],
       blur: s.blur === undefined ? [] : Array.isArray(s.blur) ? s.blur : [s.blur],
+      ignore_errors: listOf(s["ignore errors"]),
     },
 
     authentication: login ? { strategy: "auto", ...login, login_path: s["login page"] } : { strategy: "none" },

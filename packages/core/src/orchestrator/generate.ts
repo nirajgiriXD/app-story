@@ -422,7 +422,9 @@ async function reviewAndFix(
       return undefined;
     }
     job.log.info({ issues }, "AI review: some shots miss their subject; showing those steps wide");
-    job.metadata.warnings.push(`AI review re-framed ${stepIds.length} step(s): ${issues.join("; ")}`);
+    job.metadata.warnings.push(
+      `AI review: ${stepIds.length} shot(s) missed what the voice is about, so they are shown wide in the video (${issues.join("; ")})`,
+    );
     const wide = new Set(stepIds);
     const workflow = { ...take.workflow, steps: take.workflow.steps.map((s) => (wide.has(s.id) ? { ...s, zoom: false } : s)) };
     const recomposed = await job.runtime.heavy(() => composeVideo(job, product, workflow, take.clips, take.recorded, { kind: take.kind ?? undefined }));

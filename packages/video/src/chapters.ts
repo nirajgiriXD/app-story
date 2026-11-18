@@ -32,11 +32,11 @@ export function chaptersOf(props: Pick<RenderProps, "title" | "sections" | "reco
 
 /** FFmpeg's metadata file with the chapters, for `-map_chapters`. */
 export function ffmetadata(chapters: readonly Chapter[], durationMs: number): string {
-  const escape = (text: string) => text.replace(/[=;#\\\n]/g, (c) => (c === "\n" ? " " : `\\${c}`));
+  const escapeValue = (text: string) => text.replace(/[=;#\\\n]/g, (c) => (c === "\n" ? " " : `\\${c}`));
   const lines = [";FFMETADATA1"];
   chapters.forEach((chapter, i) => {
     const end = chapters[i + 1]?.startMs ?? durationMs;
-    lines.push("[CHAPTER]", "TIMEBASE=1/1000", `START=${chapter.startMs}`, `END=${Math.max(chapter.startMs + 1, end)}`, `title=${escape(chapter.title)}`);
+    lines.push("[CHAPTER]", "TIMEBASE=1/1000", `START=${chapter.startMs}`, `END=${Math.max(chapter.startMs + 1, end)}`, `title=${escapeValue(chapter.title)}`);
   });
   return `${lines.join("\n")}\n`;
 }

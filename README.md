@@ -158,6 +158,7 @@ resolution: 1080p                          # 1080p (default) | 1440p | 4k: sharp
 language: en                               # or several: en, de, fr (one video each; needs the openai or elevenlabs voice)
 formats: vertical, gif                     # also make a 9:16 and/or 1:1 (square) version, and a GIF
 blur: ".api-key, #customer-email"          # CSS selectors blurred on screen (quote them when one starts with #)
+ignore errors: 401, Unauthorized           # browser errors you expect: not warnings (still kept with the job)
 logo: acme-logo.png                        # next to this file
 color: "#4F46E5"                           # in quotes
 font: acme-sans.woff2                      # a font file next to this file, or a font name (default: Inter)
@@ -191,6 +192,10 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **blur**: anything matching these CSS selectors is blurred in the page itself, so the
   recording, screenshots and video never show it readable: API keys, customer emails.
   YAML reads ` #` as a comment, so put the selectors in quotes when one starts with `#`.
+- **ignore errors**: a video warns about errors in the browser's console and failed
+  requests, naming each. Some apps make them on purpose: a public page that asks who is
+  logged in gets `401 Unauthorized` for a visitor. List words they contain (any case) and
+  they stop being warnings; they are still kept with the job.
 - **reset**: the AI's practice run really clicks through your app, so the project or
   invoice it creates exists before the recording makes it again: the list shows it twice,
   or the app says the name is taken. `reset:` puts the demo data back before the practice

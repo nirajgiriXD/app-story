@@ -6,6 +6,7 @@ import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } fro
 import { chatterboxLanguage } from "@app-story/narration";
 import { getTemplate } from "@app-story/video";
 import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@app-story/products";
+import { describeIssues, unexpectedIssues } from "@app-story/core";
 import { makeVideos } from "../../cli/src/commands/make";
 import { buildProgram } from "../../cli/src/program";
 import { terminalReviewer } from "../../cli/src/review";
@@ -201,6 +202,30 @@ describe("product file", () => {
     expect(switched.providers.ai).toMatchObject({ provider: "openai", model: undefined });
     expect(switched.providers.ai_fallback).toBeUndefined();
     expect(config.providers.ai.model).toBe("claude-opus-5-5"); // original untouched
+  });
+});
+
+describe("browser errors", () => {
+  const issues = [
+    { kind: "console_error", message: "Failed to load resource: the server responded with a status of 401 ()", url: "https://toolshop.test/" },
+    { kind: "console_error", message: "Failed to load resource: the server responded with a status of 401 ()", url: "https://toolshop.test/" },
+    { kind: "console_error", message: "ERROR {message: Unauthorized}", url: "https://toolshop.test/" },
+    { kind: "blocked_navigation", message: "Navigation outside allowed domains was blocked.", url: "https://ads.test/" },
+  ];
+
+  it("are named in the warning, each once with how often it came", () => {
+    const text = describeIssues(unexpectedIssues(issues, []));
+    expect(text).toMatch(/^3 console\/network issue\(s\): "Failed to load resource: .*401 \(\)" ×2, "ERROR \{message: Unauthorized\}"/);
+    expect(text).toContain("ignore errors:");
+    expect(text).not.toContain("browser.json"); // a scratch file, gone once the video succeeds
+  });
+
+  it("expected ones can be ignored with ignore errors:, by any word they contain", () => {
+    const { config } = parse(file("url: https://acme.test\nignore errors: 401, unauthorized"));
+    expect(config.browser.ignore_errors).toEqual(["401", "unauthorized"]);
+    expect(unexpectedIssues(issues, config.browser.ignore_errors)).toEqual([]);
+    expect(parse(file("url: https://acme.test\nignore errors: 401")).config.browser.ignore_errors).toEqual(["401"]); // a YAML number
+    expect(parse(file("url: https://acme.test")).config.browser.ignore_errors).toEqual([]);
   });
 });
 

@@ -3,7 +3,18 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AnthropicProvider, LocalProvider, OpenAIProvider, UsageTracker, localBaseUrl, stripNulls, toStrictJsonSchema, type AIProvider } from "@app-story/ai";
+import {
+  AnthropicProvider,
+  LocalProvider,
+  OpenAIProvider,
+  UsageTracker,
+  countUnionParams,
+  fillMissingNulls,
+  localBaseUrl,
+  stripNulls,
+  toStrictJsonSchema,
+  type AIProvider,
+} from "@app-story/ai";
 import { AiProviderConfigSchema, type AiProviderConfig } from "@app-story/contracts";
 import { ChatterboxTTS, chatterboxWorkerPath, createTTSProvider } from "@app-story/narration";
 import { createSilentLogger } from "@app-story/shared";
@@ -258,6 +269,38 @@ describe("strict JSON schema", () => {
     expect(schema).toMatchObject({ type: "object", required: ["a", "b"], additionalProperties: false });
     expect((schema.properties as Record<string, Record<string, unknown>>).b).toMatchObject({ required: ["c"], additionalProperties: false });
     expect(schema).not.toHaveProperty("$schema");
+  });
+
+  it("moves limits strict tool schemas reject into the description", () => {
+    const schema = toStrictJsonSchema(
+      z.object({
+        n: z.number().int(),
+        percent: z.number().min(0).max(100).describe("How far"),
+        steps: z.array(z.string().max(80)).min(2).max(5),
+        minimum: z.string(),
+      }),
+    );
+    const props = schema.properties as Record<string, Record<string, unknown>>;
+    expect(props.n).toEqual({ type: "integer" }); // .int()'s safe-integer bounds just go
+    expect(props.percent).toEqual({ type: "number", description: "How far (minimum: 0, maximum: 100)" });
+    expect(props.steps).toEqual({ type: "array", items: { type: "string", description: "(maxLength: 80)" }, description: "(maxItems: 5, minItems: 2)" });
+    expect(props.minimum).toEqual({ type: "string" }); // a property name, not a keyword
+    expect(JSON.stringify(schema)).not.toMatch(/"(minimum|maximum|maxLength|maxItems)":-?\d/);
+  });
+
+  it("counts union-typed parameters and fills in the nulls a non-strict model left out", () => {
+    const target = z.object({ name: z.string().nullable(), nth: z.number().int().nullable() });
+    const schema = toStrictJsonSchema(z.object({ description: z.string(), target, expected: target.nullable(), steps: z.array(target) }));
+    expect(countUnionParams(schema)).toBe(7); // target: 2; expected: itself + 2 inside; each step: 2
+    expect(fillMissingNulls({ description: "d", target: { name: "Add" }, steps: [{ nth: 1 }] }, schema)).toEqual({
+      description: "d",
+      target: { name: "Add", nth: null },
+      expected: null,
+      steps: [{ name: null, nth: 1 }],
+    });
+    expect(fillMissingNulls({ description: "d", target: {}, expected: { name: "x" }, steps: [] }, schema)).toMatchObject({
+      expected: { name: "x", nth: null },
+    });
   });
 
   it("strips nulls back to missing keys", () => {

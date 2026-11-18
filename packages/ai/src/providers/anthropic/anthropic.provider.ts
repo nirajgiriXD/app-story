@@ -13,7 +13,7 @@ import type {
   TokenUsage,
   Effort,
 } from "../../contracts/types";
-import { toStrictJsonSchema } from "../../contracts/json-schema";
+import { countUnionParams, fillMissingNulls, toStrictJsonSchema } from "../../contracts/json-schema";
 import type { UsageTracker } from "../../usage";
 import { ANTHROPIC_DEFAULT_EFFORT, ANTHROPIC_DEFAULT_MODEL, ANTHROPIC_MAX_TOKENS } from "./anthropic.models";
 
@@ -93,11 +93,16 @@ export class AnthropicProvider implements AIProvider {
   }
 
   startAgentSession(request: AgentSessionRequest): AgentSession {
+    const schemas = new Map(request.tools.map((tool) => [tool.name, toStrictJsonSchema(tool.inputSchema)]));
+    // Claude compiles strict tools into a grammar and refuses more than 16 union-typed (e.g.
+    // nullable) parameters across them. Past that, the tools go without strict: missing nulls
+    // are filled in below, and the tool loop checks every call against its Zod schema.
+    const strict = countUnionParams([...schemas.values()]) <= CLAUDE_STRICT_UNION_LIMIT;
     const tools: Anthropic.Tool[] = request.tools.map((tool) => ({
       name: tool.name,
       description: tool.description,
-      input_schema: toStrictJsonSchema(tool.inputSchema) as Anthropic.Tool.InputSchema,
-      strict: true,
+      input_schema: schemas.get(tool.name) as Anthropic.Tool.InputSchema,
+      ...(strict ? { strict: true } : {}),
       eager_input_streaming: true,
     }));
     const messages: Anthropic.MessageParam[] = [];
@@ -149,7 +154,10 @@ export class AnthropicProvider implements AIProvider {
 
       const toolCalls = message.content
         .filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use")
-        .map((b) => ({ id: b.id, name: b.name, input: b.input }));
+        .map((b) => {
+          const schema = schemas.get(b.name);
+          return { id: b.id, name: b.name, input: !strict && schema ? fillMissingNulls(b.input, schema) : b.input };
+        });
       const stop =
         message.stop_reason === "refusal" ? "refusal" : message.stop_reason === "max_tokens" ? "max_tokens" : toolCalls.length > 0 ? "tool_calls" : "end";
       return { text: textOf(message.content), toolCalls, stop, usage: usageOf(message.usage) };
@@ -199,6 +207,9 @@ function assertNotRefused(message: Anthropic.Message): void {
     throw new AppStoryError("PROVIDER_REFUSAL", `Claude declined the request (category: ${category}).`);
   }
 }
+
+/** Most union-typed parameters Claude accepts across a request's strict tools. */
+const CLAUDE_STRICT_UNION_LIMIT = 16;
 
 export function mapAnthropicError(error: unknown, model: string): unknown {
   if (error instanceof AppStoryError) return error;

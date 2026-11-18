@@ -1,4 +1,5 @@
 import { runFfmpeg } from "@app-story/shared";
+import { placeCaptions } from "./compositions/layout";
 import type { RenderProps } from "./props";
 
 /** Extra shapes of a video, made next to the main 16:9 one. */
@@ -14,16 +15,19 @@ export function reshapeProps(props: RenderProps, format: FrameFormat): RenderPro
   const short = Math.min(props.width, props.height);
   const [width, height] = format === "vertical" ? [short, Math.round((short * 16) / 9 / 2) * 2] : [short, short];
   const t = props.template;
-  return {
+  // Captions are placed again for the new shape (a portrait frame keeps them under the window).
+  const cues = props.captions.cues.map(({ position: _position, ...cue }) => cue);
+  return placeCaptions({
     ...props,
     width,
     height,
+    captions: { ...props.captions, cues },
     template: {
       ...t,
       zoom: { ...t.zoom, scale: t.zoom.enabled ? t.zoom.scale * 1.3 : t.zoom.scale },
       cursor: { ...t.cursor, size: Math.round(t.cursor.size * 1.4) },
     },
-  };
+  });
 }
 
 /** The longest a GIF plays: a longer recording is sped up to fit, so the whole flow is in it. */

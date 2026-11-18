@@ -6,6 +6,7 @@ import type { VideoTemplate } from "./templates";
 import { keyLabels } from "./keys";
 import { DEFAULT_CTA, shownUrl } from "./labels";
 import { BRAND_FONT_FAMILY } from "./fonts";
+import { placeCaptions } from "./compositions/layout";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
 
 const FOCUS_ACTIONS = new Set(["click", "fill", "select", "check", "uncheck", "hover"]);
@@ -151,7 +152,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
   const repeated = input.placements.filter((p) => onCard.has(sameText(p.text)) && (p.startMs < plan.recordingStartMs || p.startMs >= plan.outroStartMs));
   const cues = input.cues.filter((c) => !repeated.some((p) => c.start_ms >= p.startMs - 1 && c.start_ms < p.startMs + p.durationMs));
 
-  return {
+  return placeCaptions({
     width,
     height,
     fps: config.demo.fps,
@@ -201,7 +202,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     menus: passed.flatMap((r) =>
       r.menu && r.box ? [{ openMs: r.menu.opened_ms, closeMs: r.menu.closed_ms, field: r.box, options: r.menu.options, from: r.menu.from, to: r.menu.to }] : [],
     ),
-  };
+  });
 }
 
 function sameText(text: string): string {

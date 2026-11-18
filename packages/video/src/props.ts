@@ -48,7 +48,13 @@ export interface RenderProps {
   urls: { atMs: number; url: string }[];
   /** Global times. */
   audio: { src: string; startMs: number; durationMs: number }[];
-  captions: { enabled: boolean; fontSize: number; position: "bottom" | "top"; cues: { startMs: number; endMs: number; text: string }[] };
+  captions: {
+    enabled: boolean;
+    fontSize: number;
+    position: "bottom" | "top";
+    /** `position` per cue: a cue that would cover what is shown moves to the top (see placeCaptions). */
+    cues: { startMs: number; endMs: number; text: string; position?: "bottom" | "top" }[];
+  };
   music: { src: string; volume: number } | null;
   /** Sound effects (global times). */
   sfx?: SoundEffect[];

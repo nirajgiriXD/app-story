@@ -1,6 +1,7 @@
 import type React from "react";
 import type { RenderProps } from "../props";
-import { layout, RecordingScene } from "./RecordingScene";
+import { captionEdge, layout } from "./layout";
+import { RecordingScene } from "./RecordingScene";
 import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "./runtime";
 import { TitleCard } from "./TitleCard";
 import { backdrop, fontStack, px, shape } from "./theme";
@@ -49,14 +50,16 @@ const Captions: React.FC<{ p: RenderProps }> = ({ p }) => {
   );
   const size = px(p, p.captions.fontSize);
   const bar = p.template.caption.style === "bar";
-  const edge = p.template.frame === "window" ? px(p, 22) : px(p, 48);
+  const edge = captionEdge(p);
+  // A caption that would cover what is being shown sits at the top (see placeCaptions).
+  const top = (cue.position ?? p.captions.position) === "top";
   // Portrait and square: right under the app window, not at the far bottom of a tall frame.
-  const L = shape(p) === "wide" || p.captions.position === "top" ? undefined : layout(p);
+  const L = shape(p) === "wide" || top ? undefined : layout(p);
   const under = L ? L.y + L.bar + p.recording.viewport.height * L.scale + px(p, 36) : undefined;
   return (
     <AbsoluteFill
       style={{
-        justifyContent: under !== undefined || p.captions.position === "top" ? "flex-start" : "flex-end",
+        justifyContent: under !== undefined || top ? "flex-start" : "flex-end",
         alignItems: "center",
         padding: under !== undefined ? `${under}px ${px(p, 48)}px 0` : `${edge}px ${px(p, 80)}px`,
         pointerEvents: "none",

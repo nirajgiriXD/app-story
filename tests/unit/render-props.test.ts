@@ -178,6 +178,34 @@ describe("captions on title cards", () => {
     });
     expect(p.captions.cues.map((c) => c.text)).toEqual(["Open the form."]);
   });
+
+  it("moves a caption to the top while it would cover what a full-screen shot shows", () => {
+    const full = getTemplate("tutorial");
+    const plan = planTimeline({ template: full, recordingMs: 20_000 });
+    const at = (ms: number) => plan.recordingStartMs + ms;
+    const input: Partial<BuildPropsInput> = {
+      template: full,
+      plan,
+      workflowSteps: [
+        { id: "s1", description: "open", action: "click", target: { name: "Reports" } } as Step,
+        { id: "s2", description: "save", action: "click", target: { name: "Save" } } as Step,
+      ],
+      results: [
+        result({ step_id: "s1", action: "click", started_ms: 1000, ended_ms: 2000, box: { x: 700, y: 40, width: 120, height: 36 } }),
+        result({ step_id: "s2", action: "click", started_ms: 8000, ended_ms: 9000, box: { x: 1300, y: 830, width: 140, height: 44 } }),
+      ],
+      cues: [
+        { start_ms: at(1000), end_ms: at(2500), text: "Open the reports." },
+        { start_ms: at(8000), end_ms: at(9500), text: "Then save it." },
+      ],
+    };
+    expect(props(input).captions.cues.map((c) => [c.text, c.position])).toEqual([
+      ["Open the reports.", "bottom"],
+      ["Then save it.", "top"],
+    ]);
+    // A window keeps captions in a zone of their own: nothing moves.
+    expect(props({ ...input, template }).captions.cues.map((c) => c.position)).toEqual([undefined, undefined]);
+  });
 });
 
 describe("shots", () => {

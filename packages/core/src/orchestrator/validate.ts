@@ -35,10 +35,24 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
   else warn(`the app does not answer at ${startUrl}; is it running?`);
 
   const ai = config.providers.ai;
-  const aiKey = API_KEYS[ai.provider] as string;
-  if (process.env[aiKey] || (ai.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN))
-    ok(`AI: ${ai.provider}${ai.model ? ` / ${ai.model}` : ""} (${aiKey} found)`);
-  else error(`${aiKey} is not set; add it to .env (or set "ai:" to the provider you have a key for)`);
+  if (ai.provider === "local") {
+    const server = process.env.APP_STORY_AI_BASE_URL?.trim();
+    if (!server) error("APP_STORY_AI_BASE_URL is not set; add the local AI server's address to .env, e.g. http://localhost:11434/v1 (Ollama)");
+    else if (!ai.model) error('the local AI needs a model: add "model:" with a model your server has, e.g. model: qwen3:32b');
+    else {
+      const up = await fetch(`${server.replace(/\/$/, "")}/models`, { signal: AbortSignal.timeout(5_000) }).then(
+        (res) => res.ok,
+        () => false,
+      );
+      if (up) ok(`AI: local / ${ai.model} at ${server}`);
+      else warn(`AI: local / ${ai.model}, but nothing answers at ${server}; is the server running?`);
+    }
+  } else {
+    const aiKey = API_KEYS[ai.provider] as string;
+    if (process.env[aiKey] || (ai.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN))
+      ok(`AI: ${ai.provider}${ai.model ? ` / ${ai.model}` : ""} (${aiKey} found)`);
+    else error(`${aiKey} is not set; add it to .env (or set "ai:" to the provider you have a key for)`);
+  }
   if (config.providers.ai_fallback) ok(`backup AI: ${config.providers.ai_fallback.provider}, used if ${ai.provider} fails`);
 
   const voice = config.providers.tts;

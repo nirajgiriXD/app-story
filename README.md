@@ -123,7 +123,7 @@ start page: /dashboard                     # default: the page in url
 reset: npm run db:seed                     # puts the demo data back before each run (or an https:// address to POST)
 website: https://acme.com                  # the public address viewers see (default: the url's)
 cta: "Start your free trial at {host}"     # the end card's words; {host} is the website
-ai: anthropic                              # anthropic | openai (default: whichever key you have)
+ai: anthropic                              # anthropic | openai | local (default: whichever key you have)
 model: claude-opus-5-5                     # default: the provider's default model
 voice: kokoro                              # kokoro (free) | chatterbox (free, needs Python) | openai | elevenlabs | none
 length: 60                                 # longest video, in seconds (default: 90)
@@ -151,6 +151,11 @@ allow: delete, emails                      # risky actions are blocked unless li
   account settings or invites users. List any of `delete, payments, emails, publishing,
   account settings, invite users, production data` to allow them.
 - **ai**: with keys for both providers, the other one is used as a backup if the first fails.
+  `ai: local` uses any server with the OpenAI Chat Completions API, such as Ollama, LM
+  Studio or vLLM, so open-weight models work with no paid key: set
+  `APP_STORY_AI_BASE_URL` in `.env` (e.g. `http://localhost:11434/v1`) and `model:` to a
+  model it has. Planning the clicks is the hardest job, so pick a strong model with tool
+  calling; once a plan is saved, its videos need no AI at all.
 - **language**: the first language paces the recording. Each other one is translated by
   the AI, voiced, captioned and rendered over the *same* recording: `…-name.de.mp4` and
   `…-name.de.srt` next to the main video. Kokoro speaks English only. Chatterbox, also
@@ -361,7 +366,7 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
 ## Requirements
 
-- An Anthropic or OpenAI API key in `.env`
+- An Anthropic or OpenAI API key in `.env`, or a local AI server (`ai: local`)
 - With Docker: nothing else.
 - Without Docker: Node.js 22.13 or newer, [FFmpeg](https://ffmpeg.org) (`ffmpeg` and
   `ffprobe` on your PATH), and Chromium for Playwright (`npx playwright install chromium`)

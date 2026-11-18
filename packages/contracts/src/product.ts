@@ -2,7 +2,8 @@ import { z } from "zod";
 import { VOICE_ACCENTS } from "./voices";
 import type { VIDEO_KINDS } from "./workflow";
 
-export const AI_PROVIDERS = ["anthropic", "openai"] as const;
+/** `local` is any server with the OpenAI Chat Completions API (Ollama, LM Studio, vLLM…), at APP_STORY_AI_BASE_URL. */
+export const AI_PROVIDERS = ["anthropic", "openai", "local"] as const;
 export const AiProviderNameSchema = z.enum(AI_PROVIDERS);
 export type AiProviderName = z.infer<typeof AiProviderNameSchema>;
 

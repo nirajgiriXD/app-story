@@ -185,6 +185,10 @@ These were chosen deliberately (and agreed before building):
   Temperature is not sent (current Claude models reject it).
 - OpenAI: Responses API via `openai`, default `gpt-5`, `reasoning.effort` and
   `temperature` only when configured.
+- Local (`ai: local`): any server with the OpenAI Chat Completions API (Ollama, LM Studio,
+  vLLM, llama.cpp, gateways) at `APP_STORY_AI_BASE_URL`, for open-weight models. Tools in
+  strict mode, structured output as a JSON schema (also written into the prompt, for
+  servers that ignore it), the whole conversation sent each turn. It has no fallback.
 - With keys for both providers, the one not chosen is the fallback. It is triggered only
   by provider errors, and every attempt and switch is written to the job's metadata.
 - New providers: `registerAIProvider(name, factory)`; TTS: `registerTTSProvider`.

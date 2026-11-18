@@ -198,9 +198,12 @@ function describe(brief: string, id: string): { name: string; description: strin
   return { name, description: paragraph.join(" ") || `${name} web application` };
 }
 
+/** True when the provider can be used: its key is set (a local server: its address). */
 function hasKey(provider: AiProviderName): boolean {
   const env = process.env;
-  return provider === "anthropic" ? Boolean(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN) : Boolean(env.OPENAI_API_KEY);
+  if (provider === "anthropic") return Boolean(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN);
+  if (provider === "openai") return Boolean(env.OPENAI_API_KEY);
+  return Boolean(env.APP_STORY_AI_BASE_URL?.trim());
 }
 
 /**
@@ -231,9 +234,10 @@ export function parseProductFile(text: string, file: string, id: string): { conf
   const login = s.login ? parseLogin(s.login, file) : undefined;
   const { name, description } = describe(brief, id);
 
-  // Default AI: the one with a key. The other one, if it also has a key, is the fallback.
-  const ai: AiProviderName = s.ai ?? (hasKey("anthropic") ? "anthropic" : hasKey("openai") ? "openai" : "anthropic");
-  const other: AiProviderName = ai === "anthropic" ? "openai" : "anthropic";
+  // Default AI: the one with a key (or a local server's address). Between the two hosted
+  // providers, the other one, if it also has a key, is the fallback; a local AI has none.
+  const ai: AiProviderName = s.ai ?? (hasKey("anthropic") ? "anthropic" : hasKey("openai") ? "openai" : hasKey("local") ? "local" : "anthropic");
+  const other: AiProviderName | undefined = ai === "anthropic" ? "openai" : ai === "openai" ? "anthropic" : undefined;
 
   const config = ProductConfigSchema.safeParse({
     version: 1,
@@ -267,7 +271,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
     },
     providers: {
       ai: { provider: ai, model: s.model },
-      ai_fallback: hasKey(other) ? { provider: other } : undefined,
+      ai_fallback: other && hasKey(other) ? { provider: other } : undefined,
       tts: { provider: s.voice },
     },
     safety: { allow: parseAllow(s.allow, file) },
@@ -290,7 +294,7 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
   const next = structuredClone(config);
   if (aiProvider && aiProvider !== next.providers.ai.provider) {
     if (!(AI_PROVIDERS as readonly string[]).includes(aiProvider)) {
-      throw new AppStoryError("CONFIG_INVALID", `Unknown AI provider '${aiProvider}'. Use anthropic or openai.`);
+      throw new AppStoryError("CONFIG_INVALID", `Unknown AI provider '${aiProvider}'. Use anthropic, openai or local.`);
     }
     // The configured model belongs to the old provider, so drop it unless one was given.
     next.providers.ai = { ...next.providers.ai, provider: aiProvider, model: undefined, pricing: undefined };

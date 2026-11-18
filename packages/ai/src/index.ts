@@ -8,5 +8,6 @@ export * from "./agents/context";
 export * from "./agents/release-notes";
 export { AnthropicProvider } from "./providers/anthropic/anthropic.provider";
 export { OpenAIProvider } from "./providers/openai/openai.provider";
+export { LocalProvider, localBaseUrl } from "./providers/local/local.provider";
 export { ANTHROPIC_DEFAULT_MODEL } from "./providers/anthropic/anthropic.models";
 export { OPENAI_DEFAULT_MODEL } from "./providers/openai/openai.models";

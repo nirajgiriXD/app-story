@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AnthropicProvider, OpenAIProvider, UsageTracker, stripNulls, toStrictJsonSchema, type AIProvider } from "@app-story/ai";
+import { AnthropicProvider, LocalProvider, OpenAIProvider, UsageTracker, localBaseUrl, stripNulls, toStrictJsonSchema, type AIProvider } from "@app-story/ai";
 import { AiProviderConfigSchema, type AiProviderConfig } from "@app-story/contracts";
 import { ChatterboxTTS, chatterboxWorkerPath, createTTSProvider } from "@app-story/narration";
 import { createSilentLogger } from "@app-story/shared";
@@ -105,10 +105,45 @@ const openai: Harness = {
   },
 };
 
+/** A local server (Ollama, LM Studio, vLLM): the OpenAI Chat Completions API. */
+const local: Harness = {
+  name: "local",
+  make(replies) {
+    const requests: Record<string, unknown>[] = [];
+    const create = async (params: Record<string, unknown>) => {
+      requests.push(JSON.parse(JSON.stringify(params)));
+      const r = replies.shift();
+      if (!r) throw new Error("no reply");
+      if (r.kind === "rate_limit") throw Object.create(OpenAI.RateLimitError.prototype);
+      const message =
+        r.kind === "tool"
+          ? {
+              role: "assistant",
+              content: null,
+              refusal: null,
+              tool_calls: [{ id: r.id, type: "function", function: { name: r.name, arguments: JSON.stringify(r.input) } }],
+            }
+          : r.kind === "refusal"
+            ? { role: "assistant", content: null, refusal: "no" }
+            : { role: "assistant", content: r.kind === "text" ? r.text : `\`\`\`json\n${JSON.stringify(r.value)}\n\`\`\``, refusal: null };
+      return {
+        id: "chatcmpl",
+        object: "chat.completion",
+        choices: [{ index: 0, message, finish_reason: r.kind === "tool" ? "tool_calls" : "stop" }],
+        usage: { prompt_tokens: 14, completion_tokens: 5, total_tokens: 19, prompt_tokens_details: { cached_tokens: 4 } },
+      };
+    };
+    const client = { chat: { completions: { create } } } as unknown as OpenAI;
+    const usage = new UsageTracker();
+    const provider = new LocalProvider(AiProviderConfigSchema.parse({ provider: "local", model: "qwen3:32b" }), { usage, log: createSilentLogger(), client });
+    return { provider, requests, usage };
+  },
+};
+
 const Schema = z.object({ title: z.string(), count: z.number() });
 const tool = { name: "click", description: "Click", inputSchema: z.object({ target: z.string(), note: z.string().nullable() }) };
 
-for (const h of [anthropic, openai]) {
+for (const h of [anthropic, openai, local]) {
   describe(`${h.name} provider contract`, () => {
     it("generates text and tracks usage", async () => {
       const { provider, usage } = h.make([{ kind: "text", text: "hello" }]);
@@ -171,6 +206,21 @@ for (const h of [anthropic, openai]) {
     });
   });
 }
+
+describe("a local AI server", () => {
+  it("needs the server's address and a model name", () => {
+    expect(() => localBaseUrl({})).toThrow(/APP_STORY_AI_BASE_URL is not set/);
+    expect(localBaseUrl({ APP_STORY_AI_BASE_URL: "http://localhost:11434/v1" })).toBe("http://localhost:11434/v1");
+    const deps = { usage: new UsageTracker(), log: createSilentLogger(), client: {} as OpenAI };
+    expect(() => new LocalProvider(AiProviderConfigSchema.parse({ provider: "local" }), deps)).toThrow(/needs a model name/);
+  });
+
+  it("asks for JSON matching the schema, and reads it even inside a code fence", async () => {
+    const { provider, requests } = local.make([{ kind: "structured", value: { title: "x", count: 2 } }]);
+    expect(await provider.generateStructuredOutput({ system: "s", prompt: "p", schema: Schema, schemaName: "thing" })).toEqual({ title: "x", count: 2 });
+    expect(requests[0]).toMatchObject({ model: "qwen3:32b", response_format: { type: "json_schema", json_schema: { name: "thing", strict: true } } });
+  });
+});
 
 describe("provider-specific request details", () => {
   it("never sends temperature to Claude and uses effort instead", async () => {

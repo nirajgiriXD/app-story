@@ -24,7 +24,7 @@ import { CURSOR_FADE_MS, CURSOR_IDLE_MS, cursorShape, MENU_FADE_MS, mergeFocusWi
  */
 
 /** Bump when anything below changes what a chunk's pixels depend on. */
-export const RENDER_CACHE_VERSION = 4;
+export const RENDER_CACHE_VERSION = 5;
 
 /** Seconds of video per chunk: one keyframe interval of the delivery encoding (see deliveryEncoding). */
 export const CHUNK_SECONDS = 2;
@@ -97,7 +97,7 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
 
   // The camera: the shot groups near this time (grouped from every window, so the grouping is
   // exact), each with when its neighbours end and start, which shortens its ramps.
-  const groups = mergeFocusWindows(focus, 1200, cuts ?? []);
+  const groups = mergeFocusWindows(focus, undefined, cuts ?? []);
   const shots = groups.flatMap((g, i) => {
     const start = (g[0]?.startMs ?? 0) - REACH_MS;
     const end = (g[g.length - 1]?.endMs ?? 0) + REACH_MS;

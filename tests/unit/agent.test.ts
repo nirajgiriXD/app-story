@@ -201,6 +201,32 @@ describe("narration", () => {
     await pacer.beforeStep({ id: "s3", action: "click" }); // its click lands at 2500: it starts 400ms before
     expect(now).toBe(2100);
   });
+
+  it("holds a step and its line until the camera is ready, so the voice pauses with it", async () => {
+    let now = 0;
+    const clock = {
+      now: () => now,
+      wait: async (ms: number) => {
+        now += ms;
+      },
+    };
+    const clip = (id: string, steps: string[]): AudioClip => ({ id, kind: "segment", text: id, step_ids: steps, path: `${id}.wav`, duration_ms: 1000 });
+    // The page changed at 1500: framed steps wait until 1500 + 2400.
+    const pacer = new NarrationPacer([clip("a", ["s1"]), clip("b", ["s2", "s3"])], clock, {
+      gapMs: 0,
+      readyAt: (step) => (step.id === "s1" ? 0 : 3900),
+    });
+    await pacer.beforeStep({ id: "s1", action: "click" });
+    now = 1500;
+    await pacer.beforeStep({ id: "s2", action: "click" }); // the line starts with its step, not before
+    expect(now).toBe(3900);
+    expect(pacer.placed.map((p) => [p.id, p.start_ms])).toEqual([
+      ["a", 0],
+      ["b", 3900],
+    ]);
+    await pacer.beforeStep({ id: "s3", action: "fill" }); // already past: no wait
+    expect(now).toBe(3900);
+  });
 });
 
 describe("narration anchors", () => {

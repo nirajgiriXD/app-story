@@ -14,7 +14,8 @@ export interface VideoTemplate {
   outroMs: number;
   transitionMs: number;
   sectionStyle: "chip" | "none";
-  zoom: { enabled: boolean; scale: number; rampMs: number };
+  /** How close the camera goes. Every move takes CAMERA_MOVE_MS, the same in every template. */
+  zoom: { enabled: boolean; scale: number };
   /** How much the rest of the screen dims around the area being shown (0 = no spotlight). */
   spotlight: number;
   /** Soft clicks, typing, whooshes and a chime on the outcome. */
@@ -32,7 +33,7 @@ const base: Omit<VideoTemplate, "name"> = {
   outroMs: 3000,
   transitionMs: 500,
   sectionStyle: "chip",
-  zoom: { enabled: true, scale: 1.4, rampMs: 550 },
+  zoom: { enabled: true, scale: 1.4 },
   spotlight: 0.16,
   sounds: true,
   cursor: { highlight: true, size: 30 },
@@ -49,7 +50,7 @@ export const TEMPLATES: Record<TemplateName, VideoTemplate> = {
     frame: "full",
     backdrop: "light",
     sectionStyle: "none",
-    zoom: { enabled: true, scale: 1.2, rampMs: 650 },
+    zoom: { enabled: true, scale: 1.2 },
     spotlight: 0,
     sounds: false,
     cursor: { highlight: false, size: 26 },
@@ -68,7 +69,7 @@ export const TEMPLATES: Record<TemplateName, VideoTemplate> = {
     frame: "full",
     backdrop: "light",
     introMs: 2800,
-    zoom: { enabled: true, scale: 1.55, rampMs: 500 },
+    zoom: { enabled: true, scale: 1.55 },
     cursor: { highlight: true, size: 34 },
     title: { weight: 700, size: 70 },
   },
@@ -76,7 +77,7 @@ export const TEMPLATES: Record<TemplateName, VideoTemplate> = {
     name: "feature-highlight",
     ...base,
     introMs: 3600,
-    zoom: { enabled: true, scale: 1.6, rampMs: 600 },
+    zoom: { enabled: true, scale: 1.6 },
     title: { weight: 800, size: 92 },
   },
 };

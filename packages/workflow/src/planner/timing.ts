@@ -1,4 +1,4 @@
-import type { Step } from "@app-story/contracts";
+import { PAGE_CHANGE_SETTLE_MS, type Step } from "@app-story/contracts";
 import { MAX_TYPING_MS, MENU_OPEN_MS } from "@app-story/browser";
 
 export interface StepPacing {
@@ -67,5 +67,12 @@ export function estimateStepMs(step: Step, pacing: StepPacing): number {
       ms = 300;
   }
   if (step.expected && step.action !== "assert") ms += 200;
+  // A step that changes the page holds the next one while the camera pulls back and pushes in
+  // again: the script writer sees that time, so the voice fills it instead of racing ahead.
+  if (changesPage(step)) ms = Math.max(ms, actionLeadMs(step, pacing) + PAGE_CHANGE_SETTLE_MS);
   return Math.max(pacing.minStepMs, ms);
+}
+
+function changesPage(step: Step): boolean {
+  return step.action === "navigate" || step.expected?.type === "url_contains";
 }

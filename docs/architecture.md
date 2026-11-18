@@ -67,7 +67,9 @@ at login time and registered as secrets.
    first step while the next line waits for the previous one to finish (in every language:
    the recording waits for the longest translation of each line). A step anchored to a word
    starts that word's time minus the pointer's glide (`actionLeadMs`), so the click lands on
-   it. Every step is
+   it. After a page change, the next step the camera frames (and the line it starts) waits
+   for the camera to pull back and push in again (`PAGE_CHANGE_SETTLE_MS`); the script writer's
+   step times count that wait, so the voice fills it instead of running ahead. Every step is
    verified again. After every action the controller waits until the page stops changing
    (no DOM mutations or loading requests for 300 ms, capped at 2.5 s); off-screen elements
    glide into view. For every action the controller also measures the area the element
@@ -84,7 +86,8 @@ at login time and registered as secrets.
    of the app → recording → end card with a call to action), captions are cut from the
    spoken words, and the video is rendered with a camera that frames each step's area
    (pulling back at page changes, pushing in on the verified outcome, drifting slowly while
-   it holds), a soft spotlight on that area, the pointer (press, idle fade, motion trail),
+   it holds; every move takes the same `CAMERA_MOVE_MS`, one second, shifted rather than
+   hurried when steps come quickly), a soft spotlight on that area, the pointer (press, idle fade, motion trail),
    click ripples, chapter chips and branding. The
    compositions (React) are bundled once per process with esbuild. The frames are split
    into stretches, one per worker (`APP_STORY_RENDER_WORKERS`, default one per two CPU

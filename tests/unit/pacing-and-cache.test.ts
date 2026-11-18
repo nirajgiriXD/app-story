@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { runRehearsal } from "@app-story/core";
 import type { AIProvider, AgentInput, AgentTurnResult, ToolCall } from "@app-story/ai";
-import type { Step } from "@app-story/contracts";
+import { PAGE_CHANGE_SETTLE_MS, type Step } from "@app-story/contracts";
 import { frameTimes } from "@app-story/browser";
 import { cacheKey, storeFor } from "@app-story/core";
 import { kokoroDtype, segmentWordBudget } from "@app-story/narration";
@@ -24,6 +24,13 @@ describe("narration sized to the recording", () => {
     expect(click).toBeGreaterThanOrEqual(pacing.minStepMs);
     expect(shortFill).toBeGreaterThan(click - 600);
     expect(longFill).toBeLessThan(5000); // typing on camera stops after ~2.5s
+  });
+
+  it("counts the camera's pull back and push in after a page change, so the voice can fill it", () => {
+    const go = estimateStepMs(step({ id: "a", action: "navigate", url: "/settings" }), pacing);
+    const open = estimateStepMs(step({ id: "b", action: "click", target: { name: "Open" }, expected: { type: "url_contains", value: "/p/" } }), pacing);
+    expect(go).toBeGreaterThanOrEqual(PAGE_CHANGE_SETTLE_MS);
+    expect(open).toBeGreaterThan(PAGE_CHANGE_SETTLE_MS);
   });
 
   it("asks for about as many words as the steps take to show, never more than the length allows", () => {

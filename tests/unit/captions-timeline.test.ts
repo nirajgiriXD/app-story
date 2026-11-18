@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildCues, chunkText, toSrt, toVtt, wrapLines } from "@app-story/captions";
 import { alignWords, canTimeWords } from "@app-story/narration";
-import { cameraAt, cameraTransform, cursorAt, frameBox, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@app-story/video";
+import { CAMERA_MOVE_MS } from "@app-story/contracts";
+import { cameraAt, cameraTransform, cursorAt, frameBox, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES, type FocusWindow } from "@app-story/video";
 
 describe("captions", () => {
   it("splits into sentences and screen-sized chunks", () => {
@@ -79,7 +80,7 @@ describe("video timeline", () => {
     const viewport = { width: 1600, height: 900 };
     const box = { x: 1200, y: 100, width: 200, height: 40 };
     const groups = mergeFocusWindows([{ startMs: 1000, endMs: 2000, box }]);
-    const zoom = { scale: 1.4, rampMs: 500 };
+    const zoom = { scale: 1.4 };
     expect(cameraAt(0, groups, viewport, zoom).scale).toBe(1);
     const mid = cameraAt(1500, groups, viewport, zoom);
     expect(mid.scale).toBeGreaterThanOrEqual(1.4);
@@ -96,7 +97,7 @@ describe("video timeline", () => {
     const viewport = { width: 1600, height: 900 };
     const form = { x: 300, y: 150, width: 700, height: 500 };
     const groups = mergeFocusWindows([{ startMs: 1000, endMs: 3000, box: form }]);
-    const camera = cameraAt(2000, groups, viewport, { scale: 1.6, rampMs: 500 });
+    const camera = cameraAt(2000, groups, viewport, { scale: 1.6 });
     expect(camera.scale).toBeGreaterThan(1.1);
     const view = cameraTransform(camera, viewport);
     // Every edge of the form is in view.
@@ -109,7 +110,7 @@ describe("video timeline", () => {
 
   it("glides from area to area without jumping", () => {
     const viewport = { width: 1600, height: 900 };
-    const zoom = { scale: 1.5, rampMs: 500 };
+    const zoom = { scale: 1.5 };
     const groups = mergeFocusWindows([
       { startMs: 1000, endMs: 2000, box: { x: 250, y: 180, width: 100, height: 40 } },
       { startMs: 2000, endMs: 4000, box: { x: 1250, y: 680, width: 100, height: 40 } },
@@ -126,7 +127,7 @@ describe("video timeline", () => {
 
   it("pulls back for a page change, even between close steps", () => {
     const viewport = { width: 1600, height: 900 };
-    const zoom = { scale: 1.5, rampMs: 500 };
+    const zoom = { scale: 1.5 };
     const box = { x: 100, y: 100, width: 100, height: 40 };
     const windows = [
       { startMs: 1000, endMs: 2000, box },
@@ -142,6 +143,52 @@ describe("video timeline", () => {
       expect(Math.abs(camera.scale - last.scale)).toBeLessThan(0.05); // the shortened ramps never jump
       last = camera;
     }
+  });
+
+  it("moves the camera at one steady pace, however quickly the steps come", () => {
+    const viewport = { width: 1600, height: 900 };
+    const zoom = { scale: 1.5 };
+    const a = { x: 100, y: 100, width: 120, height: 40 };
+    const b = { x: 1300, y: 700, width: 120, height: 40 };
+    const c = { x: 100, y: 700, width: 120, height: 40 };
+    // Steps 300ms apart in three corners, then a page change with the next step only 200ms later.
+    const windows: FocusWindow[] = [
+      { startMs: 1000, endMs: 1300, box: a },
+      { startMs: 1300, endMs: 1600, box: b },
+      { startMs: 1600, endMs: 2500, box: c },
+      { startMs: 2700, endMs: 4000, box: a },
+    ];
+    const groups = mergeFocusWindows(windows, undefined, [2600]);
+    expect(groups.map((g) => g.length)).toEqual([3, 1]);
+    // No move is quicker than a full move of the camera: smoothstep peaks at 1.5x its average speed.
+    const maxScaleStep = (1.5 * (zoom.scale - 1) * (1000 / 60)) / CAMERA_MOVE_MS + 0.002;
+    const maxPanStep = (1.5 * Math.hypot(viewport.width, viewport.height) * (1000 / 60)) / CAMERA_MOVE_MS;
+    let last = cameraAt(0, groups, viewport, zoom);
+    for (let t = 0; t <= 6000; t += 1000 / 60) {
+      const camera = cameraAt(t, groups, viewport, zoom);
+      expect(Math.abs(camera.scale - last.scale)).toBeLessThanOrEqual(maxScaleStep);
+      expect(Math.hypot(camera.x - last.x, camera.y - last.y)).toBeLessThanOrEqual(maxPanStep);
+      last = camera;
+    }
+    // Across the page change it pulls all the way back, then takes a full move to push in again.
+    expect(cameraAt(2600, groups, viewport, zoom).scale).toBe(1);
+    expect(cameraAt(2600 + CAMERA_MOVE_MS / 2, groups, viewport, zoom).scale).toBeLessThan(1.4);
+    expect(cameraAt(2600 + CAMERA_MOVE_MS, groups, viewport, zoom).scale).toBeGreaterThanOrEqual(1.5);
+  });
+
+  it("skips an area it had no time to glide to, so it never falls behind", () => {
+    const viewport = { width: 1600, height: 900 };
+    const zoom = { scale: 1.5 };
+    const box = (x: number, y: number) => ({ x, y, width: 120, height: 40 });
+    const groups = mergeFocusWindows([
+      { startMs: 1000, endMs: 1300, box: box(100, 100) },
+      { startMs: 1300, endMs: 1500, box: box(1300, 100) }, // glides 1100-2100
+      { startMs: 1500, endMs: 1700, box: box(1300, 700) }, // came due mid-glide, and so did the next: skipped
+      { startMs: 1700, endMs: 5000, box: box(100, 700) }, // glides 2100-3100
+    ]);
+    expect(cameraAt(2100, groups, viewport, zoom).x).toBeCloseTo(1360);
+    for (let t = 2100; t <= 3100; t += 50) expect(cameraAt(t, groups, viewport, zoom).x).toBeLessThanOrEqual(1360.001);
+    expect(cameraAt(3100, groups, viewport, zoom)).toMatchObject({ x: 160, y: 720 });
   });
 
   it("merges nearby focus windows so the camera pans", () => {

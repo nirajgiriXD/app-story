@@ -121,6 +121,17 @@ export const SafetyConfigSchema = z
   .prefault({});
 export type SafetyConfig = z.infer<typeof SafetyConfigSchema>;
 
+/**
+ * Every camera move in the video (pushing in, gliding to another area, pulling back) takes
+ * exactly this long, whatever the narration does, so the pace is the same all through.
+ */
+export const CAMERA_MOVE_MS = 1000;
+/**
+ * After a page change, the next step the camera frames waits this long: the camera pulls
+ * back, the new page is seen whole for a beat, and the camera pushes in. The voice waits too.
+ */
+export const PAGE_CHANGE_SETTLE_MS = 2 * CAMERA_MOVE_MS + 400;
+
 export const RESOLUTIONS = { "720p": [1280, 720], "1080p": [1920, 1080], "1440p": [2560, 1440], "4k": [3840, 2160] } as const;
 export const ResolutionSchema = z.enum(["720p", "1080p", "1440p", "4k"]);
 

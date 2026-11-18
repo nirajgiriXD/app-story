@@ -19,7 +19,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const t = Math.max(0, ((at - span.start) / fps) * 1000);
   const { viewport } = p.recording;
   const L = layout(p);
-  const groups = useMemo(() => mergeFocusWindows(p.focus, 1200, p.cuts ?? []), [p.focus, p.cuts]);
+  const groups = useMemo(() => mergeFocusWindows(p.focus, undefined, p.cuts ?? []), [p.focus, p.cuts]);
 
   const camera = p.template.zoom.enabled ? cameraAt(t, groups, viewport, p.template.zoom) : { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
   const view = cameraTransform(camera, viewport);

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { AudioClip, ExecutionReport, PlacedClip, Workflow } from "@app-story/contracts";
+import { CAMERA_MOVE_MS, PAGE_CHANGE_SETTLE_MS, type AudioClip, type ExecutionReport, type PlacedClip, type Step, type Workflow } from "@app-story/contracts";
 import type { RecorderResult } from "@app-story/browser";
 import { NarrationPacer } from "@app-story/narration";
 import type { LoadedProduct } from "@app-story/products";
@@ -16,7 +16,10 @@ export interface RecordingOutcome {
   startUrl: string;
 }
 
-const LEAD_IN_MS = 900;
+/** The take opens wide: the app arrives (a fade of about 300 ms), then the camera has a full move to push in on the first step. */
+const LEAD_IN_MS = CAMERA_MOVE_MS + 300;
+/** Steps the video's camera frames (their element's area, or a check's outcome). */
+const FRAMED_ACTIONS = new Set<Step["action"]>(["click", "fill", "select", "check", "uncheck", "hover", "assert"]);
 const MAX_RECORDING_MS = 20 * 60 * 1000;
 
 /**
@@ -65,7 +68,17 @@ export async function recordWorkflow(
           now: () => controller.now(),
           wait: (ms) => controller.wait(ms),
         },
-        { leadMs: (step) => actionLeadMs(step, { cursorMoveMs: config.recording.cursor_move_ms }), holdMs: options.holdMs },
+        {
+          leadMs: (step) => actionLeadMs(step, { cursorMoveMs: config.recording.cursor_move_ms }),
+          holdMs: options.holdMs,
+          // After a page change, give the camera room to pull back, show the new page and push in.
+          // The first entry is the page the take opens on, not a change.
+          readyAt: (step) => {
+            const navigations = controller.navigations ?? [];
+            const change = navigations.length > 1 ? navigations.at(-1)?.t : undefined;
+            return change !== undefined && FRAMED_ACTIONS.has(step.action) ? change + PAGE_CHANGE_SETTLE_MS : 0;
+          },
+        },
       );
 
       const report = await runSteps(controller, workflow.steps, {

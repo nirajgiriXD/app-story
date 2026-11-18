@@ -78,7 +78,7 @@ export function placeCaptions(p: RenderProps): RenderProps {
   if (!p.captions.enabled || p.template.frame !== "full" || shape(p) !== "wide" || p.captions.position === "top") return p;
   const L = layout(p);
   const { viewport } = p.recording;
-  const groups = mergeFocusWindows(p.focus, 1200, p.cuts ?? []);
+  const groups = mergeFocusWindows(p.focus, undefined, p.cuts ?? []);
   const height = captionHeight(p);
   const edge = captionEdge(p);
   const bottomBand = { top: p.height - edge - height, bottom: p.height };

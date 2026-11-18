@@ -1,4 +1,4 @@
-import type { Box, CursorPoint } from "@app-story/contracts";
+import { CAMERA_MOVE_MS, type Box, type CursorPoint } from "@app-story/contracts";
 import type { VideoTemplate } from "./templates";
 
 /*
@@ -55,11 +55,17 @@ export interface FocusWindow {
 }
 
 /**
+ * Shots closer than this are joined, so the camera glides across instead of pulling back and
+ * pushing in again: two full moves would not fit between them.
+ */
+export const SHOT_GAP_MS = 2 * CAMERA_MOVE_MS;
+
+/**
  * Merge focus windows that are close together so the camera pans instead of zooming out
  * and in. A page change (`cuts`, recording ms) always ends a group: the new page is first
  * seen whole, like an editor would cut to a wide shot.
  */
-export function mergeFocusWindows(windows: readonly FocusWindow[], gapMs = 1200, cuts: readonly number[] = []): FocusWindow[][] {
+export function mergeFocusWindows(windows: readonly FocusWindow[], gapMs = SHOT_GAP_MS, cuts: readonly number[] = []): FocusWindow[][] {
   const sorted = [...windows].sort((a, b) => a.startMs - b.startMs);
   const groups: FocusWindow[][] = [];
   for (const w of sorted) {
@@ -85,9 +91,7 @@ const smooth = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 /** Room around a framed area: it fills at most this share of the view. */
 const FRAME_FILL = 0.8;
-/** How long the camera takes to move from one area to the next: longer for a longer move. */
-const panMs = (distance: number) => Math.min(1400, Math.max(600, 500 + distance * 0.5));
-/** The camera starts moving a little before the step does, like an operator anticipating it. */
+/** The camera starts gliding a little before the step does, like an operator anticipating it. */
 const PAN_LEAD_MS = 200;
 /** A held shot slowly pushes in by this much, so a long hold never looks frozen. */
 const DRIFT = 0.04;
@@ -99,39 +103,38 @@ export function frameBox(box: Box, viewport: { width: number; height: number }, 
 }
 
 /**
+ * When a shot group's push-in and pull-back start. Ideally the camera arrives as the first
+ * step starts and leaves as the last one ends. When a neighbouring group is too close for both
+ * moves (only across a page change: closer groups are merged), each move keeps its full length
+ * and they shift to meet halfway, never shortened. Nothing moves before the take starts.
+ */
+function shotRamps(start: number, end: number, prevEnd: number | undefined, nextStart: number | undefined): { inAt: number; outAt: number } {
+  const before = prevEnd === undefined ? 0 : (prevEnd + start) / 2;
+  const after = nextStart === undefined ? Number.POSITIVE_INFINITY : (end + nextStart) / 2;
+  return { inAt: Math.max(start - CAMERA_MOVE_MS, before), outAt: Math.min(end, after - CAMERA_MOVE_MS) };
+}
+
+/**
  * Camera (zoom + focus) at recording time `t`, like an editor's camera moves: it pushes in
  * on the area of a group of steps (their form, card or result), holds steady while they
  * happen (drifting in slowly), glides from area to area, and pulls back out between groups.
- * Ramps are shortened when groups are close, so moves never overlap or jump.
+ * Every move takes exactly CAMERA_MOVE_MS, however fast the steps (and the voice) go: a move
+ * is shifted rather than hurried, and a glide never starts before the last one has ended.
  */
-export function cameraAt(
-  t: number,
-  groups: readonly FocusWindow[][],
-  viewport: { width: number; height: number },
-  zoom: { scale: number; rampMs: number },
-): Camera {
+export function cameraAt(t: number, groups: readonly FocusWindow[][], viewport: { width: number; height: number }, zoom: { scale: number }): Camera {
   const wide = { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
   for (const [g, group] of groups.entries()) {
     const first = group[0];
     const last = group[group.length - 1];
     if (!first || !last) continue;
-    const prevEnd = groups[g - 1]?.[(groups[g - 1]?.length ?? 1) - 1]?.endMs;
+    const prevEnd = groups[g - 1]?.at(-1)?.endMs;
     const nextStart = groups[g + 1]?.[0]?.startMs;
-    const rampIn = Math.max(1, Math.min(zoom.rampMs, prevEnd === undefined ? zoom.rampMs : (first.startMs - prevEnd) / 2));
-    const rampOut = Math.max(1, Math.min(zoom.rampMs, nextStart === undefined ? zoom.rampMs : (nextStart - last.endMs) / 2));
-    if (t < first.startMs - rampIn || t > last.endMs + rampOut) continue;
+    const { inAt, outAt } = shotRamps(first.startMs, last.endMs, prevEnd, nextStart);
+    if (t < inAt || t > outAt + CAMERA_MOVE_MS) continue;
 
-    const amount = t < first.startMs ? smooth((t - (first.startMs - rampIn)) / rampIn) : t > last.endMs ? smooth((last.endMs + rampOut - t) / rampOut) : 1;
-    let shot = frameBox(first.box, viewport, zoom.scale);
-    let box = first.box;
-    for (const w of group.slice(1)) {
-      const next = frameBox(w.box, viewport, zoom.scale);
-      const k = smooth((t - (w.startMs - PAN_LEAD_MS)) / panMs(Math.hypot(next.x - shot.x, next.y - shot.y)));
-      if (k <= 0) break;
-      shot = { scale: shot.scale + (next.scale - shot.scale) * k, x: shot.x + (next.x - shot.x) * k, y: shot.y + (next.y - shot.y) * k };
-      const mix = (a: number, b: number) => a + (b - a) * k;
-      box = { x: mix(box.x, w.box.x), y: mix(box.y, w.box.y), width: mix(box.width, w.box.width), height: mix(box.height, w.box.height) };
-    }
+    // A very short shot may start pulling back before it is fully in: it never moves faster.
+    const amount = Math.min(smooth((t - inAt) / CAMERA_MOVE_MS), smooth((outAt + CAMERA_MOVE_MS - t) / CAMERA_MOVE_MS));
+    const { shot, box } = glideAt(t, group, viewport, zoom.scale);
     const held = Math.min(1, Math.max(0, (t - first.startMs) / Math.max(1, last.endMs - first.startMs)));
     const scale = shot.scale * (1 + DRIFT * held);
     return {
@@ -142,6 +145,37 @@ export function cameraAt(
     };
   }
   return wide;
+}
+
+/**
+ * Where the camera is within a shot group at `t`. Each change of area is one glide of
+ * CAMERA_MOVE_MS, starting a little before its step, or when the last glide ends if that is
+ * later. Areas that came due while the camera was still moving are skipped for the latest one,
+ * so the camera is never more than one move behind.
+ */
+function glideAt(t: number, group: readonly FocusWindow[], viewport: { width: number; height: number }, maxScale: number): { shot: Camera; box: Box } {
+  const first = group[0] as FocusWindow;
+  let shot = frameBox(first.box, viewport, maxScale);
+  let box = first.box;
+  let free = Number.NEGATIVE_INFINITY;
+  for (let i = 1; i < group.length; i++) {
+    const at = Math.max((group[i] as FocusWindow).startMs - PAN_LEAD_MS, free);
+    while (i + 1 < group.length && (group[i + 1] as FocusWindow).startMs - PAN_LEAD_MS <= at) i++;
+    const target = (group[i] as FocusWindow).box;
+    if (sameBox(target, box)) continue;
+    if (t < at) break;
+    const next = frameBox(target, viewport, maxScale);
+    const k = smooth((t - at) / CAMERA_MOVE_MS);
+    const mix = (a: number, b: number) => a + (b - a) * k;
+    shot = { scale: mix(shot.scale, next.scale), x: mix(shot.x, next.x), y: mix(shot.y, next.y) };
+    box = { x: mix(box.x, target.x), y: mix(box.y, target.y), width: mix(box.width, target.width), height: mix(box.height, target.height) };
+    free = at + CAMERA_MOVE_MS;
+  }
+  return { shot, box };
+}
+
+function sameBox(a: Box, b: Box): boolean {
+  return Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 && Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1;
 }
 
 /** CSS transform (origin top-left) that shows the camera's view without leaving the frame. */

@@ -15,6 +15,12 @@ export interface PacerOptions {
   leadMs?: (step: Pick<Step, "id" | "action">) => number;
   /** Hold each line's steps back for at least this long (by clip id), e.g. for a longer translation. */
   holdMs?: ReadonlyMap<string, number>;
+  /**
+   * The earliest a step may start (clock ms), e.g. so the video's camera has time to pull back
+   * from a page that just changed and push in again. A line starting with that step waits too,
+   * so the voice pauses with the camera instead of running ahead of it.
+   */
+  readyAt?: (step: Pick<Step, "id" | "action">) => number;
 }
 
 /**
@@ -46,9 +52,10 @@ export class NarrationPacer {
   }
 
   async beforeStep(step: Pick<Step, "id" | "action">): Promise<void> {
+    const ready = this.options.readyAt?.(step) ?? 0;
     const clip = this.byFirstStep.get(step.id);
     if (clip) {
-      const wait = this.busyUntil - this.clock.now();
+      const wait = Math.max(this.busyUntil, ready) - this.clock.now();
       if (wait > 0) await this.clock.wait(wait);
       const start = this.clock.now();
       this.placed.push({ ...clip, start_ms: start });
@@ -58,9 +65,9 @@ export class NarrationPacer {
     }
     const anchor = this.anchored.get(step.id);
     const lineStart = anchor && this.startedAt.get(anchor.clip);
-    if (!anchor || lineStart === undefined) return;
-    // Never hurry a step: only hold back one that would land before its word.
-    const wait = lineStart + anchor.atMs - (this.options.leadMs?.(step) ?? 0) - this.clock.now();
+    // Never hurry a step: only hold back one that would land before its word, or before the camera is ready.
+    const word = !anchor || lineStart === undefined ? 0 : lineStart + anchor.atMs - (this.options.leadMs?.(step) ?? 0);
+    const wait = Math.max(word, ready) - this.clock.now();
     if (wait > 0) await this.clock.wait(wait);
   }
 

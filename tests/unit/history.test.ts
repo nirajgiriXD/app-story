@@ -101,9 +101,9 @@ describe("saved plans", () => {
   /** A workspace with one product file, and the store next to it. */
   const productWorkspace = async () => {
     const root = await mkdtemp(join(tmpdir(), "df-plans-"));
-    await mkdir(join(root, "products"));
-    await writeFile(join(root, "products", "example.md"), "---\nurl: http://localhost:4310\n---\n# Example\n");
-    return { product: await loadProduct(join(root, "products"), "example"), store: storeFor(join(root, "output")), root };
+    await mkdir(join(root, "apps"));
+    await writeFile(join(root, "apps", "example.md"), "---\nurl: http://localhost:4310\n---\n# Example\n");
+    return { product: await loadProduct(join(root, "apps"), "example"), store: storeFor(join(root, "output")), root };
   };
   const fixture = async () => parseWorkflow(await readFile("tests/fixtures/create-project.plan.yaml", "utf8"));
 
@@ -113,7 +113,7 @@ describe("saved plans", () => {
 
     expect(await loadSavedPlan(store, product, "Create a project!", plan.objective)).toBeUndefined(); // nothing saved yet
     const file = await savePlan(product, "Create a project!", plan);
-    expect(file).toBe(join(root, "products", "example.plans", "create-a-project.yaml"));
+    expect(file).toBe(join(root, "apps", "example.plans", "create-a-project.yaml"));
     expect(await readFile(file, "utf8")).toMatch(/^# A verified click-plan/);
     expect(await countPlans(product)).toBe(1);
     expect((await loadSavedPlan(store, product, "create-a-project", plan.objective))?.steps).toEqual(plan.steps);
@@ -266,9 +266,9 @@ describe("runtime", () => {
 describe("resume", () => {
   const setup = async () => {
     const root = await mkdtemp(join(tmpdir(), "df-resume-"));
-    await mkdir(join(root, "products"));
-    await writeFile(join(root, "products", "example.md"), "---\nurl: http://localhost:4310\n---\n# Example\n");
-    return { product: await loadProduct(join(root, "products"), "example"), out: join(root, "output") };
+    await mkdir(join(root, "apps"));
+    await writeFile(join(root, "apps", "example.md"), "---\nurl: http://localhost:4310\n---\n# Example\n");
+    return { product: await loadProduct(join(root, "apps"), "example"), out: join(root, "output") };
   };
 
   it("says when there is no failed video", async () => {

@@ -12,7 +12,7 @@ import { ScriptedProvider, ToneTTS } from "../support/fakes";
 
 const PORT = 4391;
 let app: { url: string; stop: () => void };
-let productsDir: string;
+let appsDir: string;
 let outputDir: string;
 let root: string;
 let plan: Workflow;
@@ -22,12 +22,12 @@ beforeAll(async () => {
   process.env.APP_STORY_AI_REVIEW = "off";
   app = await startExampleApp(PORT);
   root = await mkdtemp(join(tmpdir(), "app-story-it-"));
-  productsDir = join(root, "products");
+  appsDir = join(root, "apps");
   outputDir = join(root, "output");
-  await mkdir(productsDir);
+  await mkdir(appsDir);
   // The practice product, pointed at this test's app instance.
-  const text = (await readFile("products/example.md", "utf8")).replaceAll("4310", String(PORT));
-  await writeFile(join(productsDir, "example.md"), text);
+  const text = (await readFile("apps/example.md", "utf8")).replaceAll("4310", String(PORT));
+  await writeFile(join(appsDir, "example.md"), text);
   plan = parseWorkflow(await readFile("tests/fixtures/create-project.plan.yaml", "utf8"));
 });
 
@@ -35,9 +35,9 @@ afterAll(() => app?.stop());
 
 /** The practice product in a folder of its own, so saved plans of one test never meet another's. */
 async function productIn(folder: string) {
-  const dir = join(root, folder, "products");
+  const dir = join(root, folder, "apps");
   await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, "example.md"), await readFile(join(productsDir, "example.md"), "utf8"));
+  await writeFile(join(dir, "example.md"), await readFile(join(appsDir, "example.md"), "utf8"));
   return { product: await loadProduct(dir, "example"), out: join(root, folder, "output") };
 }
 
@@ -90,7 +90,7 @@ const OBJECTIVE = "Demonstrate how to create a new project";
 
 describe("end-to-end pipeline (real browser, login, recorder and renderer)", () => {
   it("logs in by itself and renders a plan into a playable 1080p MP4 with captions and a report", async () => {
-    const product = await loadProduct(productsDir, "example");
+    const product = await loadProduct(appsDir, "example");
     const tts = new ToneTTS();
     const metadata = await generateDemo({ product, outputDir, objective: OBJECTIVE, plan, logLevel: "warn", providers: { createTTS: () => tts } });
 
@@ -125,7 +125,7 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
   });
 
   it("makes a video again from its kept recording, in another look, without the app", async () => {
-    const product = await loadProduct(productsDir, "example");
+    const product = await loadProduct(appsDir, "example");
     const [newest] = await listTakes(storeFor(outputDir).dataDir, "example");
     expect(newest).toBeDefined();
     // Pointed at an address where nothing runs: a redo never opens the app.
@@ -142,7 +142,7 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
   });
 
   it("narrates with the free local Kokoro voice (no API key)", async () => {
-    const product = await loadProduct(productsDir, "example", { ttsProvider: "kokoro" });
+    const product = await loadProduct(appsDir, "example", { ttsProvider: "kokoro" });
     const metadata = await generateDemo({ product, outputDir, objective: OBJECTIVE, plan, logLevel: "warn" });
 
     expect(metadata.errors).toEqual([]);
@@ -154,7 +154,7 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
   }, 300_000);
 
   it("makes a captions-only video when there is no voice", async () => {
-    const product = await loadProduct(productsDir, "example", { ttsProvider: "none" });
+    const product = await loadProduct(appsDir, "example", { ttsProvider: "none" });
     const metadata = await generateDemo({ product, outputDir, objective: OBJECTIVE, plan, logLevel: "warn" });
 
     expect(metadata.errors).toEqual([]);
@@ -213,9 +213,9 @@ describe("end-to-end pipeline (real browser, login, recorder and renderer)", () 
   });
 
   it("makes the same video in another language and in other shapes, from one recording", async () => {
-    const dir = join(root, "languages", "products");
+    const dir = join(root, "languages", "apps");
     await mkdir(dir, { recursive: true });
-    const text = (await readFile(join(productsDir, "example.md"), "utf8")).replace(
+    const text = (await readFile(join(appsDir, "example.md"), "utf8")).replace(
       "length: 60",
       "length: 60\nvoice: openai\nlanguage: en, de\nformats: vertical, gif",
     );

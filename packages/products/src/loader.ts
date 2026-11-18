@@ -27,7 +27,7 @@ import {
 import { AppStoryError, CUSTOM_KEY_ENV, aiKeySource, fileExists, isAppStoryError } from "@app-story/shared";
 
 /**
- * A product is one Markdown file, `products/<id>.md`:
+ * A product is one Markdown file, `apps/<id>.md`:
  *
  *   ---
  *   url: https://staging.acme.com
@@ -108,8 +108,8 @@ const ID = /^[a-z0-9][a-z0-9-]*$/;
 /** `font:` names a file when it ends like one; otherwise it is a font family name. */
 const FONT_FILE = /\.(woff2?|ttf|otf)$/i;
 
-export function productFilePath(productsDir: string, id: string): string {
-  return join(productsDir, `${id}.md`);
+export function productFilePath(appsDir: string, id: string): string {
+  return join(appsDir, `${id}.md`);
 }
 
 /** Split a product file into its settings block and the Markdown the AI reads. */
@@ -395,15 +395,15 @@ export function applyVoiceSettings(tts: TtsConfig, env: NodeJS.ProcessEnv = proc
   return next;
 }
 
-export async function loadProduct(productsDir: string, id: string, overrides?: ProviderOverrides): Promise<LoadedProduct> {
-  const file = productFilePath(productsDir, id);
+export async function loadProduct(appsDir: string, id: string, overrides?: ProviderOverrides): Promise<LoadedProduct> {
+  const file = productFilePath(appsDir, id);
   if (!ID.test(id) || !(await fileExists(file))) {
     throw new AppStoryError("PRODUCT_NOT_FOUND", `Product '${id}' was not found (looked for ${file}).`, {
       hint: "Run `npx app-story list` to see your products, or `npx app-story new <name>` to create one.",
     });
   }
   const { config, brief } = parseProductFile(await readFile(file, "utf8"), file, id);
-  return { id, file, dir: productsDir, config: applyOverrides(config, overrides), brief };
+  return { id, file, dir: appsDir, config: applyOverrides(config, overrides), brief };
 }
 
 export interface ProductListing {
@@ -414,10 +414,10 @@ export interface ProductListing {
   error?: string;
 }
 
-/** Every `products/<id>.md`, except a README.md and files starting with `_` or `.`. */
-export async function listProducts(productsDir: string): Promise<ProductListing[]> {
-  if (!(await fileExists(productsDir))) return [];
-  const entries = await readdir(productsDir, { withFileTypes: true });
+/** Every `apps/<id>.md`, except a README.md and files starting with `_` or `.`. */
+export async function listProducts(appsDir: string): Promise<ProductListing[]> {
+  if (!(await fileExists(appsDir))) return [];
+  const entries = await readdir(appsDir, { withFileTypes: true });
   const listings: ProductListing[] = [];
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".md") || /^[_.]/.test(entry.name) || entry.name.toLowerCase() === "readme.md") continue;
@@ -427,7 +427,7 @@ export async function listProducts(productsDir: string): Promise<ProductListing[
       continue;
     }
     try {
-      const { config } = await loadProduct(productsDir, id);
+      const { config } = await loadProduct(appsDir, id);
       listings.push({ id, name: config.product.name, base_url: `${config.product.base_url}${config.product.start_path}`, valid: true });
     } catch (error) {
       listings.push({ id, valid: false, error: isAppStoryError(error) ? error.message : String(error) });
@@ -436,14 +436,14 @@ export async function listProducts(productsDir: string): Promise<ProductListing[
   return listings.sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/** Create `products/<id>.md` from a short template. Never overwrites a file. */
-export async function newProductFile(productsDir: string, options: { id: string; url: string; name?: string }): Promise<string> {
+/** Create `apps/<id>.md` from a short template. Never overwrites a file. */
+export async function newProductFile(appsDir: string, options: { id: string; url: string; name?: string }): Promise<string> {
   if (!ID.test(options.id)) {
     throw new AppStoryError("CONFIG_INVALID", `'${options.id}' is not a valid product name.`, {
       hint: "Use lowercase letters, numbers and dashes, e.g. my-app.",
     });
   }
-  const file = productFilePath(productsDir, options.id);
+  const file = productFilePath(appsDir, options.id);
   if (await fileExists(file)) throw new AppStoryError("CONFIG_INVALID", `${file} already exists.`);
   const name = options.name ?? options.id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const text = [

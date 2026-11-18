@@ -230,7 +230,7 @@ describe("products folder", () => {
   });
 
   it("loads the bundled example product", async () => {
-    const product = await loadProduct("products", "example");
+    const product = await loadProduct("apps", "example");
     expect(product.config.authentication).toMatchObject({ strategy: "auto", username: "demo@example.com" });
     expect(product.config.product.start_path).toBe("/projects");
     expect(product.brief).toContain("## Release notes");

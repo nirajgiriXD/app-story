@@ -8,14 +8,14 @@ import { bold, dim, green, red, yellow } from "../output";
 
 export function newCommand(): Command {
   return new Command("new")
-    .description("Create products/<name>.md for a new product")
+    .description("Create apps/<name>.md for a new product")
     .argument("<name>", "short product name, e.g. acme (lowercase, dashes)")
     .option("--url <url>", "address of the running app")
     .action(async (rawName: string, opts: { url?: string }, cmd: Command) => {
       const id = slugify(rawName);
       if (RESERVED_NAMES.has(id)) throw new AppStoryError("CONFIG_INVALID", `'${id}' is a command name; pick another product name.`);
       const url = opts.url ?? (await ask("Address of the app", "https://staging.my-app.com"));
-      const file = await newProductFile(globals(cmd).productsDir, { id, url });
+      const file = await newProductFile(globals(cmd).appsDir, { id, url });
       console.log(green(`✔ Created ${file}`));
       console.log(dim("  Add the login if the app has one, describe the app and paste your release notes."));
       console.log(dim(`  Then: npx app-story check ${id}   and   npx app-story ${id}`));
@@ -41,8 +41,8 @@ export function checkCommand(): Command {
 
 export function listCommand(): Command {
   return new Command("list").description("List your products").action(async (_opts, cmd: Command) => {
-    const { productsDir } = globals(cmd);
-    const items = await listProducts(productsDir);
+    const { appsDir } = globals(cmd);
+    const items = await listProducts(appsDir);
     if (items.length === 0) {
       console.log(dim(`No products yet. Create one with: npx app-story new <name>`));
       return;

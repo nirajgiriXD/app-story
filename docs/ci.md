@@ -1,6 +1,6 @@
 # AppStory in CI
 
-Once a video has been made, its plan (`products/<product>.plans/<name>.yaml`) holds the
+Once a video has been made, its plan (`apps/<product>.plans/<name>.yaml`) holds the
 clicks, the checks and the narration. Commit it: CI can then check that the plan still
 works, and make the same video again, with no AI key.
 
@@ -51,7 +51,7 @@ jobs:
 | `env-vars` | | names of variables to pass in: the passwords your product files read with `env:NAME` |
 | `version` | `latest` | the AppStory Docker image tag; pin it so videos do not change by themselves |
 | `image` | | a full image name instead, e.g. one you built |
-| `working-directory` | `.` | the folder with `products/` |
+| `working-directory` | `.` | the folder with `apps/` |
 | `upload` | `true` | upload `output/` as an artifact after `replay` |
 | `artifact-name` | `app-story-videos` | the artifact's name |
 

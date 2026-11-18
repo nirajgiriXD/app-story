@@ -25,11 +25,11 @@ and the word timing model.
 
 AppStory never keeps user data in its own folder. Everything belongs to the user's
 project folder (`workspace()` in the shared package): the nearest folder with
-`products/` or `.app-story/`, or `APP_STORY_HOME`.
+`apps/` or `.app-story/`, or `APP_STORY_HOME`.
 
 ## Product files
 
-`products/<id>.md` is the only thing users write. Its settings block (YAML between `---`
+`apps/<id>.md` is the only thing users write. Its settings block (YAML between `---`
 lines) is validated with Zod and turned into the engine's full `ProductConfig`, with
 defaults for everything else; it is never sent to the AI. The Markdown below it is the
 product context every AI step reads. Logins are filled by `autoLogin` (in the browser
@@ -43,7 +43,7 @@ at login time and registered as secrets.
    objective, for one video or one each.
 1. **Plan.** Before the practice run, and again before every recording and every `test`,
    `reset:` puts the app's demo data back (`pipeline/reset.ts`), so what the practice run
-   created is not on screen twice. A saved plan (`products/<product>.plans/<name>.yaml`) is replayed if it was made for exactly this
+   created is not on screen twice. A saved plan (`apps/<product>.plans/<name>.yaml`) is replayed if it was made for exactly this
    objective. Otherwise a **rehearsal** runs: the AI drives an *unrecorded* browser through
    guarded tools, recovers from mistakes, verifies the outcome, then picks the successful
    steps to keep. The result is a versioned workflow (the `plan` record).
@@ -126,7 +126,7 @@ uses one per process; a test or a long-running host can make its own and `close(
 ## Storage
 
 `output/` receives only what is posted: the finished MP4, its captions (`.srt`), its thumbnail (`.png`) a description to paste (`.description.txt`, with YouTube chapters) and a short post to share it with (`.post.txt`). A plan made by the AI is saved, after its video
-passed, as YAML next to the product file (`products/<product>.plans/<name>.yaml`, see
+passed, as YAML next to the product file (`apps/<product>.plans/<name>.yaml`, see
 `pipeline/plans.ts`), so it can be committed, reviewed and shared. Everything else is in
 `.app-story/` in the user's project, which ignores itself in git:
 

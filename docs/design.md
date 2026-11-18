@@ -490,7 +490,7 @@ Subtitles should be readable and must not obstruct important application UI elem
 
 # 5. Product Configuration
 
-Every product is one file, `products/<id>.md`. The full format is in
+Every product is one file, `apps/<id>.md`. The full format is in
 ["Product files"](../README.md#product-files) in the README.
 
 ```markdown
@@ -541,7 +541,7 @@ app-story easydash "Demonstrate how to create and restore a website backup"
 ## Repeatable runs
 
 Each plan whose video passed is saved as YAML next to the product file
-(`products/<product>.plans/<name>.yaml`, meant to be committed) and replayed by the next
+(`apps/<product>.plans/<name>.yaml`, meant to be committed) and replayed by the next
 video of the same feature, without AI planning. Its narration and voice clips are reused
 too, from the cache. It is re-planned automatically when the feature text changes or the
 app no longer matches it, or on `--fresh`.
@@ -556,7 +556,7 @@ planning it again.
 
 ```bash
 app-story <product> [goal]      # make videos (--each, --fresh, --headed)
-app-story new <name>            # create products/<name>.md
+app-story new <name>            # create apps/<name>.md
 app-story check <product>       # settings, keys, login, the app, local tools
 app-story list                  # list products
 app-story history [product]     # recent videos (--limit, --json)
@@ -568,12 +568,12 @@ app-story resume <product> [video]  # finish a failed video without planning aga
 
 # 8. Project Structure
 
-Use an npm workspaces monorepo. What users touch (`products/`, `output/`) and the code sit
+Use an npm workspaces monorepo. What users touch (`apps/`, `output/`) and the code sit
 side by side at the top level.
 
 ```text
 app-story/
-├── products/                 user-owned: one file per product
+├── apps/                     user-owned: one file per product
 │   ├── example.md            the practice app
 │   └── <product>.plans/      saved click-plans, one YAML file per video (committed)
 │
@@ -624,7 +624,7 @@ output/
     20261116-134205-a1b2c3-website-backup.srt
 ```
 
-Saved plans are YAML files in `products/<product>.plans/`. Everything else is in
+Saved plans are YAML files in `apps/<product>.plans/`. Everything else is in
 `.app-story/` in the user's project. The SQLite database `.app-story/app-story.db` has the
 `jobs` table (product, objective, timestamps, AI provider and model, voice, workflow
 version, status, recording duration, video path, token usage and estimated AI cost,

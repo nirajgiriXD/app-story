@@ -7,7 +7,7 @@ export function testCommand(): Command {
   return new Command("test")
     .description("Check that saved plans still work in the app (fast: no recording, voice or AI)")
     .argument("<product>", "product name")
-    .argument("[plans...]", "plan names from products/<product>.plans/ (default: all of them)")
+    .argument("[plans...]", "plan names from apps/<product>.plans/ (default: all of them)")
     .option("--headed", "show the browser window while working")
     .addHelpText(
       "after",

@@ -9,7 +9,7 @@ import { createSilentLogger, isAppStoryError } from "@app-story/shared";
 
 async function productWith(reset: string): Promise<{ product: LoadedProduct; root: string }> {
   const root = await mkdtemp(join(tmpdir(), "app-story-reset-"));
-  const dir = join(root, "products");
+  const dir = join(root, "apps");
   await mkdir(dir);
   const { config, brief } = parseProductFile(`---\nurl: https://acme.test\nreset: ${JSON.stringify(reset)}\n---\n\n# Acme\n`, "acme.md", "acme");
   return { product: { id: "acme", file: join(dir, "acme.md"), dir, config, brief }, root };

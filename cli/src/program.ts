@@ -10,7 +10,7 @@ import { importCommand } from "./commands/import";
 
 const EXAMPLES = `
 Examples:
-  npx app-story acme                          one video of what's new in products/acme.md
+  npx app-story acme                          one video of what's new in apps/acme.md
   npx app-story acme --each                   one video per new feature
   npx app-story acme "show how to export"     a video of anything else, in plain words
   npx app-story redo acme --template tutorial the newest video again, in another look
@@ -18,14 +18,14 @@ Examples:
   npx app-story replay acme                   every saved plan's video again, with no AI (for CI)
   npx app-story test acme                     check the saved plans still work in the app
   npx app-story import acme trace.zip         a Playwright test's trace as a saved plan
-  npx app-story new acme                      create products/acme.md
+  npx app-story new acme                      create apps/acme.md
   npx app-story check acme                    check settings, keys, login and tools`;
 
 export function buildProgram(): Command {
   return new Command("app-story")
-    .description("Make product demo videos from products/<product>.md")
+    .description("Make product demo videos from apps/<product>.md")
     .version("0.1.0")
-    .argument("[product]", "product name: the file products/<product>.md")
+    .argument("[product]", "product name: the file apps/<product>.md")
     .argument("[goal...]", "what to show, in plain words (default: what's new in the release notes)")
     .option("--each", "one video per new feature instead of one for all")
     .option("--fresh", "plan again instead of replaying a saved plan")

@@ -22,17 +22,17 @@ loadEnv({ path: workspace().envFile, quiet: true });
 
 const PORT = 4392;
 let app: { url: string; stop: () => void };
-let productsDir: string;
+let appsDir: string;
 let outputDir: string;
 
 beforeAll(async () => {
   app = await startExampleApp(PORT);
   const root = await mkdtemp(join(tmpdir(), "app-story-e2e-"));
-  productsDir = join(root, "products");
+  appsDir = join(root, "apps");
   outputDir = join(root, "output");
-  await mkdir(productsDir);
-  const text = (await readFile("products/example.md", "utf8")).replaceAll("4310", String(PORT));
-  await writeFile(join(productsDir, "example.md"), text);
+  await mkdir(appsDir);
+  const text = (await readFile("apps/example.md", "utf8")).replaceAll("4310", String(PORT));
+  await writeFile(join(appsDir, "example.md"), text);
 });
 
 afterAll(() => app?.stop());
@@ -50,14 +50,14 @@ for (const provider of PROVIDERS) {
     afterAll(() => cassette?.save());
 
     it("picks the new feature from the release notes and skips the bug fix", async () => {
-      const product = await loadProduct(productsDir, "example", { aiProvider: provider });
+      const product = await loadProduct(appsDir, "example", { aiProvider: provider });
       const { plan } = await planFeatures({ product, logLevel: "warn", providers });
       expect(plan.features.map((f) => f.title.toLowerCase())).toEqual([expect.stringContaining("project")]);
       expect(plan.skipped.length).toBeGreaterThanOrEqual(1);
     });
 
     it("plans, executes, verifies, records, narrates and renders a real demo", async () => {
-      const product = await loadProduct(productsDir, "example", { aiProvider: provider });
+      const product = await loadProduct(appsDir, "example", { aiProvider: provider });
       const metadata = await generateDemo({
         product,
         outputDir,

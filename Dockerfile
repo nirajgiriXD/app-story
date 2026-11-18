@@ -3,7 +3,7 @@
 #   docker build -t app-story .
 #   docker run --rm -it -v "$PWD:/work" app-story check acme
 #
-# Run it from your project folder (the one with products/ and .env); videos land in output/.
+# Run it from your project folder (the one with apps/ and .env); videos land in output/.
 # On Linux, add --user "$(id -u):$(id -g)" so the files it writes belong to you.
 
 # ---- build the npm package from the sources

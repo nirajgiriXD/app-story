@@ -99,8 +99,8 @@ jobs:
       - name: Start the practice app, with a saved plan for it
         run: |
           node tests/example-app/server.mjs &
-          mkdir -p products/example.plans
-          cp tests/fixtures/create-project.plan.yaml products/example.plans/create-project.yaml
+          mkdir -p apps/example.plans
+          cp tests/fixtures/create-project.plan.yaml apps/example.plans/create-project.yaml
           for i in $(seq 1 50); do curl -sf http://localhost:4310/health > /dev/null && break; sleep 0.2; done
       - name: "Action: check the saved plan still works"
         uses: ./

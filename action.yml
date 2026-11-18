@@ -12,11 +12,11 @@ branding:
 
 inputs:
   products:
-    description: Product names (products/<name>.md), separated by spaces.
+    description: Product names (apps/<name>.md), separated by spaces.
     required: true
   command:
     description: >-
-      replay: make the videos of the saved plans (products/<name>.plans/*.yaml) again, with
+      replay: make the videos of the saved plans (apps/<name>.plans/*.yaml) again, with
       the narration saved in them, so no AI key is needed. test: check that every saved plan
       still works in the app (fast: no recording, voice or AI); fails the step if one broke.
     required: false
@@ -41,7 +41,7 @@ inputs:
     required: false
     default: ""
   working-directory:
-    description: The project folder, the one with products/.
+    description: The project folder, the one with apps/.
     required: false
     default: .
   upload:

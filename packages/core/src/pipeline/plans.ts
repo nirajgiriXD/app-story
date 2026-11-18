@@ -8,7 +8,7 @@ import type { Store } from "../store/store";
 
 /**
  * Verified click-plans, saved as YAML files next to the product file
- * (`products/<product>.plans/<name>.yaml`), so they can be committed, reviewed in a pull
+ * (`apps/<product>.plans/<name>.yaml`), so they can be committed, reviewed in a pull
  * request and shared: every copy of the project replays the same clicks. The next video
  * of the same feature replays its plan without AI planning (cheaper, faster, identical).
  * A plan is saved after a successful video, reused while the feature text is unchanged,

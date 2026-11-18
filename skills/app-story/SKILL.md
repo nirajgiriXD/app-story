@@ -1,6 +1,6 @@
 ---
 name: app-story
-description: Make a narrated product demo video of the web app in this project with AppStory, which drives a real browser through the running app, records it, narrates it and renders an MP4. Use when someone asks for a demo video, a feature video, a release video or a "what's new" video of their app, or to set up or run AppStory (products/<name>.md, npx app-story).
+description: Make a narrated product demo video of the web app in this project with AppStory, which drives a real browser through the running app, records it, narrates it and renders an MP4. Use when someone asks for a demo video, a feature video, a release video or a "what's new" video of their app, or to set up or run AppStory (apps/<name>.md, npx app-story).
 ---
 
 # AppStory
@@ -17,7 +17,7 @@ this project and run it. The full reference is the AppStory README
   If it is missing, ask before installing it: `npm install --save-dev app-story`, then
   `npx playwright install chromium`. It needs Node.js 22.13+ and FFmpeg on `PATH`. With
   Docker instead, see the README's "Install".
-- Is there a `products/` folder? Each product is one Markdown file, `products/<name>.md`.
+- Is there a `apps/` folder? Each product is one Markdown file, `apps/<name>.md`.
   If one exists, work with it; do not make a second one for the same app.
 - Is there an AI key? `.env` needs `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` (or `ai: local`
   with a local model server). Check only that the name is set; never print or copy the value.
@@ -82,7 +82,7 @@ npx app-story <name> "show how to export a report"   # a video of anything else
 ```
 
 A video takes a few minutes and uses the AI key, which costs money: tell the user before
-the first run. Once a plan works, it is saved in `products/<name>.plans/` and replayed with
+the first run. Once a plan works, it is saved in `apps/<name>.plans/` and replayed with
 no AI cost; suggest committing that folder.
 
 ## 5. Hand over

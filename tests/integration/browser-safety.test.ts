@@ -9,25 +9,25 @@ import { startExampleApp } from "../support/example-app";
 
 const PORT = 4393;
 let app: { url: string; stop: () => void };
-let productsDir: string;
+let appsDir: string;
 let outputDir: string;
 const log = createSilentLogger();
 
 beforeAll(async () => {
   app = await startExampleApp(PORT);
   const root = await mkdtemp(join(tmpdir(), "app-story-safety-"));
-  productsDir = join(root, "products");
+  appsDir = join(root, "apps");
   outputDir = join(root, "output");
-  await mkdir(productsDir);
-  const text = (await readFile("products/example.md", "utf8")).replaceAll("4310", String(PORT));
-  await writeFile(join(productsDir, "example.md"), text);
+  await mkdir(appsDir);
+  const text = (await readFile("apps/example.md", "utf8")).replaceAll("4310", String(PORT));
+  await writeFile(join(appsDir, "example.md"), text);
 });
 
 afterAll(() => app?.stop());
 
 describe("browser safety in a real Chromium", () => {
   it("blocks destructive clicks and off-domain navigation, even when asked to", async () => {
-    const product = await loadProduct(productsDir, "example");
+    const product = await loadProduct(appsDir, "example");
     await withBrowser(product, { workDir: join(outputDir, "b1"), log }, async (session) => {
       const c = session.controller;
       await c.navigate("/settings");
@@ -54,7 +54,7 @@ describe("browser safety in a real Chromium", () => {
   });
 
   it("finds the login form by itself, and reports a wrong password as an auth failure", async () => {
-    const product = await loadProduct(productsDir, "example");
+    const product = await loadProduct(appsDir, "example");
     // The right login lands on the start page.
     await withBrowser(product, { workDir: join(outputDir, "b2"), log }, async (session) => {
       expect(session.page.url()).toContain("/projects");
@@ -66,7 +66,7 @@ describe("browser safety in a real Chromium", () => {
   });
 
   it("blurs what the product file says to blur, on every page, and rejects a broken selector", async () => {
-    const product = await loadProduct(productsDir, "example");
+    const product = await loadProduct(appsDir, "example");
     product.config.browser.blur = [".sub", "td:nth-child(3)"];
     await withBrowser(product, { workDir: join(outputDir, "b5"), log }, async (session) => {
       const filterOf = (selector: string) =>
@@ -87,7 +87,7 @@ describe("browser safety in a real Chromium", () => {
   });
 
   it("read-only mode cannot type or submit", async () => {
-    const product = await loadProduct(productsDir, "example");
+    const product = await loadProduct(appsDir, "example");
     await withBrowser(product, { workDir: join(outputDir, "b4"), log, mode: "read_only" }, async (session) => {
       const c = session.controller;
       await c.navigate("/projects/new");

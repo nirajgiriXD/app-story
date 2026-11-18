@@ -7,14 +7,14 @@ export interface GlobalOptions {
 }
 
 /** Products live in <workspace>/products and videos in <workspace>/output (see `workspace()`). */
-export function globals(cmd: Command): { productsDir: string; outputDir: string; logLevel?: string } {
+export function globals(cmd: Command): { appsDir: string; outputDir: string; logLevel?: string } {
   const opts = cmd.optsWithGlobals<GlobalOptions>();
-  const { productsDir, outputDir } = workspace();
-  return { productsDir, outputDir, logLevel: opts.logLevel };
+  const { appsDir, outputDir } = workspace();
+  return { appsDir, outputDir, logLevel: opts.logLevel };
 }
 
 export async function openProduct(id: string): Promise<LoadedProduct> {
-  return loadProduct(workspace().productsDir, id);
+  return loadProduct(workspace().appsDir, id);
 }
 
 /** Names of commands, which therefore cannot be product names. */

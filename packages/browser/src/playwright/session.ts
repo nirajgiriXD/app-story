@@ -249,7 +249,7 @@ const USERNAME_FIELD = [
 async function autoLogin(controller: PlaywrightController, page: Page, config: ProductConfig): Promise<void> {
   const auth = config.authentication;
   if (auth.strategy !== "auto") return;
-  const where = `the login in products/${config.product.id}.md`;
+  const where = `the login in apps/${config.product.id}.md`;
   const username = resolveCredential(auth.username, { secret: false, hint: `It is used by ${where}.` });
   const password = resolveCredential(auth.password, { secret: true, hint: `It is used by ${where}.` });
   const passwordField = page.locator('input[type="password"]:visible').first();
@@ -274,7 +274,7 @@ async function autoLogin(controller: PlaywrightController, page: Page, config: P
   }
   if (!found) {
     throw new AppStoryError("AUTH_FAILED", `Could not find a login form for ${config.product.name}.`, {
-      hint: `Add the page that shows it, e.g. "login page: /login", to products/${config.product.id}.md.`,
+      hint: `Add the page that shows it, e.g. "login page: /login", to apps/${config.product.id}.md.`,
     });
   }
 

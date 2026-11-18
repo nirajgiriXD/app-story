@@ -43,12 +43,12 @@ Then put your AI key in `.env` (copy `.env.example` from this repository for the
 ## Where things are
 
 Everything lives in your project folder: the nearest folder, from where you run AppStory
-upwards, with a `products/` or `.app-story/` folder (`APP_STORY_HOME` picks it explicitly).
+upwards, with an `apps/` or `.app-story/` folder (`APP_STORY_HOME` picks it explicitly).
 
 | Folder | What it is |
 | --- | --- |
-| `products/` | **Yours.** One file per product, e.g. `products/acme.md`; the format is in the README's "Product files" |
-| `products/acme.plans/` | **Yours.** The saved click-plans of acme, one YAML file per video. Commit them |
+| `apps/` | **Yours.** One file per product, e.g. `apps/acme.md`; the format is in the README's "Product files" |
+| `apps/acme.plans/` | **Yours.** The saved click-plans of acme, one YAML file per video. Commit them |
 | `output/` | **Yours.** Finished videos, nothing else |
 | `.env` | **Yours.** Your AI key, and any password a product file reads with `env:NAME` |
 | `.app-story/` | AppStory's records: database, kept recordings, scratch folders. Git ignores it by itself |
@@ -61,15 +61,15 @@ npx app-story check example    # terminal 2
 npx app-story example
 ```
 
-`products/example.md` describes it: its address, its login and its release notes.
+`apps/example.md` describes it: its address, its login and its release notes.
 
 ## Your own product
 
 ```bash
-npx app-story new acme         # creates products/acme.md and asks for the app's address
+npx app-story new acme         # creates apps/acme.md and asks for the app's address
 ```
 
-Open `products/acme.md`, add the login if the app has one, describe the app in a few
+Open `apps/acme.md`, add the login if the app has one, describe the app in a few
 sentences, and paste your release notes. Then:
 
 ```bash
@@ -88,7 +88,7 @@ What happens:
 3. The narration is written and spoken, the app is recorded at presentation speed in
    time with it, and the video is rendered and checked.
 
-The working click-plan is saved as a file, `products/acme.plans/<video>.yaml`. The next
+The working click-plan is saved as a file, `apps/acme.plans/<video>.yaml`. The next
 video of the same feature replays it: no AI planning, same video. Commit the file and
 your teammates and automated runs replay the same clicks. Editing the feature in the
 release notes, or the app changing so the plan no longer works, makes AppStory plan again
@@ -119,7 +119,7 @@ npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
 | Command | Purpose |
 | --- | --- |
 | `npx app-story <product> [goal]` | make videos (options: `--each`, `--fresh`, `--headed`) |
-| `npx app-story new <name>` | create `products/<name>.md` |
+| `npx app-story new <name>` | create `apps/<name>.md` |
 | `npx app-story check <product>` | check settings, keys, login, the app and local tools |
 | `npx app-story list` | list your products |
 | `npx app-story history [product]` | recent videos, with their ids |

@@ -18,7 +18,7 @@ Pick one. They all make the same videos.
 ```bash
 npm install --save-dev app-story
 npx playwright install chromium   # the browser it drives
-npx app-story new acme            # creates products/acme.md
+npx app-story new acme            # creates apps/acme.md
 ```
 
 **With Docker.** Needs only Docker: Node, Chromium, FFmpeg and the voice model are inside.
@@ -28,7 +28,7 @@ docker pull ghcr.io/nirajgirixd/app-story
 docker run --rm -it -v "$PWD:/work" ghcr.io/nirajgirixd/app-story new acme
 ```
 
-Run it from your project folder; it reads `.env` and `products/` there and writes the
+Run it from your project folder; it reads `.env` and `apps/` there and writes the
 videos to `output/`. On Linux, add `--user "$(id -u):$(id -g)"` so the files are yours.
 Inside Docker, an app running on your own computer is at `host.docker.internal`, not
 `localhost`. To build the image yourself: `docker build -t app-story .` in this repository.
@@ -46,7 +46,7 @@ npx skills add https://github.com/nirajgiriXD/app-story --skill app-story   # mo
 ```
 
 Then add your AI key to `.env` (`ANTHROPIC_API_KEY=...`, `OPENAI_API_KEY=...`, or `CUSTOM_AI_API_KEY=...` with `CUSTOM_AI_BASE_URL=...` for a gateway such as LiteLLM), fill in
-`products/acme.md`, and run `npx app-story acme`. See [docs/getting-started.md](docs/getting-started.md).
+`apps/acme.md`, and run `npx app-story acme`. See [docs/getting-started.md](docs/getting-started.md).
 
 ## Where things are
 
@@ -54,7 +54,7 @@ AppStory works in your project folder:
 
 ```text
 your-project/
-├── products/          👉 your products: one file each, e.g. products/acme.md (see "Product files")
+├── apps/              👉 your products: one file each, e.g. apps/acme.md (see "Product files")
 │   └── acme.plans/    the saved click-plans of acme, one YAML file per video: commit them
 ├── output/            👉 finished videos and their captions (see "Output")
 ├── .env               👉 your AI key, voice choices, and passwords read with env:NAME
@@ -62,22 +62,22 @@ your-project/
 ```
 
 Your project folder is the nearest folder, from where you run AppStory upwards, that has a
-`products/` or `.app-story/` folder (or the current folder, the first time).
+`apps/` or `.app-story/` folder (or the current folder, the first time).
 `APP_STORY_HOME=/some/folder` picks it explicitly. In this repository it is the repository
-itself, so `products/example.md` is ready to try.
+itself, so `apps/example.md` is ready to try.
 
 ## Product files
 
-Each product is a single Markdown file: `products/<name>.md`. That is all AppStory
+Each product is a single Markdown file: `apps/<name>.md`. That is all AppStory
 needs. It never needs your product's source code: it opens the running app in a browser.
 
 ```bash
-npx app-story new acme          # creates products/acme.md
+npx app-story new acme          # creates apps/acme.md
 npx app-story check acme        # checks it
 npx app-story acme              # one video of what's new in its release notes
 ```
 
-`products/example.md` is a working product for the practice app (`npm run example-app`).
+`apps/example.md` is a working product for the practice app (`npm run example-app`).
 
 ### What goes in the file
 
@@ -220,7 +220,7 @@ not treated as products. Product names are lowercase letters, numbers and dashes
 - Picks the features from the release notes.
 - Logs in, plans the clicks in the real app, proves each feature works, then records it.
 - Saves each working plan as a file next to the product file
-  (`products/acme.plans/<video>.yaml`) and replays it next time: no AI cost, same video.
+  (`apps/acme.plans/<video>.yaml`) and replays it next time: no AI cost, same video.
   Commit these files, so teammates and automated runs replay the same clicks, and
   changes to a plan show up in pull requests. If you edit the feature in the release
   notes, or the app changed and the plan stops working, it plans again and replaces the
@@ -331,7 +331,7 @@ output/
     └── 20261116-141010-d4e5f6-bulk-export.post.txt
 ```
 
-The saved plans are in `products/<product>.plans/` (see above). Everything else is in
+The saved plans are in `apps/<product>.plans/` (see above). Everything else is in
 `.app-story/`, which git ignores:
 
 ```text
@@ -362,7 +362,7 @@ but not the saved plans.
 ## The code
 
 AppStory itself is the rest of this repository. You do not need to change anything there
-to make videos: your work happens in `products/`, and the videos land in `output/`.
+to make videos: your work happens in `apps/`, and the videos land in `output/`.
 
 ```text
 app-story/
@@ -375,7 +375,7 @@ app-story/
 │   ├── narration/    writes the script and speaks it (Kokoro, Chatterbox, OpenAI, ElevenLabs)
 │   ├── captions/     subtitles
 │   ├── video/        renders the final MP4 (headless Chromium + FFmpeg)
-│   ├── products/     reads the product files in products/
+│   ├── products/     reads the product files in apps/
 │   ├── contracts/    the shape of every config and result file
 │   └── shared/       small helpers used everywhere
 ├── tests/          unit, integration (real browser) and e2e (recorded AI answers) tests, fixtures,

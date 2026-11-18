@@ -8,17 +8,27 @@ import { findWorkspaceRoot, workspaceAt } from "@app-story/shared";
 import { buildProgram } from "../../cli/src/program";
 
 describe("the user's project folder", () => {
-  it("is the nearest folder upwards with products/ or .app-story/", async () => {
+  it("is the nearest folder upwards with apps/ or .app-story/", async () => {
     const root = await mkdtemp(join(tmpdir(), "df-ws-"));
     const deep = join(root, "app", "src", "deep");
     await mkdir(deep, { recursive: true });
     expect(findWorkspaceRoot(deep)).toBe(deep); // nothing yet: where it runs
 
-    await mkdir(join(root, "app", "products"));
+    await mkdir(join(root, "app", "apps"));
     expect(findWorkspaceRoot(deep)).toBe(join(root, "app"));
     await mkdir(join(root, "app", "src", ".app-story"));
     expect(findWorkspaceRoot(deep)).toBe(join(root, "app", "src"));
     expect(findWorkspaceRoot(deep, join(root, "elsewhere"))).toBe(join(root, "elsewhere")); // APP_STORY_HOME wins
+  });
+
+  it("still reads products/, the folder's old name, when a project has no apps/ yet", async () => {
+    const root = await mkdtemp(join(tmpdir(), "df-ws-"));
+    expect(workspaceAt(root).appsDir).toBe(join(root, "apps")); // a new project
+    await mkdir(join(root, "products"));
+    expect(findWorkspaceRoot(join(root))).toBe(root);
+    expect(workspaceAt(root).appsDir).toBe(join(root, "products"));
+    await mkdir(join(root, "apps"));
+    expect(workspaceAt(root).appsDir).toBe(join(root, "apps")); // apps/ wins once it exists
   });
 
   it("keeps AppStory's records in .app-story/, out of git, and brings over an older database", async () => {

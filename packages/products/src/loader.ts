@@ -79,6 +79,8 @@ const SettingsSchema = z
     fps: z.union([z.literal(30), z.literal(60)], { error: "fps is 30 or 60" }).optional(),
     resolution: z.enum(["1080p", "1440p", "4k"], { error: "resolution is 1080p, 1440p or 4k" }).optional(),
     logo: z.string().optional(),
+    music: z.string({ error: "music is an audio file next to the product file, e.g. music: calm-track.mp3" }).min(1).optional(),
+    "music volume": z.number({ error: "music volume is a number from 0 to 1, e.g. 0.1" }).min(0).max(1).optional(),
     color: z
       .string({ error: 'put the color in quotes, e.g. color: "#4F46E5"' })
       .regex(/^#[0-9a-fA-F]{6}$/, 'use a 6-digit hex color in quotes, e.g. color: "#4F46E5"')
@@ -244,7 +246,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
       default_resolution: s.resolution,
       formats: parseFormats(s.formats, file),
     },
-    branding: { logo: s.logo, primary_color: s.color },
+    branding: { logo: s.logo, primary_color: s.color, background_music: s.music, music_volume: s["music volume"] },
     providers: {
       ai: { provider: ai, model: s.model },
       ai_fallback: hasKey(other) ? { provider: other } : undefined,

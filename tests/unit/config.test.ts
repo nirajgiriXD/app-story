@@ -86,6 +86,13 @@ describe("product file", () => {
     expect(config.safety.allow).toMatchObject({ delete: true, invite_users: true, payments: false });
   });
 
+  it("turns on background music from the file", () => {
+    expect(parse(file("url: https://acme.test")).config.branding.background_music).toBeUndefined();
+    const { config } = parse(file("url: https://acme.test\nmusic: calm.mp3\nmusic volume: 0.12"));
+    expect(config.branding).toMatchObject({ background_music: "calm.mp3", music_volume: 0.12 });
+    expect(errorOf(() => parse(file("url: https://acme.test\nmusic volume: 3"))).message).toMatch(/music volume/);
+  });
+
   it("reads more languages and extra formats, and refuses an English-only voice for other languages", () => {
     const { config } = parse(file("url: https://acme.test\nvoice: openai\nlanguage: en, de, fr\nformats: vertical, gif"));
     expect(config.demo).toMatchObject({ default_language: "en", languages: ["de", "fr"], formats: ["vertical", "gif"] });

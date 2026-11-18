@@ -132,6 +132,8 @@ formats: vertical, gif                     # also make a 9:16 and/or 1:1 (square
 blur: ".api-key, #customer-email"          # CSS selectors blurred on screen (quote them when one starts with #)
 logo: acme-logo.png                        # next to this file
 color: "#4F46E5"                           # in quotes
+music: calm-track.mp3                      # background music, next to this file (default: none)
+music volume: 0.08                         # 0 to 1; it dips under the voice by itself
 allow: delete, emails                      # risky actions are blocked unless listed here
 ---
 ```
@@ -153,6 +155,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **blur**: anything matching these CSS selectors is blurred in the page itself, so the
   recording, screenshots and video never show it readable: API keys, customer emails.
   YAML reads ` #` as a comment, so put the selectors in quotes when one starts with `#`.
+- **music**: an audio file (MP3, WAV, M4A…) looped under the whole video, faded in and out,
+  and lowered while the voice speaks. Use music you are allowed to publish: tracks marked
+  CC0 (public domain) need no credit.
 - **template**: the video's look. Only the look changes; clicks, narration and length do not.
 
   | Template | Look | Picked by itself for |

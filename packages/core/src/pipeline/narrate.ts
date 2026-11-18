@@ -49,6 +49,7 @@ export async function prepareNarration(
     targetDurationS: options.durationS,
     audience: options.audience ?? config.demo.audience,
     kind: options.kind,
+    tone: config.demo.tone,
     stepTimesMs: Object.fromEntries(workflow.steps.map((s) => [s.id, estimateStepMs(s, pacing)])),
   };
 
@@ -251,6 +252,8 @@ export function speechCache(job: Job, tts: TTSProvider, settings: LoadedProduct[
     variant: tts.variant,
     speed: settings.speed,
     style: settings.style,
+    // Calm was the only delivery before tones: leaving it out keeps clips spoken before.
+    tone: settings.tone === "calm" ? undefined : settings.tone,
     accent: settings.accent,
   };
   return {

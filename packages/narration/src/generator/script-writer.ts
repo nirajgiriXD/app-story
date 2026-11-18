@@ -1,4 +1,4 @@
-import { NarrationScriptSchema, type NarrationScript, type Step, type VideoKind, type Workflow } from "@app-story/contracts";
+import { NarrationScriptSchema, type NarrationScript, type Step, type Tone, type VideoKind, type Workflow } from "@app-story/contracts";
 import { PHASE_EFFORT, formatProductContext, loadPrompt, type AIProvider, type ProductContext } from "@app-story/ai";
 
 export interface ScriptRequest {
@@ -10,11 +10,21 @@ export interface ScriptRequest {
   targetDurationS: number;
   audience?: string;
   kind?: VideoKind;
+  /** How the script sounds. Default: calm. */
+  tone?: Tone;
   /** About how long each step is on screen (ms), by step id. */
   stepTimesMs?: Record<string, number>;
 }
 
 const WORDS_PER_SECOND = 2.5;
+
+/** How each tone (`tone:` in the product file) is written. */
+export const TONE_GUIDANCE: Record<Tone, string> = {
+  calm: "Calm and clear, like a product specialist walking a customer through the app. No exclamation marks, no hype.",
+  friendly: "Warm and upbeat, like a teammate showing a feature they love. Light enthusiasm; at most one exclamation mark in the whole script.",
+  energetic:
+    "Confident and punchy, like a product launch video. Lead with the benefit, short sentences, vivid verbs. Make the intro a hook of a few words: the problem it ends or the promise it keeps. End with a clear invitation to try it.",
+};
 
 const KIND_GUIDANCE: Record<VideoKind, string> = {
   "whats-new": "An announcement of what is new in this release: present each feature as something the viewer can now do.",
@@ -65,6 +75,7 @@ export async function writeNarrationScript(request: ScriptRequest): Promise<{ sc
     formatProductContext(request.product),
     `# Video\nTitle: ${workflow.title}\nObjective: ${workflow.objective}${workflow.summary ? `\nSummary: ${workflow.summary}` : ""}`,
     request.kind ? `# Kind of video\n${KIND_GUIDANCE[request.kind]}` : "",
+    `# Tone\n${TONE_GUIDANCE[request.tone ?? "calm"]}`,
     `# Audience\n${request.audience ?? workflow.audience ?? "Users of the product"}`,
     `# Verified steps, in order\n${steps}`,
     `# Requirements\nLanguage: ${request.language}\nSegments: about ${words} words in total, sized to the steps they cover (see Length).\nIntro: at most 25 words. Outro: at most 15 words.`,

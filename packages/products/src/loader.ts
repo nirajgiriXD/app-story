@@ -9,6 +9,7 @@ import {
   KOKORO_VOICES,
   ProductConfigSchema,
   TEMPLATE_NAMES,
+  TONES,
   TTS_PROVIDERS,
   VOICE_ACCENTS,
   VOICE_GENDERS,
@@ -80,6 +81,7 @@ const SettingsSchema = z
     length: z.number({ error: "length is the video length in seconds, e.g. 60" }).int().min(10).max(600).optional(),
     language: z.union([z.string(), z.array(z.string())], { error: "language is a language code, or several: language: en, de" }).optional(),
     template: z.enum(TEMPLATE_NAMES, { error: `template must be one of: ${TEMPLATE_NAMES.join(", ")}` }).optional(),
+    tone: z.enum(TONES, { error: `tone must be one of: ${TONES.join(", ")}` }).optional(),
     fps: z.union([z.literal(30), z.literal(60)], { error: "fps is 30 or 60" }).optional(),
     resolution: z.enum(["1080p", "1440p", "4k"], { error: "resolution is 1080p, 1440p or 4k" }).optional(),
     logo: z.string().optional(),
@@ -250,6 +252,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
       ...parseLanguages(s.language),
       default_duration: s.length,
       template: s.template,
+      tone: s.tone,
       fps: s.fps,
       default_resolution: s.resolution,
       formats: parseFormats(s.formats, file),
@@ -310,7 +313,7 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
     }
     next.providers.tts = { ...next.providers.tts, provider: ttsProvider, voice: undefined, model: undefined };
   }
-  next.providers.tts = applyVoiceSettings(next.providers.tts);
+  next.providers.tts = { ...applyVoiceSettings(next.providers.tts), tone: next.demo.tone };
   const local = next.providers.tts.provider;
   if (local === "kokoro" || local === "chatterbox") {
     const unspoken = [next.demo.default_language, ...next.demo.languages].filter((code) => !localVoiceSpeaks(local, code));

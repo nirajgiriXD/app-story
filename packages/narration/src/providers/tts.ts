@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import OpenAI from "openai";
-import type { TtsConfig } from "@app-story/contracts";
+import type { Tone, TtsConfig } from "@app-story/contracts";
 import { AppStoryError, registerSecret, retry, runFfmpeg } from "@app-story/shared";
 import { ChatterboxTTS } from "./chatterbox";
 import { KokoroTTS } from "./kokoro";
@@ -25,6 +25,13 @@ export const OPENAI_TTS_DEFAULTS = {
   voice: "marin",
   model: "gpt-4o-mini-tts",
   style: "Calm, clear and friendly, like a product specialist walking a customer through the app.",
+};
+
+/** How the OpenAI voice delivers each tone (`tone:` in the product file), unless APP_STORY_VOICE_TONE says otherwise. */
+export const TONE_DELIVERY: Record<Tone, string> = {
+  calm: OPENAI_TTS_DEFAULTS.style,
+  friendly: "Warm, upbeat and friendly, smiling as you speak, like a teammate showing a feature they love.",
+  energetic: "Energetic and confident, like a product launch video: a lively pace, crisp words, clear emphasis on what the viewer gains.",
 };
 
 export class ElevenLabsTTS implements TTSProvider {
@@ -89,7 +96,7 @@ export class OpenAITTS implements TTSProvider {
         voice: this.voice,
         input: text,
         response_format: "wav",
-        instructions: this.model.startsWith("tts-1") ? undefined : (this.config.style ?? OPENAI_TTS_DEFAULTS.style),
+        instructions: this.model.startsWith("tts-1") ? undefined : (this.config.style ?? TONE_DELIVERY[this.config.tone ?? "calm"]),
         ...(this.config.speed !== 1 ? { speed: this.config.speed } : {}),
       });
       await writeFile(outPath, Buffer.from(await response.arrayBuffer()));

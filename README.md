@@ -128,6 +128,7 @@ model: claude-opus-5-5                     # default: the provider's default mod
 voice: kokoro                              # kokoro (free) | chatterbox (free, needs Python) | openai | elevenlabs | none
 length: 60                                 # longest video, in seconds (default: 90)
 template: product-update                   # the video's look (default: picked per video, see below)
+tone: energetic                            # calm (default) | friendly | energetic: how the script and voice sound
 fps: 60                                    # 60 (smooth, default) | 30 (renders in half the time)
 resolution: 1080p                          # 1080p (default) | 1440p | 4k: sharper text, slower render
 language: en                               # or several: en, de, fr (one video each; needs the openai or elevenlabs voice)
@@ -175,6 +176,10 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **music**: an audio file (MP3, WAV, M4A…) looped under the whole video, faded in and out,
   and lowered while the voice speaks. Use music you are allowed to publish: tracks marked
   CC0 (public domain) need no credit.
+- **tone**: `calm` suits tutorials, `friendly` product updates, and `energetic` launch and
+  marketing videos: a hook first, short punchy lines, a clear call to try it. Every tone only
+  claims what the recording shows. The OpenAI and Chatterbox voices deliver it too, unless
+  `APP_STORY_VOICE_TONE` says otherwise.
 - **template**: the video's look. Only the look changes; clicks, narration and length do not.
 
   | Template | Look | Picked by itself for |

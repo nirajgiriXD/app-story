@@ -123,7 +123,7 @@ export class ChatterboxTTS implements TTSProvider {
   readonly name = "chatterbox";
   readonly voice: string;
   readonly model = "chatterbox";
-  /** How expressive the delivery is (0.5 is neutral); `style: expressive` raises it. */
+  /** How expressive the delivery is (0.5 is neutral); `style: expressive` or a livelier tone raises it. */
   private readonly exaggeration: number;
   private readonly reference: string | undefined;
 
@@ -131,7 +131,15 @@ export class ChatterboxTTS implements TTSProvider {
     // A voice that is an audio file is copied; anything else uses Chatterbox's own voice.
     this.reference = config.voice && /\.(wav|mp3|flac|ogg|m4a)$/i.test(config.voice) ? resolve(config.voice) : undefined;
     this.voice = this.reference ?? "default";
-    this.exaggeration = /expressive|energetic|upbeat/i.test(config.style ?? "") ? 0.7 : 0.5;
+    this.exaggeration = config.style
+      ? /expressive|energetic|upbeat/i.test(config.style)
+        ? 0.7
+        : 0.5
+      : config.tone === "energetic"
+        ? 0.7
+        : config.tone === "friendly"
+          ? 0.6
+          : 0.5;
   }
 
   synthesize(text: string, outPath: string, options: { language?: string } = {}): Promise<void> {

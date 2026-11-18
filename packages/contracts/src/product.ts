@@ -61,6 +61,13 @@ export const AiProviderConfigSchema = z.object({
 });
 export type AiProviderConfig = z.infer<typeof AiProviderConfigSchema>;
 
+/**
+ * How a video sounds: the script's wording and the voice's delivery. `calm` suits tutorials,
+ * `friendly` product updates, `energetic` launch and marketing videos.
+ */
+export const TONES = ["calm", "friendly", "energetic"] as const;
+export type Tone = (typeof TONES)[number];
+
 export const TtsConfigSchema = z.object({
   provider: TtsProviderNameSchema.default("kokoro"),
   /** Kokoro: "female", "male" or a voice id/name. OpenAI: a voice name. ElevenLabs: a voice id. */
@@ -72,6 +79,8 @@ export const TtsConfigSchema = z.object({
   speed: z.number().min(0.7).max(1.3).default(1),
   /** Tone and delivery guidance, e.g. "warm and upbeat" (OpenAI only). */
   style: z.string().optional(),
+  /** The video's tone (`demo.tone`), for voices that can follow it when `style` is not set. */
+  tone: z.enum(TONES).optional(),
 });
 export type TtsConfig = z.infer<typeof TtsConfigSchema>;
 
@@ -173,6 +182,7 @@ export const ProductConfigSchema = z.object({
       /** Extra files made with every video, next to the 16:9 one. */
       formats: z.array(z.enum(EXTRA_FORMATS)).default([]),
       audience: z.string().optional(),
+      tone: z.enum(TONES).default("calm"),
     })
     .prefault({}),
   branding: z

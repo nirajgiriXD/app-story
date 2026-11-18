@@ -118,7 +118,7 @@ describe("video timeline", () => {
     let last = cameraAt(500, groups, viewport, zoom);
     for (let t = 500; t <= 5000; t += 1000 / 60) {
       const camera = cameraAt(t, groups, viewport, zoom);
-      expect(Math.hypot(camera.x - last.x, camera.y - last.y)).toBeLessThan(30);
+      expect(Math.hypot(camera.x - last.x, camera.y - last.y)).toBeLessThan(36);
       expect(Math.abs(camera.scale - last.scale)).toBeLessThan(0.05);
       last = camera;
     }
@@ -160,9 +160,9 @@ describe("video timeline", () => {
     ];
     const groups = mergeFocusWindows(windows, undefined, [2600]);
     expect(groups.map((g) => g.length)).toEqual([3, 1]);
-    // No move is quicker than a full move of the camera: smoothstep peaks at 1.5x its average speed.
-    const maxScaleStep = (1.5 * (zoom.scale - 1) * (1000 / 60)) / CAMERA_MOVE_MS + 0.002;
-    const maxPanStep = (1.5 * Math.hypot(viewport.width, viewport.height) * (1000 / 60)) / CAMERA_MOVE_MS;
+    // No move is quicker than a full move of the camera: its ease peaks at 1.875x its average speed.
+    const maxScaleStep = (1.875 * (zoom.scale - 1) * (1000 / 60)) / CAMERA_MOVE_MS + 0.002;
+    const maxPanStep = (1.875 * Math.hypot(viewport.width, viewport.height) * (1000 / 60)) / CAMERA_MOVE_MS;
     let last = cameraAt(0, groups, viewport, zoom);
     for (let t = 0; t <= 6000; t += 1000 / 60) {
       const camera = cameraAt(t, groups, viewport, zoom);
@@ -174,6 +174,40 @@ describe("video timeline", () => {
     expect(cameraAt(2600, groups, viewport, zoom).scale).toBe(1);
     expect(cameraAt(2600 + CAMERA_MOVE_MS / 2, groups, viewport, zoom).scale).toBeLessThan(1.4);
     expect(cameraAt(2600 + CAMERA_MOVE_MS, groups, viewport, zoom).scale).toBeGreaterThanOrEqual(1.5);
+  });
+
+  it("highlights an area only once the camera has settled on it, never while it moves", () => {
+    const viewport = { width: 1600, height: 900 };
+    const zoom = { scale: 1.5 };
+    const a = { x: 100, y: 100, width: 120, height: 40 };
+    const b = { x: 1300, y: 700, width: 120, height: 40 };
+    const groups = mergeFocusWindows([
+      { startMs: 2000, endMs: 4000, box: a }, // pushes in 1000-2000
+      { startMs: 4000, endMs: 7000, box: b }, // glides 3800-4800, pulls back 7000-8000
+    ]);
+    const strength = (t: number) => cameraAt(t, groups, viewport, zoom).spotlight?.strength ?? 0;
+    for (let t = 1000; t < 2000; t += 50) expect(strength(t)).toBe(0); // zooming in
+    for (let t = 3800; t < 4800; t += 50) expect(strength(t)).toBe(0); // gliding
+    for (let t = 7000; t < 8000; t += 50) expect(strength(t)).toBe(0); // pulling back
+    expect(strength(2900)).toBe(1);
+    expect(strength(6000)).toBe(1);
+    // Where it shows, it is the area itself, never a rectangle partway between two.
+    expect(cameraAt(2900, groups, viewport, zoom).spotlight?.box).toEqual(a);
+    expect(cameraAt(4300, groups, viewport, zoom).spotlight?.box).toEqual(a);
+    expect(cameraAt(6000, groups, viewport, zoom).spotlight?.box).toEqual(b);
+  });
+
+  it("eases every camera move in and out, with no jolt at either end", () => {
+    const viewport = { width: 1600, height: 900 };
+    const zoom = { scale: 1.5 };
+    const groups = mergeFocusWindows([{ startMs: 2000, endMs: 5000, box: { x: 100, y: 100, width: 120, height: 40 } }]);
+    const scale = (t: number) => cameraAt(t, groups, viewport, zoom).scale;
+    // The push-in runs 1000-2000: barely moving in its first and last 50ms, quickest halfway.
+    const start = scale(1050) - scale(1000);
+    const middle = scale(1525) - scale(1475);
+    const end = scale(2000) - scale(1950);
+    expect(start).toBeLessThan(middle * 0.02);
+    expect(end).toBeLessThan(middle * 0.02);
   });
 
   it("skips an area it had no time to glide to, so it never falls behind", () => {

@@ -83,11 +83,18 @@ export interface Camera {
   /** Focus point in viewport px. */
   x: number;
   y: number;
-  /** The area being shown and how far the camera is on it (0-1), for the spotlight. */
+  /** The area being shown and how far the camera is on it (0-1). */
   focus?: { box: Box; amount: number };
+  /** The highlight on the area: only once the camera has settled on it, never while it moves (0-1). */
+  spotlight?: { box: Box; strength: number };
 }
 
 const smooth = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+/**
+ * The camera's ease (smootherstep): it starts and stops with neither speed nor acceleration, so
+ * a zoom or glide eases in and out with no jolt at either end. Its peak speed is 1.875x the average.
+ */
+const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * t * (t * (t * 6 - 15) + 10));
 
 /** Room around a framed area: it fills at most this share of the view. */
 const FRAME_FILL = 0.8;
@@ -95,6 +102,11 @@ const FRAME_FILL = 0.8;
 const PAN_LEAD_MS = 200;
 /** A held shot slowly pushes in by this much, so a long hold never looks frozen. */
 const DRIFT = 0.04;
+/** The highlight fades in this long once the camera has arrived, and out this long before it moves again. */
+const SPOTLIGHT_IN_MS = 300;
+const SPOTLIGHT_OUT_MS = 200;
+/** A stop shorter than this gets no highlight at all, rather than a flash. */
+const SPOTLIGHT_MIN_STILL_MS = 800;
 
 /** The shot that frames `box`: centred on it, as close as fits with room around it, never past `maxScale`. */
 export function frameBox(box: Box, viewport: { width: number; height: number }, maxScale: number): Camera {
@@ -120,6 +132,8 @@ function shotRamps(start: number, end: number, prevEnd: number | undefined, next
  * happen (drifting in slowly), glides from area to area, and pulls back out between groups.
  * Every move takes exactly CAMERA_MOVE_MS, however fast the steps (and the voice) go: a move
  * is shifted rather than hurried, and a glide never starts before the last one has ended.
+ * The highlight on the area appears only once a move has ended, so it never slides or grows
+ * on screen while the camera travels.
  */
 export function cameraAt(t: number, groups: readonly FocusWindow[][], viewport: { width: number; height: number }, zoom: { scale: number }): Camera {
   const wide = { scale: 1, x: viewport.width / 2, y: viewport.height / 2 };
@@ -133,45 +147,80 @@ export function cameraAt(t: number, groups: readonly FocusWindow[][], viewport: 
     if (t < inAt || t > outAt + CAMERA_MOVE_MS) continue;
 
     // A very short shot may start pulling back before it is fully in: it never moves faster.
-    const amount = Math.min(smooth((t - inAt) / CAMERA_MOVE_MS), smooth((outAt + CAMERA_MOVE_MS - t) / CAMERA_MOVE_MS));
-    const { shot, box } = glideAt(t, group, viewport, zoom.scale);
+    const amount = Math.min(ease((t - inAt) / CAMERA_MOVE_MS), ease((outAt + CAMERA_MOVE_MS - t) / CAMERA_MOVE_MS));
+    const moves = glides(group);
+    let shot = frameBox(first.box, viewport, zoom.scale);
+    let box = first.box;
+    let settled = first.box;
+    for (const move of moves) {
+      if (t < move.at) break;
+      const k = ease((t - move.at) / CAMERA_MOVE_MS);
+      const from = frameBox(move.from, viewport, zoom.scale);
+      const to = frameBox(move.to, viewport, zoom.scale);
+      const mix = (a: number, b: number) => a + (b - a) * k;
+      shot = { scale: mix(from.scale, to.scale), x: mix(from.x, to.x), y: mix(from.y, to.y) };
+      box = {
+        x: mix(move.from.x, move.to.x),
+        y: mix(move.from.y, move.to.y),
+        width: mix(move.from.width, move.to.width),
+        height: mix(move.from.height, move.to.height),
+      };
+      if (k >= 1) settled = move.to;
+    }
     const held = Math.min(1, Math.max(0, (t - first.startMs) / Math.max(1, last.endMs - first.startMs)));
     const scale = shot.scale * (1 + DRIFT * held);
+    const travel: [number, number][] = [
+      [inAt, inAt + CAMERA_MOVE_MS],
+      ...moves.map((m): [number, number] => [m.at, m.at + CAMERA_MOVE_MS]),
+      [outAt, outAt + CAMERA_MOVE_MS],
+    ];
     return {
       scale: 1 + (scale - 1) * amount,
       x: wide.x + (shot.x - wide.x) * amount,
       y: wide.y + (shot.y - wide.y) * amount,
       focus: { box, amount },
+      spotlight: { box: settled, strength: stillness(t, travel) },
     };
   }
   return wide;
 }
 
 /**
- * Where the camera is within a shot group at `t`. Each change of area is one glide of
- * CAMERA_MOVE_MS, starting a little before its step, or when the last glide ends if that is
- * later. Areas that came due while the camera was still moving are skipped for the latest one,
- * so the camera is never more than one move behind.
+ * How visible the highlight is at `t` (0-1), given when the camera travels: nothing during a
+ * move, fading in once it ends and out just before the next one, and nothing on a short stop.
  */
-function glideAt(t: number, group: readonly FocusWindow[], viewport: { width: number; height: number }, maxScale: number): { shot: Camera; box: Box } {
-  const first = group[0] as FocusWindow;
-  let shot = frameBox(first.box, viewport, maxScale);
-  let box = first.box;
+function stillness(t: number, travel: readonly [number, number][]): number {
+  let lastEnd = Number.NEGATIVE_INFINITY;
+  let nextStart = Number.POSITIVE_INFINITY;
+  for (const [a, b] of travel) {
+    if (t >= a && t < b) return 0;
+    if (b <= t) lastEnd = Math.max(lastEnd, b);
+    if (a > t) nextStart = Math.min(nextStart, a);
+  }
+  if (nextStart - lastEnd < SPOTLIGHT_MIN_STILL_MS) return 0;
+  return Math.min(smooth((t - lastEnd) / SPOTLIGHT_IN_MS), smooth((nextStart - t) / SPOTLIGHT_OUT_MS));
+}
+
+/**
+ * The glides within a shot group: one per change of area, each CAMERA_MOVE_MS long, starting
+ * a little before its step, or when the last glide ends if that is later. Areas that came due
+ * while the camera was still moving are skipped for the latest one, so the camera is never
+ * more than one move behind.
+ */
+function glides(group: readonly FocusWindow[]): { at: number; from: Box; to: Box }[] {
+  const moves: { at: number; from: Box; to: Box }[] = [];
+  let box = (group[0] as FocusWindow).box;
   let free = Number.NEGATIVE_INFINITY;
   for (let i = 1; i < group.length; i++) {
     const at = Math.max((group[i] as FocusWindow).startMs - PAN_LEAD_MS, free);
     while (i + 1 < group.length && (group[i + 1] as FocusWindow).startMs - PAN_LEAD_MS <= at) i++;
     const target = (group[i] as FocusWindow).box;
     if (sameBox(target, box)) continue;
-    if (t < at) break;
-    const next = frameBox(target, viewport, maxScale);
-    const k = smooth((t - at) / CAMERA_MOVE_MS);
-    const mix = (a: number, b: number) => a + (b - a) * k;
-    shot = { scale: mix(shot.scale, next.scale), x: mix(shot.x, next.x), y: mix(shot.y, next.y) };
-    box = { x: mix(box.x, target.x), y: mix(box.y, target.y), width: mix(box.width, target.width), height: mix(box.height, target.height) };
+    moves.push({ at, from: box, to: target });
+    box = target;
     free = at + CAMERA_MOVE_MS;
   }
-  return { shot, box };
+  return moves;
 }
 
 function sameBox(a: Box, b: Box): boolean {

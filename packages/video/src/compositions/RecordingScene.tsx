@@ -47,8 +47,8 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
         }}
       >
         <Img src={recordingFrame(takeFrameAt(p, at, span))} style={{ width: viewport.width, height: viewport.height, display: "block" }} />
-        {camera.focus && p.template.spotlight > 0 ? (
-          <Spotlight box={camera.focus.box} strength={p.template.spotlight * camera.focus.amount} zoom={view.scale} />
+        {camera.spotlight && p.template.spotlight > 0 ? (
+          <Spotlight box={camera.spotlight.box} strength={p.template.spotlight * camera.spotlight.strength} zoom={view.scale} />
         ) : null}
         {open ? <DropdownList p={p} menu={open.menu} shown={open.shown} pointer={cursor} /> : null}
         {cursor ? <Cursor p={p} t={t} x={cursor.x} y={cursor.y} sinceClickMs={cursor.sinceClickMs} zoom={view.scale} /> : null}
@@ -147,7 +147,7 @@ const WindowBar: React.FC<{ p: RenderProps; url: string; height: number }> = ({ 
 
 /**
  * Dims the screen around the area being shown, softly, so the eye goes where the narration
- * is. It moves with the camera, in the recording's own pixels.
+ * is. Drawn in the recording's own pixels; it shows only while the camera holds still.
  */
 const Spotlight: React.FC<{ box: { x: number; y: number; width: number; height: number }; strength: number; zoom: number }> = ({ box, strength, zoom }) => {
   if (strength <= 0.001) return null;

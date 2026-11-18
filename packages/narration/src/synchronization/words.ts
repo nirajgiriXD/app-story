@@ -11,26 +11,46 @@ import { AppStoryError, serialQueue } from "@app-story/shared";
 
 /** English Whisper exported with the attention the word times come from. About 300 MB, downloaded once. */
 export const WORD_TIMING_MODEL = "onnx-community/whisper-base.en_timestamped";
+/** The same model for every other language Whisper knows (MIT licensed, like the English one). Downloaded on first use. */
+export const WORD_TIMING_MODEL_MULTILINGUAL = "onnx-community/whisper-base_timestamped";
 
-type Recognizer = (audio: Float32Array, options: { return_timestamps: "word" }) => Promise<unknown>;
+/**
+ * Languages written without spaces between words: their captions cannot be cut at words,
+ * so they are timed by text length instead.
+ */
+const UNSPACED = new Set(["ja", "zh", "th", "lo", "km", "my", "bo"]);
 
-let loading: Promise<Recognizer> | undefined;
+type Recognizer = (audio: Float32Array, options: { return_timestamps: "word"; language?: string; task?: "transcribe" }) => Promise<unknown>;
+
+const loading = new Map<string, Promise<Recognizer>>();
 /** One clip at a time: the model is not safe to run in parallel and would not be faster. */
 const queue = serialQueue();
 
-function loadRecognizer(): Promise<Recognizer> {
-  loading ??= import("@huggingface/transformers")
-    .then(
-      async ({ pipeline }) => (await pipeline("automatic-speech-recognition", WORD_TIMING_MODEL, { dtype: "fp32", device: "cpu" })) as unknown as Recognizer,
-    )
-    .catch((error: unknown) => {
-      loading = undefined;
-      throw new AppStoryError("TTS_ERROR", `Could not load the word timing model: ${(error as Error).message}`, {
-        hint: "The first run downloads it (~300 MB) from huggingface.co. Set APP_STORY_WORD_TIMING=off to skip word timing.",
-        cause: error,
+function loadRecognizer(model: string): Promise<Recognizer> {
+  let recognizer = loading.get(model);
+  if (!recognizer) {
+    recognizer = import("@huggingface/transformers")
+      .then(async ({ pipeline }) => (await pipeline("automatic-speech-recognition", model, { dtype: "fp32", device: "cpu" })) as unknown as Recognizer)
+      .catch((error: unknown) => {
+        loading.delete(model);
+        throw new AppStoryError("TTS_ERROR", `Could not load the word timing model: ${(error as Error).message}`, {
+          hint: "The first run downloads it (~300 MB) from huggingface.co. Set APP_STORY_WORD_TIMING=off to skip word timing.",
+          cause: error,
+        });
       });
-    });
-  return loading;
+    loading.set(model, recognizer);
+  }
+  return recognizer;
+}
+
+/** The primary subtag of a language code: "de" for "de-AT". */
+function baseLanguage(language: string): string {
+  return language.toLowerCase().split(/[-_]/)[0] ?? "en";
+}
+
+/** True when the words of a line in `language` can be timed (and captions cut at them). */
+export function canTimeWords(language = "en"): boolean {
+  return !UNSPACED.has(baseLanguage(language));
 }
 
 /** Word timing is on unless APP_STORY_WORD_TIMING=off. */
@@ -39,11 +59,15 @@ export function wordTimingEnabled(): boolean {
 }
 
 /** When each word of `text` is spoken in the clip at `file` (ms from the clip's start). */
-export function timeWords(file: string, text: string): Promise<WordTiming[]> {
+export function timeWords(file: string, text: string, language = "en"): Promise<WordTiming[]> {
   return queue(async () => {
-    const recognize = await loadRecognizer();
+    const code = baseLanguage(language);
+    const english = code === "en";
+    const recognize = await loadRecognizer(english ? WORD_TIMING_MODEL : WORD_TIMING_MODEL_MULTILINGUAL);
     const audio = await readMono16k(file);
-    const result = (await recognize(audio, { return_timestamps: "word" })) as { chunks?: { text: string; timestamp: [number, number | null] }[] };
+    // The multilingual model is told the language, so it neither guesses nor translates.
+    const options = english ? { return_timestamps: "word" as const } : { return_timestamps: "word" as const, language: code, task: "transcribe" as const };
+    const result = (await recognize(audio, options)) as { chunks?: { text: string; timestamp: [number, number | null] }[] };
     const heard = (result.chunks ?? []).map((c) => ({
       text: c.text.trim(),
       start_ms: Math.round(c.timestamp[0] * 1000),

@@ -60,7 +60,8 @@ at login time and registered as secrets.
    should land on (`narration/src/synchronization/anchors.ts`); they are taken out before
    the voice reads the line and timed by that word. With more languages (`language: en, de`),
    each other language is translated line for line (`prepareTranslations`, keeping the
-   markers), voiced and measured too; word timing is English only.
+   markers), voiced, measured and word-timed too (a multilingual Whisper, downloaded on first
+   use; languages written without spaces, such as Japanese, are timed by text length).
 4. **Recording.** A fresh browser replays the workflow at presentation speed: a pointer
    that moves in a gentle arc, typed input, minimum dwell per step, and each narration line starts with its
    first step while the next line waits for the previous one to finish (in every language:

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCues, chunkText, toSrt, toVtt, wrapLines } from "@app-story/captions";
-import { alignWords } from "@app-story/narration";
+import { alignWords, canTimeWords } from "@app-story/narration";
 import { cameraAt, cameraTransform, cursorAt, frameBox, getTemplate, mergeFocusWindows, planTimeline, TEMPLATES } from "@app-story/video";
 
 describe("captions", () => {
@@ -187,6 +187,11 @@ describe("word timing", () => {
     expect(words[3]!.start_ms).toBeGreaterThanOrEqual(1000); // shared out after the last word heard
     expect(words[3]!.end_ms).toBeLessThanOrEqual(1600);
     for (let i = 1; i < words.length; i++) expect(words[i]!.start_ms).toBeGreaterThanOrEqual(words[i - 1]!.start_ms);
+  });
+
+  it("times words in every language written with spaces", () => {
+    for (const language of ["en", "en-GB", "de", "fr-CA", "es", "pt-BR", "hi"]) expect(canTimeWords(language)).toBe(true);
+    for (const language of ["ja", "zh-CN", "th"]) expect(canTimeWords(language)).toBe(false);
   });
 
   it("times each caption by its own first and last word", () => {

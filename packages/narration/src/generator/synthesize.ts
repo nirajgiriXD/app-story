@@ -4,7 +4,7 @@ import type { AudioClip, NarrationScript } from "@app-story/contracts";
 import { ensureDir, mapWithConcurrency, probeMedia, runFfmpeg, runProcess, type Logger } from "@app-story/shared";
 import type { TTSProvider } from "../providers/tts";
 import { anchorTimes, parseAnchors } from "../synchronization/anchors";
-import { timeWords, wordTimingEnabled } from "../synchronization/words";
+import { canTimeWords, timeWords, wordTimingEnabled } from "../synchronization/words";
 
 /** Finished clips for lines that were spoken before, keyed by the line's text. */
 export interface SpeechCache {
@@ -40,8 +40,9 @@ export async function synthesizeNarration(
   cache?: SpeechCache,
   options: { language?: string } = {},
 ): Promise<AudioClip[]> {
-  // The word timing model understands English only: other languages are timed by text length.
-  const timeTheWords = !tts.silent && wordTimingEnabled() && (options.language ?? "en").toLowerCase().startsWith("en");
+  // Languages written without spaces are timed by text length (see canTimeWords).
+  const language = options.language ?? "en";
+  const timeTheWords = !tts.silent && wordTimingEnabled() && canTimeWords(language);
   await ensureDir(dir);
   type Item = Omit<AudioClip, "path" | "duration_ms">;
   const all: Item[] = [
@@ -79,7 +80,7 @@ export async function synthesizeNarration(
     // When each word is spoken: exact captions. Optional: without it, captions are timed by length.
     const words = !timeTheWords
       ? undefined
-      : await timeWords(path, item.text).catch((error: Error) => {
+      : await timeWords(path, item.text, language).catch((error: Error) => {
           log.warn({ clip: item.id, error: error.message }, "word timing failed; captions are timed by text length");
           return undefined;
         });

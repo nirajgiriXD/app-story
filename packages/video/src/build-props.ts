@@ -7,6 +7,7 @@ import { keyLabels } from "./keys";
 import { DEFAULT_CTA, shownUrl } from "./labels";
 import { BRAND_FONT_FAMILY } from "./fonts";
 import { placeCaptions } from "./compositions/layout";
+import { posterTime } from "./poster";
 import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
 
 const FOCUS_ACTIONS = new Set(["click", "fill", "select", "check", "uncheck", "hover"]);
@@ -159,6 +160,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     height,
     fps: config.demo.fps,
     durationMs: plan.totalMs,
+    posterMs: posterTime(plan, template),
     template,
     brand: {
       productName: config.product.name,

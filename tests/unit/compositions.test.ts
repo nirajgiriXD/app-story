@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Step, StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
-import { buildRenderProps, getTemplate, placeNarration, reshapeProps, type RenderProps } from "@app-story/video";
+import { buildRenderProps, drawnFrame, getTemplate, placeNarration, reshapeProps, type RenderProps } from "@app-story/video";
 // The compositions are not part of the package's API (the CLI bundle must not load React).
 import { DemoVideo } from "../../packages/video/src/compositions/DemoVideo";
 import { VideoRoot } from "../../packages/video/src/compositions/runtime";
@@ -92,6 +92,17 @@ describe("golden frames", () => {
 
   it("the title card", () => {
     expect(frameAt(p, 1500)).toMatchSnapshot();
+  });
+
+  it("frame 0 is the poster: the settled title card, not the bare backdrop", () => {
+    const poster = drawnFrame(p, 0);
+    expect(poster).toBe(Math.round(((p.posterMs as number) / 1000) * p.fps));
+    expect(poster).toBeGreaterThan(0);
+    expect(poster).toBeLessThan(Math.round((p.recording.startMs / 1000) * p.fps));
+    expect(drawnFrame(p, 1)).toBe(1);
+    // Never a frame of the recording: a worker reads those in order.
+    expect(drawnFrame({ ...p, posterMs: p.recording.startMs + 500 }, 0)).toBe(0);
+    expect(frameAt(p, p.posterMs as number)).toContain("Export invoices in bulk");
   });
 
   it("a click on a link, with the pointer as a hand", () => {

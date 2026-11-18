@@ -4,6 +4,7 @@ import { readdir, rm, stat, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import type { CursorPoint } from "@app-story/contracts";
 import { sourceFrame } from "./edit";
+import { drawnFrame } from "./poster";
 import type { RenderProps } from "./props";
 import { CURSOR_FADE_MS, CURSOR_IDLE_MS, cursorShape, MENU_FADE_MS, mergeFocusWindows } from "./timeline";
 
@@ -23,7 +24,7 @@ import { CURSOR_FADE_MS, CURSOR_IDLE_MS, cursorShape, MENU_FADE_MS, mergeFocusWi
  */
 
 /** Bump when anything below changes what a chunk's pixels depend on. */
-export const RENDER_CACHE_VERSION = 3;
+export const RENDER_CACHE_VERSION = 4;
 
 /** Seconds of video per chunk: one keyframe interval of the delivery encoding (see deliveryEncoding). */
 export const CHUNK_SECONDS = 2;
@@ -72,7 +73,24 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
   const ms = (frame: number) => (frame * 1000) / props.fps;
   const lo = ms(chunk.from);
   const hi = ms(chunk.to);
-  const { audio: _a, music: _m, sfx: _s, focus, cursor, cuts, sections, urls, keys, menus, captions, recording, brand, hero: _h, ...global } = props;
+  const {
+    audio: _a,
+    music: _m,
+    sfx: _s,
+    posterMs: _p,
+    focus,
+    cursor,
+    cuts,
+    sections,
+    urls,
+    keys,
+    menus,
+    captions,
+    recording,
+    brand,
+    hero: _h,
+    ...global
+  } = props;
   const rStart = recording.startMs;
   const rLo = lo - rStart;
   const rHi = hi - rStart;
@@ -99,6 +117,8 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
     ...global,
     // Where in the video: the title cards animate by their own time, so two chunks of a card differ.
     frames: [chunk.from, chunk.to],
+    // Only the first chunk shows the poster (frame 0).
+    ...(chunk.from === 0 ? { poster: drawnFrame(props, 0) } : {}),
     brand: {
       ...brand,
       logo: brand.logo ? "(file)" : null,

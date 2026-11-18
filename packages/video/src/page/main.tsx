@@ -2,6 +2,7 @@ import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { DemoVideo } from "../compositions/DemoVideo";
 import { VideoRoot, type VideoConfig } from "../compositions/runtime";
+import { drawnFrame } from "../poster";
 import type { RenderProps } from "../props";
 
 /*
@@ -39,7 +40,7 @@ window.appStory = {
     const c = config;
     flushSync(() => {
       root?.render(
-        <VideoRoot frame={frame} config={c}>
+        <VideoRoot frame={drawnFrame(p, frame)} config={c}>
           <DemoVideo {...p} />
         </VideoRoot>,
       );

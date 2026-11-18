@@ -126,16 +126,14 @@ export async function composeVideo(
     musicSrc: await copyAsset(job, product, config.branding.background_music, "music"),
   });
 
-  // Thumbnail: the title card once its words have settled (the title, the badge and the
-  // app's first screen): a designed picture, the kind video sites show best.
-  const thumbAt = Math.max(0, Math.min(1500, plan.introEndMs - template.transitionMs - 200));
-
+  // Thumbnail: the poster, which is also frame 0 (the title card once its words have settled:
+  // the title, the badge and the app's first screen), the kind video sites show best.
   await renderVideo({
     publicDir: job.paths.root,
     props,
     outputFile: out.video,
     thumbnailFile: main ? job.paths.thumbnail : undefined,
-    thumbnailAtMs: thumbAt,
+    thumbnailAtMs: props.posterMs,
     log: job.log,
     cacheDir: renderCacheDir(job),
   });

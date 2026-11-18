@@ -9,6 +9,8 @@ export interface RenderProps {
   height: number;
   fps: number;
   durationMs: number;
+  /** Frame 0 shows the video at this time (a settled title card), so previews show it (see poster.ts). */
+  posterMs?: number;
   template: VideoTemplate;
   brand: {
     productName: string;

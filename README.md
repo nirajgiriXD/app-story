@@ -305,6 +305,8 @@ captions are on), its thumbnail (`.png`, the title card) and a description to pa
 the link to try it), plus any other languages and formats the product file asks for
 (`….de.mp4`, `….vertical.mp4`, `….gif`). The MP4 carries its chapters too, so players list them.
 
+Every video's first frame is its title card, so Slack, X and Discord show it as the preview.
+
 ```text
 output/
 └── acme/

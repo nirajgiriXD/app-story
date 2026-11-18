@@ -67,3 +67,44 @@ export function resolveKokoroVoice(setting: string | undefined, accent: VoiceAcc
   }
   return KOKORO_VOICES.find((v) => v.id === wanted || v.name.toLowerCase() === wanted);
 }
+
+/**
+ * Languages the free local Chatterbox voice speaks: English with its original model, the
+ * rest with Chatterbox Multilingual (also MIT licensed), loaded the first time one is needed.
+ */
+export const CHATTERBOX_LANGUAGES = [
+  "ar",
+  "da",
+  "de",
+  "el",
+  "en",
+  "es",
+  "fi",
+  "fr",
+  "he",
+  "hi",
+  "it",
+  "ja",
+  "ko",
+  "ms",
+  "nl",
+  "no",
+  "pl",
+  "pt",
+  "ru",
+  "sv",
+  "sw",
+  "tr",
+  "zh",
+] as const;
+
+/** The primary subtag of a language code: "pt" for "pt-BR". */
+export function baseLanguage(code: string): string {
+  return code.toLowerCase().split(/[-_]/)[0] ?? code.toLowerCase();
+}
+
+/** True when a free local voice speaks `language`. Kokoro speaks English only. */
+export function localVoiceSpeaks(provider: "kokoro" | "chatterbox", language: string): boolean {
+  const code = baseLanguage(language);
+  return provider === "kokoro" ? code === "en" : (CHATTERBOX_LANGUAGES as readonly string[]).includes(code);
+}

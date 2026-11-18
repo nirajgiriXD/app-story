@@ -64,7 +64,7 @@ export async function synthesizeNarration(
     } else {
       // Raw speech in whatever format the provider returns; FFmpeg reads it by content.
       const raw = join(dir, `${item.id}.raw.wav`);
-      await tts.synthesize(item.text, raw);
+      await tts.synthesize(item.text, raw, { language });
       if (tts.silent) {
         await rename(raw, path); // already WAV, and nothing to normalise in silence
       } else {

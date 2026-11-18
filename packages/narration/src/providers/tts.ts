@@ -13,8 +13,11 @@ export interface TTSProvider {
   readonly variant?: string;
   /** True when the provider writes silence instead of speech (captions-only videos). */
   readonly silent?: boolean;
-  /** Write speech audio for `text` to `outPath`, in any format FFmpeg reads (WAV preferred: no loss). */
-  synthesize(text: string, outPath: string): Promise<void>;
+  /**
+   * Write speech audio for `text` to `outPath`, in any format FFmpeg reads (WAV preferred: no
+   * loss). `language` is the line's language code, for voices that need to be told.
+   */
+  synthesize(text: string, outPath: string, options?: { language?: string }): Promise<void>;
 }
 
 export const ELEVENLABS_DEFAULTS = { voice: "JBFqnCBsd6RMkjVDRZzb", model: "eleven_multilingual_v2" };

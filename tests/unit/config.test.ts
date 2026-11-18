@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } from "@app-story/contracts";
+import { chatterboxLanguage } from "@app-story/narration";
 import { getTemplate } from "@app-story/video";
 import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@app-story/products";
 import { type AppStoryError, redactSecrets, resolveCredential } from "@app-story/shared";
@@ -115,6 +116,13 @@ describe("product file", () => {
     expect(config.demo).toMatchObject({ default_language: "en", languages: ["de", "fr"], formats: ["vertical", "gif"] });
     expect(parse(file("url: https://acme.test\nlanguage: de")).config.demo).toMatchObject({ default_language: "de", languages: [] });
     expect(errorOf(() => applyOverrides(parse(file("url: https://acme.test\nlanguage: en, de")).config)).message).toMatch(/kokoro voice speaks English only/);
+    expect(errorOf(() => applyOverrides(parse(file("url: https://acme.test\nlanguage: de")).config)).hint).toMatch(/voice: chatterbox/);
+    // Chatterbox speaks 23 languages, but not every one.
+    expect(applyOverrides(parse(file("url: https://acme.test\nvoice: chatterbox\nlanguage: en, de, pt-BR")).config).demo.languages).toEqual(["de", "pt-BR"]);
+    expect(errorOf(() => applyOverrides(parse(file("url: https://acme.test\nvoice: chatterbox\nlanguage: en, uk")).config)).message).toMatch(
+      /cannot narrate uk/,
+    );
+    expect([chatterboxLanguage("en-GB"), chatterboxLanguage("pt-BR"), chatterboxLanguage("de")]).toEqual([undefined, "pt", "de"]);
     expect(errorOf(() => parse(file("url: https://acme.test\nformats: vertical, tiktok"))).message).toMatch(/Unknown entry 'tiktok' in formats/);
   });
 

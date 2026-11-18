@@ -3,13 +3,14 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import type { TtsConfig } from "@app-story/contracts";
+import { baseLanguage, CHATTERBOX_LANGUAGES, type TtsConfig } from "@app-story/contracts";
 import { AppStoryError, serialQueue } from "@app-story/shared";
 import type { TTSProvider } from "./tts";
 
 /*
  * Chatterbox (Resemble AI, MIT licence): a free, natural-sounding voice that can also copy
- * a voice from a short recording. It runs in Python, so AppStory starts a small helper
+ * a voice from a short recording, in English and 22 more languages (Chatterbox
+ * Multilingual). It runs in Python, so AppStory starts a small helper
  * (python/chatterbox_worker.py) once and sends it one line at a time.
  *
  *   pip install chatterbox-tts       (PyTorch included; a GPU helps but is not needed)
@@ -98,7 +99,7 @@ class Worker {
     (this.child.stdin as unknown as { unref?: () => void }).unref?.();
   }
 
-  async speak(request: { text: string; out: string; voice?: string; exaggeration: number }): Promise<void> {
+  async speak(request: { text: string; out: string; voice?: string; exaggeration: number; language?: string }): Promise<void> {
     this.hold();
     try {
       await this.ready;
@@ -133,10 +134,25 @@ export class ChatterboxTTS implements TTSProvider {
     this.exaggeration = /expressive|energetic|upbeat/i.test(config.style ?? "") ? 0.7 : 0.5;
   }
 
-  synthesize(text: string, outPath: string): Promise<void> {
+  synthesize(text: string, outPath: string, options: { language?: string } = {}): Promise<void> {
     return queue(() => {
       worker ??= new Worker(process.env.APP_STORY_PYTHON?.trim() || "python");
-      return worker.speak({ text, out: outPath, voice: this.reference, exaggeration: this.exaggeration });
+      return worker.speak({ text, out: outPath, voice: this.reference, exaggeration: this.exaggeration, language: chatterboxLanguage(options.language) });
     });
   }
+}
+
+/**
+ * The language a line is sent to the helper with: none for English (Chatterbox's original
+ * model), else the code Chatterbox Multilingual knows ("pt" for "pt-BR").
+ */
+export function chatterboxLanguage(language = "en"): string | undefined {
+  const code = baseLanguage(language);
+  if (code === "en") return undefined;
+  if (!(CHATTERBOX_LANGUAGES as readonly string[]).includes(code)) {
+    throw new AppStoryError("CONFIG_INVALID", `The chatterbox voice does not speak '${language}'.`, {
+      hint: `It speaks ${CHATTERBOX_LANGUAGES.join(", ")}. Use voice: openai or voice: elevenlabs for other languages.`,
+    });
+  }
+  return code;
 }

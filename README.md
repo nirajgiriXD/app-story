@@ -152,8 +152,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **ai**: with keys for both providers, the other one is used as a backup if the first fails.
 - **language**: the first language paces the recording. Each other one is translated by
   the AI, voiced, captioned and rendered over the *same* recording: `…-name.de.mp4` and
-  `…-name.de.srt` next to the main video. Kokoro and Chatterbox speak English only, so
-  more languages need `voice: openai`, `voice: elevenlabs` or `voice: none`.
+  `…-name.de.srt` next to the main video. Kokoro speaks English only. Chatterbox, also
+  free and local, speaks 23 languages (ar, da, de, el, en, es, fi, fr, he, hi, it, ja, ko,
+  ms, nl, no, pl, pt, ru, sv, sw, tr, zh); `voice: openai` and `voice: elevenlabs` speak more.
 - **formats**: `vertical` (9:16, for Reels, Shorts and TikTok), `square` (1:1) and `gif`
   (the app part, silent, sped up to at most 30 seconds, for a README). Made for the first language.
 - **blur**: anything matching these CSS selectors is blurred in the page itself, so the
@@ -278,7 +279,8 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice; Chatte
   and can copy a voice: set `APP_STORY_VOICE` to a 10-20 second WAV of the voice you want
   (yours, for example). It runs in Python: `pip install chatterbox-tts` (a GPU helps but is
   not needed), and `APP_STORY_PYTHON` names that Python if it is not the one on PATH. The
-  first video downloads its model (about 2 GB) once, which takes a while.
+  first video downloads its model (about 2 GB) once, which takes a while; the first video in
+  another language downloads Chatterbox Multilingual the same way.
   `APP_STORY_VOICE_TONE=expressive` gives a livelier delivery.
 
 ## Output

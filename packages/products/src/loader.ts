@@ -13,6 +13,7 @@ import {
   VOICE_ACCENTS,
   VOICE_GENDERS,
   formatZodError,
+  localVoiceSpeaks,
   resolveKokoroVoice,
   type AiProviderName,
   type ExtraFormat,
@@ -310,12 +311,23 @@ export function applyOverrides(config: ProductConfig, overrides: ProviderOverrid
     next.providers.tts = { ...next.providers.tts, provider: ttsProvider, voice: undefined, model: undefined };
   }
   next.providers.tts = applyVoiceSettings(next.providers.tts);
-  const english = (code: string) => code.toLowerCase().startsWith("en");
-  const others = next.demo.languages.filter((code) => !english(code));
-  if (others.length && (next.providers.tts.provider === "kokoro" || next.providers.tts.provider === "chatterbox")) {
-    throw new AppStoryError("CONFIG_INVALID", `The ${next.providers.tts.provider} voice speaks English only, so it cannot narrate ${others.join(", ")}.`, {
-      hint: "For more languages use voice: openai or voice: elevenlabs (or voice: none for captions only).",
-    });
+  const local = next.providers.tts.provider;
+  if (local === "kokoro" || local === "chatterbox") {
+    const unspoken = [next.demo.default_language, ...next.demo.languages].filter((code) => !localVoiceSpeaks(local, code));
+    if (unspoken.length) {
+      throw new AppStoryError(
+        "CONFIG_INVALID",
+        local === "kokoro"
+          ? `The kokoro voice speaks English only, so it cannot narrate ${unspoken.join(", ")}.`
+          : `The chatterbox voice cannot narrate ${unspoken.join(", ")}.`,
+        {
+          hint:
+            local === "kokoro"
+              ? "voice: chatterbox is free and local too, and speaks 23 languages; or use voice: openai, voice: elevenlabs, or voice: none for captions only."
+              : "Use voice: openai or voice: elevenlabs for it, or voice: none for captions only.",
+        },
+      );
+    }
   }
   return next;
 }

@@ -55,7 +55,7 @@ jobs:
 | `upload` | `true` | upload `output/` as an artifact after `replay` |
 | `artifact-name` | `app-story-videos` | the artifact's name |
 
-AI keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`) and `APP_STORY_*`
+AI keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CUSTOM_AI_API_KEY` and `CUSTOM_AI_BASE_URL`, `ELEVENLABS_API_KEY`) and `APP_STORY_*`
 settings in the job's environment are passed in by themselves. They are only needed for a
 plan that has no saved narration yet (an imported one), or for a paid voice.
 

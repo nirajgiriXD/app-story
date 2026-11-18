@@ -45,7 +45,7 @@ npx skills add https://github.com/nirajgiriXD/app-story --skill app-story   # mo
 /plugin install app-story@app-story
 ```
 
-Then add your AI key to `.env` (`ANTHROPIC_API_KEY=...` or `OPENAI_API_KEY=...`), fill in
+Then add your AI key to `.env` (`ANTHROPIC_API_KEY=...`, `OPENAI_API_KEY=...`, or `CUSTOM_AI_API_KEY=...` with `CUSTOM_AI_BASE_URL=...` for a gateway such as LiteLLM), fill in
 `products/acme.md`, and run `npx app-story acme`. See [docs/getting-started.md](docs/getting-started.md).
 
 ## Where things are

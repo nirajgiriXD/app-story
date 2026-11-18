@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { AiProviderConfig } from "@app-story/contracts";
-import { AppStoryError, type Logger } from "@app-story/shared";
+import { AppStoryError, CUSTOM_KEY_ENV, aiKeySource, anthropicGatewayOptions, type Logger } from "@app-story/shared";
 import type {
   AIProvider,
   AgentInput,
@@ -34,9 +34,9 @@ export class AnthropicProvider implements AIProvider {
     private readonly deps: AnthropicProviderDeps,
   ) {
     this.model = config.model ?? ANTHROPIC_DEFAULT_MODEL;
-    // Credentials come from ANTHROPIC_API_KEY (or an `ant auth login` profile). The SDK retries
-    // 408/409/429/5xx and connection errors with backoff.
-    this.client = deps.client ?? new Anthropic({ maxRetries: config.max_retries });
+    // Credentials come from ANTHROPIC_API_KEY (or an `ant auth login` profile), else the
+    // custom gateway's (CUSTOM_AI_API_KEY). The SDK retries 408/409/429/5xx and connection errors with backoff.
+    this.client = deps.client ?? new Anthropic({ maxRetries: config.max_retries, ...anthropicGatewayOptions() });
     if (config.temperature !== undefined) {
       deps.log.warn("providers.ai.temperature is ignored for Claude: current models only accept effort.");
     }
@@ -203,10 +203,17 @@ function assertNotRefused(message: Anthropic.Message): void {
 export function mapAnthropicError(error: unknown, model: string): unknown {
   if (error instanceof AppStoryError) return error;
   if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-    return new AppStoryError("PROVIDER_AUTH", "Anthropic rejected the API key.", {
-      cause: error,
-      hint: "Check ANTHROPIC_API_KEY in your .env file.",
-    });
+    const viaGateway = aiKeySource("anthropic") === CUSTOM_KEY_ENV;
+    return new AppStoryError(
+      "PROVIDER_AUTH",
+      viaGateway ? `The custom AI gateway refused model '${model}': ${error.message}` : "Anthropic rejected the API key.",
+      {
+        cause: error,
+        hint: viaGateway
+          ? `Check CUSTOM_AI_API_KEY, and that the gateway gives this key the model (\`app-story check\` lists the ones it has).`
+          : "Check ANTHROPIC_API_KEY in your .env file.",
+      },
+    );
   }
   if (error instanceof Anthropic.NotFoundError) {
     return new AppStoryError("PROVIDER_ERROR", `Claude model '${model}' was not found.`, {

@@ -163,6 +163,7 @@ sqlite3 .app-story/app-story.db "SELECT created_at, product_id, status, video_pa
 | --- | --- |
 | `ANTHROPIC_API_KEY` | Claude (`ANTHROPIC_AUTH_TOKEN` works instead) |
 | `OPENAI_API_KEY` | OpenAI models, and the optional OpenAI voice |
+| `CUSTOM_AI_API_KEY`, `CUSTOM_AI_BASE_URL` | instead of the two above: a gateway such as LiteLLM (e.g. `https://litellm.rstuff.in`) that serves Anthropic's `/v1/messages` and OpenAI's `/v1` API; reaches Claude, OpenAI models and the OpenAI voice with one key. Used only when both are set; a provider's own key wins over it. `app-story check` confirms the gateway serves your model |
 | `ELEVENLABS_API_KEY` | optional; ElevenLabs voice |
 | `APP_STORY_VOICE`, `APP_STORY_VOICE_ACCENT`, `APP_STORY_VOICE_SPEED`, `APP_STORY_VOICE_TONE` | which voice speaks (female, male, a name, or for Chatterbox a WAV to copy), accent, speed and tone |
 | `APP_STORY_PYTHON` | the Python that has `chatterbox-tts` (default: `python`) |

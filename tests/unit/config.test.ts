@@ -6,12 +6,14 @@ import { ProductConfigSchema, TEMPLATE_NAMES, WorkflowSchema, pickTemplate } fro
 import { chatterboxLanguage } from "@app-story/narration";
 import { getTemplate } from "@app-story/video";
 import { applyOverrides, listProducts, loadProduct, newProductFile, parseProductFile } from "@app-story/products";
-import { type AppStoryError, redactSecrets, resolveCredential } from "@app-story/shared";
+import { type AppStoryError, aiKeySource, anthropicGatewayOptions, openaiGatewayOptions, redactSecrets, resolveCredential } from "@app-story/shared";
 
 const KEYS = [
   "ANTHROPIC_API_KEY",
   "ANTHROPIC_AUTH_TOKEN",
   "OPENAI_API_KEY",
+  "CUSTOM_AI_API_KEY",
+  "CUSTOM_AI_BASE_URL",
   "APP_STORY_AI_PROVIDER",
   "APP_STORY_AI_MODEL",
   "APP_STORY_TTS_PROVIDER",
@@ -169,6 +171,23 @@ describe("product file", () => {
     expect(parse(file("url: https://acme.test")).config.providers).toMatchObject({ ai: { provider: "openai" }, ai_fallback: undefined });
     process.env.ANTHROPIC_API_KEY = "sk-ant-test";
     expect(parse(file("url: https://acme.test")).config.providers).toMatchObject({ ai: { provider: "anthropic" }, ai_fallback: { provider: "openai" } });
+  });
+
+  it("reaches both AIs through a custom gateway when neither has its own key", () => {
+    // The key alone does nothing: a generic CUSTOM_AI_API_KEY may belong to another tool.
+    process.env.CUSTOM_AI_API_KEY = "sk-gateway-test";
+    expect(aiKeySource("anthropic")).toBeUndefined();
+    process.env.CUSTOM_AI_BASE_URL = "https://gateway.test/v1/";
+    // No backup through the gateway: it serves only the models given to its key.
+    expect(parse(file("url: https://acme.test")).config.providers).toMatchObject({ ai: { provider: "anthropic" }, ai_fallback: undefined });
+    expect(aiKeySource("anthropic")).toBe("CUSTOM_AI_API_KEY");
+    expect(anthropicGatewayOptions()).toEqual({ apiKey: null, authToken: "sk-gateway-test", baseURL: "https://gateway.test" });
+    expect(openaiGatewayOptions()).toEqual({ apiKey: "sk-gateway-test", baseURL: "https://gateway.test/v1" });
+    // A provider's own key wins, and that provider then talks to its own API.
+    process.env.OPENAI_API_KEY = "sk-test";
+    expect(aiKeySource("openai")).toBe("OPENAI_API_KEY");
+    expect(openaiGatewayOptions()).toEqual({});
+    expect(anthropicGatewayOptions().baseURL).toBe("https://gateway.test");
   });
 
   it("lets .env overrides switch the AI, dropping the old model and a backup that is now the main one", () => {

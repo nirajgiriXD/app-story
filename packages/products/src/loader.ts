@@ -24,7 +24,7 @@ import {
   type TtsProviderName,
   type VoiceAccent,
 } from "@app-story/contracts";
-import { AppStoryError, fileExists, isAppStoryError } from "@app-story/shared";
+import { AppStoryError, CUSTOM_KEY_ENV, aiKeySource, fileExists, isAppStoryError } from "@app-story/shared";
 
 /**
  * A product is one Markdown file, `products/<id>.md`:
@@ -201,10 +201,17 @@ function describe(brief: string, id: string): { name: string; description: strin
 
 /** True when the provider can be used: its key is set (a local server: its address). */
 function hasKey(provider: AiProviderName): boolean {
-  const env = process.env;
-  if (provider === "anthropic") return Boolean(env.ANTHROPIC_API_KEY || env.ANTHROPIC_AUTH_TOKEN);
-  if (provider === "openai") return Boolean(env.OPENAI_API_KEY);
-  return Boolean(env.APP_STORY_AI_BASE_URL?.trim());
+  if (provider === "local") return Boolean(process.env.APP_STORY_AI_BASE_URL?.trim());
+  return aiKeySource(provider) !== undefined;
+}
+
+/**
+ * A backup needs its own key: the custom gateway serves only the models given to its key,
+ * so a backup through it is a guess that fails as soon as it is needed.
+ */
+function hasOwnKey(provider: AiProviderName): boolean {
+  const source = provider === "local" ? undefined : aiKeySource(provider);
+  return source !== undefined && source !== CUSTOM_KEY_ENV;
 }
 
 /**
@@ -273,7 +280,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
     },
     providers: {
       ai: { provider: ai, model: s.model },
-      ai_fallback: other && hasKey(other) ? { provider: other } : undefined,
+      ai_fallback: other && hasOwnKey(other) ? { provider: other } : undefined,
       tts: { provider: s.voice },
     },
     safety: { allow: parseAllow(s.allow, file) },

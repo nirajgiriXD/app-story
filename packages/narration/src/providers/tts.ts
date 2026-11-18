@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import OpenAI from "openai";
 import type { Tone, TtsConfig } from "@app-story/contracts";
-import { AppStoryError, registerSecret, retry, runFfmpeg } from "@app-story/shared";
+import { AppStoryError, aiKeySource, openaiGatewayOptions, registerSecret, retry, runFfmpeg } from "@app-story/shared";
 import { ChatterboxTTS } from "./chatterbox";
 import { KokoroTTS } from "./kokoro";
 
@@ -86,7 +86,7 @@ export class OpenAITTS implements TTSProvider {
   constructor(private readonly config: TtsConfig) {
     this.voice = config.voice ?? OPENAI_TTS_DEFAULTS.voice;
     this.model = config.model ?? OPENAI_TTS_DEFAULTS.model;
-    this.client = new OpenAI({ maxRetries: 4 });
+    this.client = new OpenAI({ maxRetries: 4, ...openaiGatewayOptions() });
   }
 
   async synthesize(text: string, outPath: string): Promise<void> {
@@ -102,7 +102,9 @@ export class OpenAITTS implements TTSProvider {
       await writeFile(outPath, Buffer.from(await response.arrayBuffer()));
     } catch (error) {
       if (error instanceof OpenAI.AuthenticationError) {
-        throw new AppStoryError("PROVIDER_AUTH", "OpenAI rejected the API key for text-to-speech.", { hint: "Check OPENAI_API_KEY." });
+        throw new AppStoryError("PROVIDER_AUTH", "OpenAI rejected the API key for text-to-speech.", {
+          hint: `Check ${aiKeySource("openai") ?? "OPENAI_API_KEY"}.`,
+        });
       }
       if (error instanceof OpenAI.APIError) {
         throw new AppStoryError("TTS_ERROR", `OpenAI text-to-speech failed: ${error.message}`, { cause: error });
@@ -135,11 +137,13 @@ export class SilentTTS implements TTSProvider {
 export type TTSFactory = (config: TtsConfig) => TTSProvider;
 
 function openaiTTS(config: TtsConfig): TTSProvider {
-  if (!process.env.OPENAI_API_KEY) {
+  const source = aiKeySource("openai");
+  if (!source) {
     throw new AppStoryError("PROVIDER_AUTH", "OPENAI_API_KEY is not set (needed for OpenAI text-to-speech).", {
-      hint: "Add it to .env, or use the free local voice: `voice: kokoro` in the product file.",
+      hint: "Add it (or CUSTOM_AI_API_KEY with CUSTOM_AI_BASE_URL) to .env, or use the free local voice: `voice: kokoro` in the product file.",
     });
   }
+  registerSecret(process.env[source]);
   return new OpenAITTS(config);
 }
 

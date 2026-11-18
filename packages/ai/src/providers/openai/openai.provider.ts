@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import type { AiProviderConfig } from "@app-story/contracts";
-import { AppStoryError, type Logger } from "@app-story/shared";
+import { AppStoryError, CUSTOM_KEY_ENV, aiKeySource, openaiGatewayOptions, type Logger } from "@app-story/shared";
 import type {
   AIProvider,
   AgentInput,
@@ -37,7 +37,7 @@ export class OpenAIProvider implements AIProvider {
     private readonly deps: OpenAIProviderDeps,
   ) {
     this.model = config.model ?? OPENAI_DEFAULT_MODEL;
-    this.client = deps.client ?? new OpenAI({ maxRetries: config.max_retries });
+    this.client = deps.client ?? new OpenAI({ maxRetries: config.max_retries, ...openaiGatewayOptions() });
   }
 
   /** Only send tuning parameters the user configured; reasoning models reject temperature. */
@@ -193,10 +193,17 @@ function assertComplete(response: OpenAI.Responses.Response): void {
 export function mapOpenAIError(error: unknown, model: string): unknown {
   if (error instanceof AppStoryError) return error;
   if (error instanceof OpenAI.AuthenticationError || error instanceof OpenAI.PermissionDeniedError) {
-    return new AppStoryError("PROVIDER_AUTH", "OpenAI rejected the API key.", {
-      cause: error,
-      hint: "Check OPENAI_API_KEY in your .env file.",
-    });
+    const viaGateway = aiKeySource("openai") === CUSTOM_KEY_ENV;
+    return new AppStoryError(
+      "PROVIDER_AUTH",
+      viaGateway ? `The custom AI gateway refused model '${model}': ${error.message}` : "OpenAI rejected the API key.",
+      {
+        cause: error,
+        hint: viaGateway
+          ? `Check CUSTOM_AI_API_KEY, and that the gateway gives this key the model (\`app-story check\` lists the ones it has).`
+          : "Check OPENAI_API_KEY in your .env file.",
+      },
+    );
   }
   if (error instanceof OpenAI.NotFoundError) {
     return new AppStoryError("PROVIDER_ERROR", `OpenAI model '${model}' was not found.`, {

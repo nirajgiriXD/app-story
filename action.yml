@@ -73,7 +73,7 @@ runs:
         esac
         # AI keys (only needed for a plan without saved narration), AppStory's own settings,
         # and the variables named in env-vars. `-e NAME` passes NAME's value from this step.
-        pass=(-e ANTHROPIC_API_KEY -e ANTHROPIC_AUTH_TOKEN -e OPENAI_API_KEY -e ELEVENLABS_API_KEY)
+        pass=(-e ANTHROPIC_API_KEY -e ANTHROPIC_AUTH_TOKEN -e OPENAI_API_KEY -e CUSTOM_AI_API_KEY -e CUSTOM_AI_BASE_URL -e ELEVENLABS_API_KEY)
         for name in $(compgen -e | grep '^APP_STORY_' | grep -v -E '^APP_STORY_(PRODUCTS|COMMAND|PLANS|PASS_ENV|IMAGE|HOME)$'); do pass+=(-e "$name"); done
         for name in $APP_STORY_PASS_ENV; do pass+=(-e "$name"); done
         docker image inspect "$APP_STORY_IMAGE" > /dev/null 2>&1 || docker pull --quiet "$APP_STORY_IMAGE" > /dev/null

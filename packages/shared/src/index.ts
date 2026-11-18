@@ -6,3 +6,4 @@ export * from "./async";
 export * from "./ids";
 export * from "./media";
 export * from "./paths";
+export * from "./gateway";

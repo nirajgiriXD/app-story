@@ -1,5 +1,5 @@
 import type { AiProviderConfig, AiProviderName } from "@app-story/contracts";
-import { AppStoryError, registerSecret, type Logger } from "@app-story/shared";
+import { AppStoryError, aiKeySource, registerSecret, type Logger } from "@app-story/shared";
 import type { AIProvider } from "../contracts/types";
 import type { UsageTracker } from "../usage";
 import { AnthropicProvider } from "../providers/anthropic/anthropic.provider";
@@ -35,16 +35,16 @@ export function createAIProvider(config: AiProviderConfig, deps: ProviderDeps): 
   if (!factory) {
     throw new AppStoryError("CONFIG_INVALID", `Unknown AI provider '${config.provider}'.`);
   }
-  const envName = API_KEY_ENV[config.provider as AiProviderName];
   if (config.provider === "local") registerSecret(process.env.APP_STORY_AI_API_KEY);
-  if (envName) {
-    const key = process.env[envName];
-    if (!key && !(config.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN)) {
+  if (config.provider === "anthropic" || config.provider === "openai") {
+    const envName = API_KEY_ENV[config.provider];
+    const source = aiKeySource(config.provider);
+    if (!source) {
       throw new AppStoryError("PROVIDER_AUTH", `${envName} is not set, so the ${config.provider} provider cannot start.`, {
-        hint: `Add ${envName}=... to .env, or pick another provider with --ai-provider.`,
+        hint: `Add ${envName}=... (or CUSTOM_AI_API_KEY and CUSTOM_AI_BASE_URL) to .env, or pick another provider with --ai-provider.`,
       });
     }
-    registerSecret(key);
+    registerSecret(process.env[source]);
   }
   return factory(config, deps);
 }

@@ -1,7 +1,8 @@
 import { chromium } from "playwright";
+import { ANTHROPIC_DEFAULT_MODEL, OPENAI_DEFAULT_MODEL } from "@app-story/ai";
 import { pickTemplate, resolveKokoroVoice } from "@app-story/contracts";
 import { resolveProductPath, type LoadedProduct } from "@app-story/products";
-import { credentialEnvName, fileExists, hasBinary } from "@app-story/shared";
+import { CUSTOM_KEY_ENV, CUSTOM_URL_ENV, aiKeySource, credentialEnvName, fileExists, hasBinary, customGateway, type KeyedAiService } from "@app-story/shared";
 import { countPlans, plansDir } from "../pipeline/plans";
 
 export interface ValidationItem {
@@ -49,9 +50,13 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
     }
   } else {
     const aiKey = API_KEYS[ai.provider] as string;
-    if (process.env[aiKey] || (ai.provider === "anthropic" && process.env.ANTHROPIC_AUTH_TOKEN))
-      ok(`AI: ${ai.provider}${ai.model ? ` / ${ai.model}` : ""} (${aiKey} found)`);
-    else error(`${aiKey} is not set; add it to .env (or set "ai:" to the provider you have a key for)`);
+    const aiSource = aiKeySource(ai.provider);
+    if (aiSource) ok(`AI: ${ai.provider}${ai.model ? ` / ${ai.model}` : ""} (${aiSource} found)`);
+    else error(`${aiKey} (or ${CUSTOM_KEY_ENV} with ${CUSTOM_URL_ENV}) is not set; add it to .env (or set "ai:" to the provider you have a key for)`);
+    if (aiSource === CUSTOM_KEY_ENV) {
+      const model = ai.model ?? (ai.provider === "anthropic" ? ANTHROPIC_DEFAULT_MODEL : OPENAI_DEFAULT_MODEL);
+      items.push(...(await checkGatewayModel(model)));
+    }
   }
   if (config.providers.ai_fallback) ok(`backup AI: ${config.providers.ai_fallback.provider}, used if ${ai.provider} fails`);
 
@@ -69,8 +74,11 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
     if (voice.style) warn("APP_STORY_VOICE_TONE is ignored: Kokoro has no tone control (only the OpenAI voice does)");
   } else {
     const ttsKey = API_KEYS[tts] as string;
-    if (process.env[ttsKey])
-      ok(`voice: ${tts}${voice.voice ? ` ${voice.voice}` : ""}${speed}${voice.style && tts === "openai" ? `, tone "${voice.style}"` : ""} (${ttsKey} found)`);
+    const ttsSource = tts === "openai" ? aiKeySource(tts as KeyedAiService) : process.env[ttsKey] ? ttsKey : undefined;
+    if (ttsSource)
+      ok(
+        `voice: ${tts}${voice.voice ? ` ${voice.voice}` : ""}${speed}${voice.style && tts === "openai" ? `, tone "${voice.style}"` : ""} (${ttsSource} found)`,
+      );
     else error(`${ttsKey} is not set (needed for the ${tts} voice)`);
     if (voice.accent) warn("APP_STORY_VOICE_ACCENT is ignored: it only picks among the free Kokoro voices");
     if (voice.style && tts !== "openai") warn(`APP_STORY_VOICE_TONE is ignored: only the OpenAI voice follows a tone`);
@@ -125,4 +133,30 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
   else error("Playwright Chromium is not installed; run `npx playwright install chromium`");
 
   return items;
+}
+
+/** Ask the custom gateway whether the key works and the model is one it serves. */
+async function checkGatewayModel(model: string): Promise<ValidationItem[]> {
+  const gateway = customGateway();
+  if (!gateway) return [];
+  const res = await fetch(`${gateway.baseURL}/v1/models`, {
+    headers: { Authorization: `Bearer ${gateway.key}` },
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => undefined);
+  if (!res) return [{ level: "warning", message: `the custom gateway does not answer at ${gateway.baseURL}` }];
+  if (res.status === 401 || res.status === 403) {
+    return [{ level: "error", message: `the custom gateway at ${gateway.baseURL} rejected ${CUSTOM_KEY_ENV}` }];
+  }
+  if (!res.ok) return [{ level: "warning", message: `the custom gateway answered ${res.status} when asked for its models` }];
+  const body = (await res.json().catch(() => ({}))) as { data?: { id?: string }[] };
+  const ids = (body.data ?? []).map((entry) => entry.id).filter((id): id is string => Boolean(id));
+  if (ids.includes(model)) return [{ level: "ok", message: `custom gateway: ${gateway.baseURL} serves ${model}` }];
+  const family = model.startsWith("claude") ? ids.filter((id) => id.includes("claude")) : ids.filter((id) => !id.includes("claude"));
+  const suggestions = (family.length ? family : ids).slice(0, 8).join(", ");
+  return [
+    {
+      level: "error",
+      message: `the custom gateway has no model '${model}'; set "model:" in the product file or APP_STORY_AI_MODEL${suggestions ? ` (it has: ${suggestions})` : ""}`,
+    },
+  ];
 }

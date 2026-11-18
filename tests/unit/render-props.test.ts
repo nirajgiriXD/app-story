@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Step, StepResult } from "@app-story/contracts";
+import { menuLayout, type Step, type StepResult } from "@app-story/contracts";
 import { parseProductFile } from "@app-story/products";
 import { curveControl } from "@app-story/browser";
 import {
@@ -9,7 +9,10 @@ import {
   buildRenderProps,
   interCss,
   cursorPresence,
+  editTimes,
   getTemplate,
+  menuAt,
+  planEdit,
   planTimeline,
   shotBox,
   soundEffects,
@@ -114,6 +117,47 @@ describe("render props", () => {
     expect(props().brand).toMatchObject({ font: "Inter", fontFile: null });
     expect(props({ fontSrc: "assets/font.woff2" }).brand).toMatchObject({ font: BRAND_FONT_FAMILY, fontFile: "assets/font.woff2" });
     expect(brandFontCss("/files/assets/font.woff2")).toContain(`font-family:'${BRAND_FONT_FAMILY}'`);
+  });
+});
+
+describe("native dropdowns", () => {
+  const field = { x: 400, y: 300, width: 300, height: 36 };
+  const menu = { options: ["Planning", "In progress", "On hold"], from: 0, to: 2, opened_ms: 2000, closed_ms: 3100 };
+
+  it("draws the list under the field, or above it when there is no room below", () => {
+    expect(menuLayout(field, menu, { width: 1600, height: 900 })).toEqual({ x: 400, y: 340, width: 300, rowHeight: 36, first: 0, rows: 3 });
+    const low = { ...field, y: 840 };
+    expect(menuLayout(low, menu, { width: 1600, height: 900 }).y).toBe(840 - 4 - (3 * 36 + 8));
+    // A long list shows a window of rows around the chosen option.
+    const many = { options: Array.from({ length: 30 }, (_, i) => `Option ${i}`), to: 20 };
+    expect(menuLayout(field, many, { width: 1600, height: 2000 })).toMatchObject({ first: 16, rows: 8 });
+  });
+
+  it("keeps the list a step opened on the edited timeline, with its field", () => {
+    const p = props({
+      workflowSteps: [{ id: "s1", description: "status", action: "select", target: { label: "Status" }, value: "On hold" } as Step],
+      results: [result({ step_id: "s1", action: "select", started_ms: 1500, ended_ms: 3500, box: field, menu })],
+    });
+    expect(p.menus).toEqual([{ openMs: 2000, closeMs: 3100, field, options: menu.options, from: 0, to: 2 }]);
+    const map = planEdit(10_000, [[0, 10_000]]);
+    expect(
+      editTimes(map, {
+        durationMs: 10_000,
+        steps: [result({ step_id: "s1", action: "select", started_ms: 1500, ended_ms: 3500, menu })],
+        cursor: [],
+        voice: [],
+      }).steps[0]?.menu,
+    ).toEqual(menu);
+  });
+
+  it("opens and closes softly", () => {
+    const menus = [{ openMs: 1000, closeMs: 2000 }];
+    expect(menuAt(999, menus)).toBeUndefined();
+    expect(menuAt(1000, menus)?.shown).toBe(0);
+    expect(menuAt(1500, menus)?.shown).toBe(1);
+    expect(menuAt(2090, menus)?.shown).toBeGreaterThan(0);
+    expect(menuAt(2090, menus)?.shown).toBeLessThan(1);
+    expect(menuAt(2300, menus)).toBeUndefined();
   });
 });
 

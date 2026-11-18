@@ -198,6 +198,9 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
       const key = r.action === "press" ? byId.get(r.step_id)?.key : undefined;
       return key ? [{ atMs: Math.max(0, r.started_ms), labels: keyLabels(key) }] : [];
     }),
+    menus: passed.flatMap((r) =>
+      r.menu && r.box ? [{ openMs: r.menu.opened_ms, closeMs: r.menu.closed_ms, field: r.box, options: r.menu.options, from: r.menu.from, to: r.menu.to }] : [],
+    ),
   };
 }
 

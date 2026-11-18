@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { CursorPoint } from "@app-story/contracts";
 import { sourceFrame } from "./edit";
 import type { RenderProps } from "./props";
-import { CURSOR_FADE_MS, CURSOR_IDLE_MS, mergeFocusWindows } from "./timeline";
+import { CURSOR_FADE_MS, CURSOR_IDLE_MS, MENU_FADE_MS, mergeFocusWindows } from "./timeline";
 
 /*
  * Rendering in cached pieces. The video is drawn in short chunks (two seconds, one keyframe
@@ -72,7 +72,7 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
   const ms = (frame: number) => (frame * 1000) / props.fps;
   const lo = ms(chunk.from);
   const hi = ms(chunk.to);
-  const { audio: _a, music: _m, sfx: _s, focus, cursor, cuts, sections, urls, keys, captions, recording, brand, hero: _h, ...global } = props;
+  const { audio: _a, music: _m, sfx: _s, focus, cursor, cuts, sections, urls, keys, menus, captions, recording, brand, hero: _h, ...global } = props;
   const rStart = recording.startMs;
   const rLo = lo - rStart;
   const rHi = hi - rStart;
@@ -110,6 +110,7 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
           sections: latestAndWithin(sections, rLo, rHi),
           urls: latestAndWithin(urls, rLo, rHi),
           keys: latestAndWithin(keys ?? [], rLo, rHi),
+          menus: (menus ?? []).filter((m) => m.closeMs + MENU_FADE_MS >= rLo && m.openMs <= rHi),
         }
       : {}),
   };

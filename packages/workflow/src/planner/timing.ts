@@ -1,5 +1,5 @@
 import type { Step } from "@app-story/contracts";
-import { MAX_TYPING_MS } from "@app-story/browser";
+import { MAX_TYPING_MS, MENU_OPEN_MS } from "@app-story/browser";
 
 export interface StepPacing {
   minStepMs: number;
@@ -44,7 +44,8 @@ export function estimateStepMs(step: Step, pacing: StepPacing): number {
       ms = glide + 300 + Math.min((step.value?.length ?? 0) * pacing.typingDelayMs, MAX_TYPING_MS);
       break;
     case "select":
-      ms = glide + 700;
+      // Open the list, glide to the option, pick it (a native dropdown is drawn by the video).
+      ms = glide + MENU_OPEN_MS + 450 + 600;
       break;
     case "check":
     case "uncheck":

@@ -2,7 +2,8 @@ import type React from "react";
 import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
-import { cameraAt, cameraTransform, cursorAt, cursorPresence, latestAt, mergeFocusWindows } from "../timeline";
+import { menuLayout } from "@app-story/contracts/menu";
+import { cameraAt, cameraTransform, cursorAt, cursorPresence, latestAt, menuAt, mergeFocusWindows } from "../timeline";
 import { sourceFrame } from "../edit";
 import { handoverIn, handoverOut } from "./handover";
 import { fontStack, isDark, px, recordingFrame, shape } from "./theme";
@@ -51,6 +52,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const url = latestAt(t, p.urls)?.url ?? "";
   const section = latestAt(t, p.sections);
   const pressed = latestAt(t, p.keys ?? []);
+  const open = menuAt(t, p.menus ?? []);
 
   const content = (
     <div style={{ position: "relative", width: viewport.width * L.scale, height: viewport.height * L.scale, overflow: "hidden" }}>
@@ -67,6 +69,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
         {camera.focus && p.template.spotlight > 0 ? (
           <Spotlight box={camera.focus.box} strength={p.template.spotlight * camera.focus.amount} zoom={view.scale} />
         ) : null}
+        {open ? <DropdownList p={p} menu={open.menu} shown={open.shown} pointer={cursor} /> : null}
         {cursor ? <Cursor p={p} t={t} x={cursor.x} y={cursor.y} sinceClickMs={cursor.sinceClickMs} zoom={view.scale} /> : null}
       </div>
     </div>
@@ -181,6 +184,70 @@ const Spotlight: React.FC<{ box: { x: number; y: number; width: number; height: 
         pointerEvents: "none",
       }}
     />
+  );
+};
+
+/**
+ * A native dropdown's list, drawn where the browser would have shown it (it draws it
+ * outside the page, so the recording never has it). The row under the pointer is
+ * highlighted, like a real menu; before the pointer gets there, the current choice is.
+ */
+const DropdownList: React.FC<{
+  p: RenderProps;
+  menu: NonNullable<RenderProps["menus"]>[number];
+  shown: number;
+  pointer: { x: number; y: number } | null;
+}> = ({ p, menu, shown, pointer }) => {
+  const list = menuLayout(menu.field, menu, p.recording.viewport);
+  const top = list.y + 4;
+  const under = pointer && pointer.x >= list.x && pointer.x <= list.x + list.width ? Math.floor((pointer.y - top) / list.rowHeight) : -1;
+  const hovered = under >= 0 && under < list.rows ? list.first + under : menu.from;
+  const rows = menu.options.slice(list.first, list.first + list.rows);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: list.x,
+        top: list.y,
+        width: list.width,
+        padding: "4px 0",
+        background: "#FFFFFF",
+        borderRadius: 8,
+        border: "1px solid rgba(15, 23, 42, 0.12)",
+        boxShadow: "0 12px 32px rgba(15, 23, 42, 0.22)",
+        opacity: shown,
+        transform: `translateY(${(1 - shown) * -6}px)`,
+        transformOrigin: "top",
+        fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+        fontSize: Math.round(list.rowHeight * 0.45),
+        color: "#0F172A",
+        overflow: "hidden",
+      }}
+    >
+      {rows.map((label, i) => {
+        const index = list.first + i;
+        const active = index === hovered;
+        return (
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: the rows are fixed while the list is open
+            key={i}
+            style={{
+              height: list.rowHeight,
+              display: "flex",
+              alignItems: "center",
+              padding: "0 12px",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              background: active ? p.brand.primary : "transparent",
+              color: active ? "#FFFFFF" : "#0F172A",
+            }}
+          >
+            {label}
+          </div>
+        );
+      })}
+    </div>
   );
 };
 

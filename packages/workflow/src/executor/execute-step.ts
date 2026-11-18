@@ -98,6 +98,7 @@ export async function executeStep(controller: BrowserController, step: Step, opt
         // A check step has no element of its own: its area is the outcome's.
         region: outcome.region ?? (step.action === "assert" ? outcomeAt.region : undefined),
         result_box: outcomeAt.box,
+        menu: outcome.menu,
       };
     } catch (error) {
       lastError = error;

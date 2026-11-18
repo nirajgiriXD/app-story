@@ -178,6 +178,21 @@ export function cursorPresence(t: number, points: readonly CursorPoint[]): numbe
   return Math.max(1 - resting, arriving);
 }
 
+/** How long a drawn dropdown list takes to open, and to fade once an option is picked. */
+export const MENU_OPEN_FADE_MS = 120;
+export const MENU_FADE_MS = 180;
+
+/** The dropdown list open at `t`, and how far it is shown (0-1), if any. */
+export function menuAt<M extends { openMs: number; closeMs: number }>(t: number, menus: readonly M[]): { menu: M; shown: number } | undefined {
+  for (const menu of menus) {
+    if (t < menu.openMs || t > menu.closeMs + MENU_FADE_MS) continue;
+    const opening = Math.min(1, (t - menu.openMs) / MENU_OPEN_FADE_MS);
+    const closing = t <= menu.closeMs ? 1 : 1 - (t - menu.closeMs) / MENU_FADE_MS;
+    return { menu, shown: smooth(Math.min(opening, closing)) };
+  }
+  return undefined;
+}
+
 /** Latest entry at or before `t`. */
 export function latestAt<T extends { atMs: number }>(t: number, items: readonly T[]): T | undefined {
   let found: T | undefined;

@@ -5,6 +5,22 @@ export type Box = z.infer<typeof BoxSchema>;
 
 export const StepStatusSchema = z.enum(["passed", "failed", "skipped"]);
 
+/**
+ * A native dropdown (`<select>`) as it was opened on camera. The browser draws its list
+ * outside the page, so the recording never shows it; the video draws it from this.
+ */
+export const MenuShownSchema = z.object({
+  options: z.array(z.string()),
+  /** The option selected before and after. */
+  from: z.number().int(),
+  to: z.number().int(),
+  /** When the list opened and closed (same clock as the step). */
+  opened_ms: z.number(),
+  closed_ms: z.number(),
+});
+export type MenuShown = z.infer<typeof MenuShownSchema>;
+export { menuLayout } from "./menu";
+
 export const StepResultSchema = z.object({
   step_id: z.string(),
   action: z.string(),
@@ -26,6 +42,8 @@ export const StepResultSchema = z.object({
   error_code: z.string().optional(),
   screenshot: z.string().optional(),
   section: z.string().optional(),
+  /** A native dropdown opened by this step, for the video to draw. */
+  menu: MenuShownSchema.optional(),
 });
 export type StepResult = z.infer<typeof StepResultSchema>;
 

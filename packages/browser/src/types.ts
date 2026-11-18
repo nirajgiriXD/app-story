@@ -1,4 +1,4 @@
-import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@app-story/contracts";
+import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, MenuShown, Target } from "@app-story/contracts";
 
 export interface PageObservation {
   url: string;
@@ -17,6 +17,8 @@ export interface ActionOutcome {
   /** The area around the element worth showing with it (its form, card, dialog or table). */
   region?: Box;
   elementName?: string;
+  /** A native dropdown opened on camera (its list is drawn by the video). */
+  menu?: MenuShown;
 }
 
 export interface VerificationResult {

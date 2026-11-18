@@ -1,5 +1,5 @@
 import type { Locator, Page, Request } from "playwright";
-import type { Box, BrowserIssue, Condition, CursorPoint, Expectation, Target } from "@app-story/contracts";
+import { menuLayout, type Box, type BrowserIssue, type Condition, type CursorPoint, type Expectation, type Target } from "@app-story/contracts";
 import { AppStoryError, sleep, type Logger } from "@app-story/shared";
 import type { ActionOptions, ActionOutcome, BrowserController, PageObservation, VerificationResult } from "../types";
 import { inPage } from "../playwright/in-page";
@@ -23,6 +23,9 @@ export interface PlaywrightControllerOptions {
 }
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
+
+/** How long a native dropdown's list stays open before the pointer moves to the option. */
+export const MENU_OPEN_MS = 350;
 
 /** Longest a value is typed key by key on camera; the rest is inserted at once. */
 export const MAX_TYPING_MS = 2500;
@@ -158,14 +161,36 @@ export class PlaywrightController implements BrowserController {
   async select(target: Target, value: string, options?: ActionOptions): Promise<ActionOutcome> {
     const { locator, box, region, info } = await this.prepare("select", target, options, value);
     await this.moveCursorTo(box);
+    // A native dropdown's list is drawn by the browser outside the page, so the recording
+    // would only show the value jump. On camera, the pointer opens it, moves to the option and
+    // picks it; the video draws the list from what is noted here (see `menuLayout`).
+    const native = this.presentation && box ? await nativeOptions(locator) : undefined;
+    let opened = 0;
+    if (native && box) {
+      this.recordClick();
+      opened = this.now();
+      await sleep(MENU_OPEN_MS);
+    }
+    const to = native ? native.options.findIndex((o) => o === value || o.trim() === value.trim()) : -1;
+    if (native && box && to >= 0) {
+      const viewport = this.page.viewportSize() ?? { width: 1280, height: 720 };
+      const list = menuLayout(box, { options: native.options, to }, viewport);
+      const row = { x: list.x + 8, y: list.y + 4 + (to - list.first) * list.rowHeight, width: Math.min(list.width, box.width) - 16, height: list.rowHeight };
+      await this.moveCursorTo(row);
+    }
     try {
       await locator.selectOption({ label: value }, { timeout: this.timeout(options) });
     } catch {
       await locator.selectOption(value, { timeout: this.timeout(options) });
     }
     this.recordClick();
+    let menu: ActionOutcome["menu"];
+    if (native) {
+      const chosen = await locator.evaluate(inPage((el: Element) => (el as HTMLSelectElement).selectedIndex)).catch(() => to);
+      menu = { options: native.options, from: native.selected, to: chosen, opened_ms: opened, closed_ms: this.now() };
+    }
     await this.settle();
-    return { urlAfter: this.page.url(), box, region, elementName: info.name };
+    return { urlAfter: this.page.url(), box, region, elementName: info.name, menu };
   }
 
   async setChecked(target: Target, checked: boolean, options?: ActionOptions): Promise<ActionOutcome> {
@@ -516,6 +541,19 @@ export class PlaywrightController implements BrowserController {
     } while (Date.now() < deadline);
     return false;
   }
+}
+
+/** A native single-choice dropdown's option labels and selected index; undefined for anything else. */
+async function nativeOptions(locator: Locator): Promise<{ options: string[]; selected: number } | undefined> {
+  const found = await locator
+    .evaluate(
+      inPage((el: Element) => {
+        if (!(el instanceof HTMLSelectElement) || el.multiple || el.size > 1) return null;
+        return { options: Array.from(el.options, (o) => (o.label || o.text).replace(/\s+/g, " ").trim()), selected: el.selectedIndex };
+      }),
+    )
+    .catch(() => null);
+  return found && found.options.length > 0 ? found : undefined;
 }
 
 function normalize(text: string): string {

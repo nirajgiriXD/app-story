@@ -147,7 +147,12 @@ export function editTimes<V extends { start_ms: number; duration_ms: number }>(
   const at = (ms: number) => Math.round(toOutput(map, ms));
   return {
     durationMs: at(take.durationMs),
-    steps: take.steps.map((s) => ({ ...s, started_ms: at(s.started_ms), ended_ms: at(s.ended_ms) })),
+    steps: take.steps.map((s) => ({
+      ...s,
+      started_ms: at(s.started_ms),
+      ended_ms: at(s.ended_ms),
+      ...(s.menu ? { menu: { ...s.menu, opened_ms: at(s.menu.opened_ms), closed_ms: at(s.menu.closed_ms) } } : {}),
+    })),
     cursor: take.cursor.map((p) => ({ ...p, t: at(p.t) })),
     navigations: take.navigations?.map((n) => ({ ...n, t: at(n.t) })),
     voice: take.voice.map((v) => ({ ...v, start_ms: at(v.start_ms) })),

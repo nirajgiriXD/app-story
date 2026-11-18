@@ -54,6 +54,8 @@ export interface RenderProps {
   sfx?: SoundEffect[];
   /** Keys pressed on camera, shown as keycaps (recording-relative times). */
   keys?: { atMs: number; labels: string[] }[];
+  /** Native dropdowns opened on camera, drawn over the field (recording-relative times, viewport px). */
+  menus?: { openMs: number; closeMs: number; field: Box; options: string[]; from: number; to: number }[];
   /** The cards' own words in the video's language: the end card's call to action (`{host}` is the app's address) and the title badge. */
   labels?: { cta: string; badge: string | null };
 }

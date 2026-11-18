@@ -306,6 +306,8 @@ the link to try it), plus any other languages and formats the product file asks 
 (`….de.mp4`, `….vertical.mp4`, `….gif`). The MP4 carries its chapters too, so players list them.
 
 Every video's first frame is its title card, so Slack, X and Discord show it as the preview.
+A vertical video keeps its words out of the places where Reels, TikTok and Shorts draw their
+own buttons and caption.
 
 ```text
 output/

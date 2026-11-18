@@ -6,8 +6,8 @@ import { menuLayout } from "@app-story/contracts/menu";
 import { cameraAt, cameraTransform, cursorAt, cursorPresence, cursorShape, latestAt, menuAt, mergeFocusWindows } from "../timeline";
 import { sourceFrame } from "../edit";
 import { handoverIn, handoverOut } from "./handover";
-import { layout } from "./layout";
-import { fontStack, isDark, px, recordingFrame } from "./theme";
+import { layout, portraitChipTop } from "./layout";
+import { fontStack, isDark, px, recordingFrame, shape } from "./theme";
 
 export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const frame = useCurrentFrame();
@@ -83,7 +83,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
           title={section.title}
           sinceMs={t - section.atMs}
           left={L.radius ? L.x : px(p, 48)}
-          top={L.radius ? (L.y - px(p, 52)) / 2 : px(p, 40)}
+          top={shape(p) === "tall" ? portraitChipTop(p) : L.radius ? (L.y - px(p, 52)) / 2 : px(p, 40)}
         />
       ) : null}
     </AbsoluteFill>

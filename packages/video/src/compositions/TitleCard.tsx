@@ -2,6 +2,7 @@ import type React from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
 import { HANDOVER_SPLIT, handoverOut } from "./handover";
+import { PORTRAIT_SAFE } from "./layout";
 import { asset, fontStack, px, shape, textColor } from "./theme";
 import { DEFAULT_CTA } from "../labels";
 
@@ -26,6 +27,10 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
   const cta = (p.labels?.cta ?? p.brand.cta ?? DEFAULT_CTA).replace("{host}", p.brand.host);
   // Portrait: the text in the upper part and the app's still under it. Square: no room for the still.
   const hero = form === "square" ? null : p.hero;
+  // Portrait: the words keep clear of the platform's buttons on the right (see PORTRAIT_SAFE).
+  const side = px(p, form === "wide" ? 160 : 72);
+  const right = form === "tall" ? px(p, PORTRAIT_SAFE.right) : side;
+  const sides = right === side ? `${side}px` : `${right}px 0 ${side}px`;
   return (
     <AbsoluteFill
       style={{
@@ -33,7 +38,7 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
         transform: `translateY(${-px(p, 36) * leave}px)`,
         fontFamily: fontStack(p.brand.font),
         justifyContent: form === "tall" && kind === "intro" && hero ? "flex-start" : "center",
-        padding: form === "tall" && kind === "intro" && hero ? `${p.height * 0.16}px ${px(p, 72)}px 0` : `0 ${px(p, form === "wide" ? 160 : 72)}px`,
+        padding: form === "tall" && kind === "intro" && hero ? `${p.height * 0.16}px ${right}px 0 ${side}px` : `0 ${sides}`,
       }}
     >
       {p.brand.logo ? (
@@ -124,13 +129,14 @@ export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; dura
  */
 const Hero: React.FC<{ p: RenderProps; src: string; enter: number }> = ({ p, src, enter }) => {
   const tall = shape(p) === "tall";
-  const width = tall ? p.width - px(p, 144) : px(p, 900);
+  // Portrait: above the platform's caption and clear of its buttons (see PORTRAIT_SAFE).
+  const width = tall ? p.width - px(p, 72 + PORTRAIT_SAFE.right) : px(p, 900);
   return (
     <div
       style={{
         position: "absolute",
         left: tall ? px(p, 72) : px(p, 1000),
-        top: tall ? "58%" : "50%",
+        top: tall ? Math.min(p.height * 0.58, p.height * PORTRAIT_SAFE.bottom - (width * 9) / 16) : "50%",
         width,
         height: (width * 9) / 16,
         marginTop: tall ? 0 : -(width * 9) / 32,

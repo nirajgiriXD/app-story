@@ -8,20 +8,45 @@ import { px, shape } from "./theme";
  * which places each caption where it does not cover what the video is showing.
  */
 
+/**
+ * Reels, TikTok and Shorts draw their own interface over a 9:16 video: the search bar and
+ * username at the top, the caption and audio line at the bottom, the like and share buttons
+ * down the right. In a portrait video, anything meant to be read stays between `top` and
+ * `bottom` (shares of the height) and, in the lower half, clear of the `right` edge (design px).
+ */
+export const PORTRAIT_SAFE = { top: 0.13, bottom: 0.8, right: 140 } as const;
+
+/** Where the chapter chip sits in a portrait frame: just inside the safe area. */
+export function portraitChipTop(p: RenderProps): number {
+  return p.height * PORTRAIT_SAFE.top;
+}
+
 /** Window layout in output pixels. */
 export function layout(p: RenderProps) {
   const { viewport } = p.recording;
+  const tall = shape(p) === "tall";
+  // A portrait frame keeps the chapter chip's row free above the window.
+  const safeTop = tall ? portraitChipTop(p) + (p.template.sectionStyle === "chip" ? px(p, 76) : 0) : 0;
   if (p.template.frame === "full") {
     const scale = Math.min(p.width / viewport.width, p.height / viewport.height);
-    return { x: (p.width - viewport.width * scale) / 2, y: (p.height - viewport.height * scale) / 2, scale, bar: 0, radius: 0 };
+    const y = (p.height - viewport.height * scale) / 2;
+    return {
+      x: (p.width - viewport.width * scale) / 2,
+      y: tall ? Math.max(safeTop, Math.min(y, p.height / 2 - viewport.height * scale)) : y,
+      scale,
+      bar: 0,
+      radius: 0,
+    };
   }
   const bar = px(p, 46);
   if (shape(p) !== "wide") {
     // Portrait or square: the window spans the width, a little above the middle, with the
-    // captions right under it (see DemoVideo's Captions).
+    // captions right under it (see DemoVideo's Captions). Portrait: in the upper half when it
+    // fits, where the platform's buttons on the right do not cover it.
     const scale = (p.width * 0.94) / viewport.width;
     const height = bar + viewport.height * scale;
-    return { x: p.width * 0.03, y: Math.max(px(p, 120), (p.height - height) / 2 - px(p, 60)), scale, bar, radius: px(p, 18) };
+    const y = Math.max(px(p, 120), (p.height - height) / 2 - px(p, 60));
+    return { x: p.width * 0.03, y: tall ? Math.max(safeTop, Math.min(y, p.height / 2 - height)) : y, scale, bar, radius: px(p, 18) };
   }
   // Fixed zones keep overlays off the product UI: chapter chip above, captions below.
   const top = px(p, 84);
@@ -39,7 +64,7 @@ export function captionEdge(p: RenderProps): number {
 }
 
 /** About how tall a two-line caption is, padding included. */
-function captionHeight(p: RenderProps): number {
+export function captionHeight(p: RenderProps): number {
   return px(p, p.captions.fontSize) * 3.3;
 }
 

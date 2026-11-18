@@ -6,6 +6,7 @@ import { parseProductFile } from "@app-story/products";
 import { buildRenderProps, drawnFrame, getTemplate, placeNarration, reshapeProps, type RenderProps } from "@app-story/video";
 // The compositions are not part of the package's API (the CLI bundle must not load React).
 import { DemoVideo } from "../../packages/video/src/compositions/DemoVideo";
+import { captionHeight, layout, PORTRAIT_SAFE } from "../../packages/video/src/compositions/layout";
 import { VideoRoot } from "../../packages/video/src/compositions/runtime";
 
 /*
@@ -127,5 +128,21 @@ describe("golden frames", () => {
   it("the vertical version of the dropdown", () => {
     const tall = reshapeProps(p, "vertical");
     expect(frameAt(tall, at(4400))).toMatchSnapshot();
+  });
+
+  it("the vertical version keeps its words where Reels, TikTok and Shorts draw nothing", () => {
+    const tall = reshapeProps(p, "vertical");
+    const right = `${PORTRAIT_SAFE.right}px`; // a 1080-wide frame: design px are output px
+    // Below the platform's top bar: the window, and the chapter chip above it.
+    expect(layout(tall).y).toBeGreaterThanOrEqual(tall.height * PORTRAIT_SAFE.top);
+    expect(frameAt(tall, at(1000))).toContain(`top:${tall.height * PORTRAIT_SAFE.top}px`);
+    // The caption: clear of the buttons on the right, and above the platform's caption.
+    const caption = frameAt(tall, at(4400));
+    const under = Number(/padding:([\d.]+)px (\d+)px 0/.exec(caption)?.[1]);
+    expect(caption).toContain(`px ${right} 0`);
+    expect(under + captionHeight(tall)).toBeLessThanOrEqual(tall.height * PORTRAIT_SAFE.bottom);
+    // The title and end cards: their words clear of the buttons too.
+    expect(frameAt(tall, 1500)).toContain(`px ${right} 0`);
+    expect(frameAt(tall, tall.outro.startMs + 2000)).toContain(`padding:0 ${right} 0`);
   });
 });

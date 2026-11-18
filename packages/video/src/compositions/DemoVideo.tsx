@@ -1,6 +1,6 @@
 import type React from "react";
 import type { RenderProps } from "../props";
-import { captionEdge, layout } from "./layout";
+import { captionEdge, captionHeight, layout, PORTRAIT_SAFE } from "./layout";
 import { RecordingScene } from "./RecordingScene";
 import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "./runtime";
 import { TitleCard } from "./TitleCard";
@@ -51,17 +51,22 @@ const Captions: React.FC<{ p: RenderProps }> = ({ p }) => {
   const size = px(p, p.captions.fontSize);
   const bar = p.template.caption.style === "bar";
   const edge = captionEdge(p);
-  // A caption that would cover what is being shown sits at the top (see placeCaptions).
-  const top = (cue.position ?? p.captions.position) === "top";
+  const tall = shape(p) === "tall";
+  // A caption that would cover what is being shown sits at the top (see placeCaptions). Not in
+  // a portrait frame, where the top is the platform's (and the window's).
+  const top = !tall && (cue.position ?? p.captions.position) === "top";
   // Portrait and square: right under the app window, not at the far bottom of a tall frame.
+  // Portrait: above the platform's caption and clear of its buttons (see PORTRAIT_SAFE).
   const L = shape(p) === "wide" || top ? undefined : layout(p);
-  const under = L ? L.y + L.bar + p.recording.viewport.height * L.scale + px(p, 36) : undefined;
+  const below = L ? L.y + L.bar + p.recording.viewport.height * L.scale + px(p, 36) : undefined;
+  const under = below !== undefined && tall ? Math.min(below, p.height * PORTRAIT_SAFE.bottom - captionHeight(p)) : below;
+  const side = tall ? px(p, PORTRAIT_SAFE.right) : px(p, 48);
   return (
     <AbsoluteFill
       style={{
         justifyContent: under !== undefined || top ? "flex-start" : "flex-end",
         alignItems: "center",
-        padding: under !== undefined ? `${under}px ${px(p, 48)}px 0` : `${edge}px ${px(p, 80)}px`,
+        padding: under !== undefined ? `${under}px ${side}px 0` : `${edge}px ${px(p, 80)}px`,
         pointerEvents: "none",
       }}
     >

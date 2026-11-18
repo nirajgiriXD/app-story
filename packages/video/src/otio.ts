@@ -35,6 +35,11 @@ const clip = (name: string, file: string, startMs: number, durationMs: number, f
   enabled: true,
   metadata: {},
 });
+/** The take's first frame held for `durationMs`: a clip with a freeze-frame effect. */
+const freeze = (file: string, durationMs: number, fps: number): Json => ({
+  ...clip("Take (held)", file, 0, durationMs, fps),
+  effects: [{ OTIO_SCHEMA: "FreezeFrame.1", name: "", effect_name: "FreezeFrame", time_scalar: 0, metadata: {} }],
+});
 const track = (name: string, kind: "Video" | "Audio", children: Json[], markers: Json[] = []): Json => ({
   OTIO_SCHEMA: "Track.1",
   name,
@@ -52,7 +57,10 @@ export function toOtio(props: RenderProps, fileOf: (src: string) => string): str
   const fps = props.fps;
   const recording = props.recording;
   const video: Json[] = [];
-  if (recording.startMs > 0) video.push(gap(recording.startMs, fps));
+  const holdMs = Math.min(recording.holdMs ?? 0, recording.startMs);
+  if (recording.startMs - holdMs > 0) video.push(gap(recording.startMs - holdMs, fps));
+  // The opening without an intro: the take's first frame, held while the intro line is spoken.
+  if (holdMs > 0) video.push(freeze(fileOf(recording.src), holdMs, fps));
   // The edit's straight stretches: as recorded, or (fast-forwarded) cut down to their middle.
   const map = recording.timeMap ?? [
     [0, 0],

@@ -8,27 +8,44 @@ import type { VideoTemplate } from "./templates";
 
 export interface TimelinePlan {
   introStartMs: number;
+  /** 0 without an intro: the video opens on the app. */
   introEndMs: number;
   recordingStartMs: number;
+  /** Without an intro: how long the app's first screen is held, from 0, while the intro line is spoken. */
+  recordingHoldMs: number;
   recordingEndMs: number;
   outroStartMs: number;
   outroEndMs: number;
   totalMs: number;
 }
 
+/** When the spoken intro starts (global ms), over the intro or over the app's first screen. */
+export const INTRO_VOICE_AT_MS = 450;
+/** The app's first screen stays this long after the spoken intro ends, before the recording plays. */
+const HOLD_AFTER_VOICE_MS = 350;
+
 /**
- * intro card → (crossfade) → recording → (crossfade) → outro card.
- * Cards stretch to fit their narration.
+ * With an intro: intro → (handover) → recording → (handover) → outro card. The intro stretches
+ * to fit its narration. Without one, the video opens on the app: its first screen is held while
+ * the intro line is spoken, then the recording plays.
  */
-export function planTimeline(input: { template: VideoTemplate; recordingMs: number; introAudioMs?: number; outroAudioMs?: number }): TimelinePlan {
+export function planTimeline(input: {
+  template: VideoTemplate;
+  recordingMs: number;
+  introAudioMs?: number;
+  outroAudioMs?: number;
+  /** Open with the full-screen intro (`--intro`). */
+  intro?: boolean;
+}): TimelinePlan {
   const t = input.template.transitionMs;
-  const introMs = Math.max(input.template.introMs, (input.introAudioMs ?? 0) + 600 + t);
   const outroMs = Math.max(input.template.outroMs, (input.outroAudioMs ?? 0) + 900 + t);
-  const recordingStartMs = introMs - t;
+  const introMs = input.intro ? Math.max(input.template.introMs, (input.introAudioMs ?? 0) + 600 + t) : 0;
+  const recordingHoldMs = !input.intro && input.introAudioMs ? INTRO_VOICE_AT_MS + input.introAudioMs + HOLD_AFTER_VOICE_MS : 0;
+  const recordingStartMs = input.intro ? introMs - t : recordingHoldMs;
   const recordingEndMs = recordingStartMs + input.recordingMs;
   const outroStartMs = recordingEndMs - t;
   const outroEndMs = outroStartMs + outroMs;
-  return { introStartMs: 0, introEndMs: introMs, recordingStartMs, recordingEndMs, outroStartMs, outroEndMs, totalMs: outroEndMs };
+  return { introStartMs: 0, introEndMs: introMs, recordingStartMs, recordingHoldMs, recordingEndMs, outroStartMs, outroEndMs, totalMs: outroEndMs };
 }
 
 export interface FocusWindow {

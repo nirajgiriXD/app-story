@@ -218,7 +218,7 @@ allow: delete, emails                      # risky actions are blocked unless li
 
   | Template | Look | Picked by itself for |
   | --- | --- | --- |
-  | `product-update` | app in a browser window, dark background, "New" badge on the title | `npx app-story acme` (what's new) |
+  | `product-update` | app in a browser window, dark background, "New" badge on the intro's title | `npx app-story acme` (what's new) |
   | `feature-highlight` | browser window, strongest zoom, biggest title | `npx app-story acme --each` (one feature per video) |
   | `tutorial` | full screen, light, big cursor, close zoom | `npx app-story acme "show how to …"` and `--videos` (a how-to) |
   | `modern-saas` | browser window, colorful background, medium zoom | — |
@@ -328,14 +328,25 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice; Chatte
 
 ## Output
 
-`output/` holds only what you post: each finished video with its captions (`.srt`, when
-captions are on), its thumbnail (`.png`, the title card) and a description to paste
+`output/` holds only what you post: each finished video with its captions (`.srt`), its
+thumbnail (`.png`, the video's first frame) and a description to paste
 (`.description.txt`: the summary, YouTube chapters when the video has enough of them, and
 the link to try it), a short post to share it with as it is (`.post.txt`: what it shows and
 the link, short enough for X), plus any other languages and formats the product file asks for
 (`….de.mp4`, `….vertical.mp4`, `….gif`). The MP4 carries its chapters too, so players list them.
 
-Every video's first frame is its title card, so Slack, X and Discord show it as the preview.
+**How a video starts.** It opens on the app itself: its first screen, held while the voice
+says what the video shows, then the clicks. With `--intro`, a full-screen intro comes first:
+the app's first screen fills the frame under the brand's colour while the title comes in
+word by word, with the summary under it, then it hands over to the app. Either way, frame 0
+is a settled picture (the app, or the intro with its title), so Slack, X and Discord show it
+as the preview.
+
+**Captions** are written next to the video as `.srt`, which players and YouTube show and let
+viewers turn off. `--captions` also draws them on the video itself, for places that play
+videos muted without subtitles (feeds, a GIF in a README). `--intro` and `--captions` work
+when making a video and with `redo`, `resume` and `replay`, so `npx app-story redo acme
+--intro --captions` adds both to the newest video without the app or the AI.
 A vertical video keeps its words out of the places where Reels, TikTok and Shorts draw their
 own buttons and caption.
 

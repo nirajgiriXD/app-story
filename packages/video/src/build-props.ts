@@ -8,7 +8,7 @@ import { DEFAULT_CTA, shownUrl } from "./labels";
 import { BRAND_FONT_FAMILY } from "./fonts";
 import { placeCaptions } from "./compositions/layout";
 import { posterTime } from "./poster";
-import { planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
+import { INTRO_VOICE_AT_MS, planTimeline, type FocusWindow, type TimelinePlan } from "./timeline";
 
 const FOCUS_ACTIONS = new Set(["click", "fill", "select", "check", "uncheck", "hover"]);
 /** The last shot ends this long before the recording does, so the camera is wide for the outro. */
@@ -48,19 +48,22 @@ export function placeNarration(input: {
   segments: PlacedClip[];
   /** Map an absolute clip path to the path the renderer will serve. */
   toSrc: (path: string) => string;
+  /** Open with the full-screen intro (`--intro`); otherwise the intro line is spoken over the app. */
+  introSequence?: boolean;
 }): { plan: TimelinePlan; placements: NarrationPlacement[] } {
   const plan = planTimeline({
     template: input.template,
     recordingMs: input.recordingMs,
     introAudioMs: input.intro?.duration_ms,
     outroAudioMs: input.outro?.duration_ms,
+    intro: input.introSequence,
   });
   const placements: NarrationPlacement[] = [];
   if (input.intro) {
     placements.push({
       src: input.toSrc(input.intro.path),
       text: input.intro.text,
-      startMs: 450,
+      startMs: INTRO_VOICE_AT_MS,
       durationMs: input.intro.duration_ms,
       words: input.intro.words,
     });
@@ -152,7 +155,8 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
 
   // A card already shows its title and subtitle: a caption that repeats them only clutters it.
   const onCard = new Set([input.title, input.subtitle].filter(Boolean).map((t) => sameText(t as string)));
-  const repeated = input.placements.filter((p) => onCard.has(sameText(p.text)) && (p.startMs < plan.recordingStartMs || p.startMs >= plan.outroStartMs));
+  const onIntro = (p: NarrationPlacement) => plan.introEndMs > 0 && p.startMs < plan.recordingStartMs;
+  const repeated = input.placements.filter((p) => onCard.has(sameText(p.text)) && (onIntro(p) || p.startMs >= plan.outroStartMs));
   const cues = input.cues.filter((c) => !repeated.some((p) => c.start_ms >= p.startMs - 1 && c.start_ms < p.startMs + p.durationMs));
 
   return placeCaptions({
@@ -181,6 +185,7 @@ export function buildRenderProps(input: BuildPropsInput): RenderProps {
     recording: {
       src: input.recordingSrc,
       startMs: plan.recordingStartMs,
+      holdMs: plan.recordingHoldMs,
       durationMs: input.recordingMs,
       timeMap: input.timeMap,
       viewport: config.browser.viewport,
@@ -224,7 +229,8 @@ function sameText(text: string): string {
 export function soundEffects(results: readonly StepResult[], cursor: readonly CursorPoint[], plan: TimelinePlan, transitionMs: number): SoundEffect[] {
   const at = (ms: number) => plan.recordingStartMs + ms;
   const clicks = cursor.filter((c) => c.click).map((c) => c.t);
-  const effects: SoundEffect[] = [{ kind: "whoosh", atMs: plan.recordingStartMs - transitionMs * 0.4 }];
+  // A whoosh into the app only after an intro: a video that opens on the app starts quietly.
+  const effects: SoundEffect[] = plan.introEndMs > 0 ? [{ kind: "whoosh", atMs: plan.recordingStartMs - transitionMs * 0.4 }] : [];
   for (const t of clicks) effects.push({ kind: "click", atMs: at(t) });
   for (const r of results) {
     if (r.action !== "fill") continue;

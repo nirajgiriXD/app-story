@@ -51,13 +51,17 @@ export const AbsoluteFill: React.FC<{ style?: React.CSSProperties; children?: Re
 export const Sequence: React.FC<{ from: number; durationInFrames: number; name?: string; children: React.ReactNode }> = ({
   from,
   durationInFrames,
+  name,
   children,
 }) => {
   const frame = useCurrentFrame();
   if (frame < from || frame >= from + durationInFrames) return null;
+  // The name marks the layer in the page (and in the golden frames' markup).
   return (
     <FrameContext.Provider value={frame - from}>
-      <AbsoluteFill>{children}</AbsoluteFill>
+      <div data-sequence={name} style={fill}>
+        {children}
+      </div>
     </FrameContext.Provider>
   );
 };

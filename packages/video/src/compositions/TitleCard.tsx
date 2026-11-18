@@ -1,154 +1,59 @@
 import type React from "react";
 import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig } from "./runtime";
 import type { RenderProps } from "../props";
-import { HANDOVER_SPLIT, handoverOut } from "./handover";
+import { HANDOVER_SPLIT } from "./handover";
 import { PORTRAIT_SAFE } from "./layout";
 import { asset, fontStack, px, shape, textColor } from "./theme";
 import { DEFAULT_CTA } from "../labels";
 
-export const TitleCard: React.FC<{ p: RenderProps; kind: "intro" | "outro"; durationMs: number }> = ({ p, kind, durationMs }) => {
+/**
+ * The end card: the product's name, the video's title and the call to action. The intro is
+ * IntroSequence (full screen); without one, the video opens on the app.
+ */
+export const TitleCard: React.FC<{ p: RenderProps; durationMs: number }> = ({ p }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const ms = (frame / fps) * 1000;
   const colors = textColor(p);
-  const fadeMs = p.template.transitionMs;
-  // The card shares the video's backdrop, so only its text moves: the intro's text leaves before
-  // the app window comes in, and the outro's arrives after the window has gone (see handover.ts).
-  const start = kind === "outro" ? fadeMs * HANDOVER_SPLIT : 0;
+  // The card shares the video's backdrop, so only its text moves: it arrives after the app
+  // window has gone (see handover.ts).
+  const start = p.template.transitionMs * HANDOVER_SPLIT;
   const enter = (delay: number) => spring({ frame: frame - ((delay + start) * fps) / 1000, fps, config: { damping: 200, mass: 0.8 } });
-  const leave = kind === "intro" ? handoverOut(ms, durationMs, fadeMs) : 0;
   const rise = (delay: number) => ({
     opacity: enter(delay),
     transform: `translateY(${interpolate(enter(delay), [0, 1], [px(p, 24), 0])}px)`,
   });
 
   const form = shape(p);
-  const badge = p.labels ? p.labels.badge : p.template.title.badge;
   const cta = (p.labels?.cta ?? p.brand.cta ?? DEFAULT_CTA).replace("{host}", p.brand.host);
-  // Portrait: the text in the upper part and the app's still under it. Square: no room for the still.
-  const hero = form === "square" ? null : p.hero;
   // Portrait: the words keep clear of the platform's buttons on the right (see PORTRAIT_SAFE).
   const side = px(p, form === "wide" ? 160 : 72);
   const right = form === "tall" ? px(p, PORTRAIT_SAFE.right) : side;
   const sides = right === side ? `${side}px` : `${right}px 0 ${side}px`;
   return (
-    <AbsoluteFill
-      style={{
-        opacity: 1 - leave,
-        transform: `translateY(${-px(p, 36) * leave}px)`,
-        fontFamily: fontStack(p.brand.font),
-        justifyContent: form === "tall" && kind === "intro" && hero ? "flex-start" : "center",
-        padding: form === "tall" && kind === "intro" && hero ? `${p.height * 0.16}px ${right}px 0 ${side}px` : `0 ${sides}`,
-      }}
-    >
+    <AbsoluteFill style={{ fontFamily: fontStack(p.brand.font), justifyContent: "center", padding: `0 ${sides}` }}>
       {p.brand.logo ? (
         <Img src={asset(p, p.brand.logo)} style={{ height: px(p, 64), objectFit: "contain", alignSelf: "flex-start", marginBottom: px(p, 40), ...rise(0) }} />
       ) : null}
-      {kind === "intro" && hero ? <Hero p={p} src={hero} enter={enter(260)} /> : null}
-      {kind === "intro" ? (
-        <>
-          <div style={{ display: "flex", gap: px(p, 16), alignItems: "center", marginBottom: px(p, 20), ...rise(80) }}>
-            {badge ? (
-              <span
-                style={{
-                  background: p.brand.primary,
-                  color: "#fff",
-                  fontSize: px(p, 22),
-                  fontWeight: 600,
-                  padding: `${px(p, 6)}px ${px(p, 16)}px`,
-                  borderRadius: 999,
-                }}
-              >
-                {badge}
-              </span>
-            ) : null}
-            <span style={{ color: p.brand.primary, fontSize: px(p, 26), fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              {p.brand.productName}
-            </span>
-          </div>
-          <div
-            style={{
-              color: colors.strong,
-              fontSize: px(p, p.template.title.size),
-              fontWeight: p.template.title.weight,
-              lineHeight: 1.08,
-              letterSpacing: "-0.02em",
-              maxWidth: form === "wide" ? px(p, hero ? 820 : 1400) : undefined,
-              ...rise(160),
-            }}
-          >
-            {p.title}
-          </div>
-          {p.subtitle ? (
-            <div
-              style={{
-                color: colors.muted,
-                fontSize: px(p, 32),
-                marginTop: px(p, 28),
-                maxWidth: form === "wide" ? px(p, hero ? 760 : 1200) : undefined,
-                lineHeight: 1.4,
-                ...rise(320),
-              }}
-            >
-              {p.subtitle}
-            </div>
-          ) : null}
-          <div style={{ width: px(p, 96), height: px(p, 6), borderRadius: 3, background: p.brand.primary, marginTop: px(p, 44), ...rise(420) }} />
-        </>
-      ) : (
-        <>
-          <div style={{ color: colors.strong, fontSize: px(p, 64), fontWeight: p.template.title.weight, letterSpacing: "-0.02em", ...rise(80) }}>
-            {p.brand.productName}
-          </div>
-          <div style={{ color: colors.muted, fontSize: px(p, 32), marginTop: px(p, 20), ...rise(220) }}>{p.title}</div>
-          <div
-            style={{
-              alignSelf: "flex-start",
-              marginTop: px(p, 44),
-              background: p.brand.primary,
-              color: "#fff",
-              fontSize: px(p, 30),
-              fontWeight: 600,
-              padding: `${px(p, 16)}px ${px(p, 34)}px`,
-              borderRadius: 999,
-              boxShadow: `0 ${px(p, 14)}px ${px(p, 36)}px ${p.brand.primary}55`,
-              ...rise(360),
-            }}
-          >
-            {cta} →
-          </div>
-        </>
-      )}
+      <div style={{ color: colors.strong, fontSize: px(p, 64), fontWeight: p.template.title.weight, letterSpacing: "-0.02em", ...rise(80) }}>
+        {p.brand.productName}
+      </div>
+      <div style={{ color: colors.muted, fontSize: px(p, 32), marginTop: px(p, 20), ...rise(220) }}>{p.title}</div>
+      <div
+        style={{
+          alignSelf: "flex-start",
+          marginTop: px(p, 44),
+          background: p.brand.primary,
+          color: "#fff",
+          fontSize: px(p, 30),
+          fontWeight: 600,
+          padding: `${px(p, 16)}px ${px(p, 34)}px`,
+          borderRadius: 999,
+          boxShadow: `0 ${px(p, 14)}px ${px(p, 36)}px ${p.brand.primary}55`,
+          ...rise(360),
+        }}
+      >
+        {cta} →
+      </div>
     </AbsoluteFill>
-  );
-};
-
-/**
- * The app's first screen, tilted in on the right of the intro (under the title in a portrait
- * video): what the video is about, at a glance.
- */
-const Hero: React.FC<{ p: RenderProps; src: string; enter: number }> = ({ p, src, enter }) => {
-  const tall = shape(p) === "tall";
-  // Portrait: above the platform's caption and clear of its buttons (see PORTRAIT_SAFE).
-  const width = tall ? p.width - px(p, 72 + PORTRAIT_SAFE.right) : px(p, 900);
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: tall ? px(p, 72) : px(p, 1000),
-        top: tall ? Math.min(p.height * 0.58, p.height * PORTRAIT_SAFE.bottom - (width * 9) / 16) : "50%",
-        width,
-        height: (width * 9) / 16,
-        marginTop: tall ? 0 : -(width * 9) / 32,
-        borderRadius: px(p, 16),
-        overflow: "hidden",
-        opacity: enter,
-        transform: `perspective(${px(p, 2200)}px) translateX(${px(p, 120) * (1 - enter)}px) rotateY(${-16 + 4 * enter}deg) rotateX(4deg)`,
-        boxShadow: "0 40px 90px rgba(15, 23, 42, 0.30), 0 0 0 1px rgba(15, 23, 42, 0.08)",
-        background: "#fff",
-      }}
-    >
-      <Img src={asset(p, src)} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top left", display: "block" }} />
-    </div>
   );
 };

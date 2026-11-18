@@ -1,10 +1,10 @@
 import { Command } from "commander";
 import { replayPlans } from "@app-story/core";
-import { globals, openProduct } from "../context";
+import { globals, openProduct, shared, withLookOptions, type LookOptions } from "../context";
 import { dim, exitCodeFor, printJob } from "../output";
 
 export function replayCommand(): Command {
-  return new Command("replay")
+  return withLookOptions(new Command("replay"))
     .description("Make the videos of saved plans again, exactly as planned (no AI once a plan has its narration)")
     .argument("<product>", "product name")
     .argument("[plans...]", "plan names from apps/<product>.plans/ (default: all of them)")
@@ -22,9 +22,10 @@ Examples:
   npx app-story replay acme                  every saved plan of acme
   npx app-story replay acme bulk-export      one plan`,
     )
-    .action(async (productId: string, names: string[], opts: { headed?: boolean }, cmd: Command) => {
+    .action(async (productId: string, names: string[], opts: { headed?: boolean } & LookOptions, cmd: Command) => {
       const { outputDir, logLevel } = globals(cmd);
-      const product = await openProduct(productId);
+      opts = shared(opts, cmd);
+      const product = await openProduct(productId, opts);
       const results = await replayPlans({
         product,
         outputDir,

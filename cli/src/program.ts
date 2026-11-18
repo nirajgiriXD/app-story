@@ -13,6 +13,7 @@ Examples:
   npx app-story acme                          one video of what's new in apps/acme.md
   npx app-story acme --each                   one video per new feature
   npx app-story acme "show how to export"     a video of anything else, in plain words
+  npx app-story acme --intro --captions       with a full-screen intro, and captions drawn on the video
   npx app-story acme --videos                 one video per goal listed under "## Videos"
   npx app-story redo acme --template tutorial the newest video again, in another look
   npx app-story acme --videos --review        see each new plan's steps and approve it before recording
@@ -32,6 +33,8 @@ export function buildProgram(): Command {
     .option("--each", "one video per new feature instead of one for all")
     .option("--videos", 'one video per goal listed under "## Videos" in the product file')
     .option("--review", "show each newly planned video's steps and ask before recording it")
+    .option("--captions", "draw the captions on the video (the .srt file is always made)")
+    .option("--intro", "open with a full-screen intro instead of going straight to the app")
     .option("--fresh", "plan again instead of replaying a saved plan")
     .option("--headed", "show the browser window while working")
     .option("--log-level <level>", "debug, info, warn, error, silent")

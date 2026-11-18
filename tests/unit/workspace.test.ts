@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { storeFor } from "@app-story/core";
 import { findWorkspaceRoot, workspaceAt } from "@app-story/shared";
+import { shared } from "../../cli/src/context";
 import { buildProgram } from "../../cli/src/program";
 
 describe("the user's project folder", () => {
@@ -42,6 +43,16 @@ describe("the user's project folder", () => {
     expect(existsSync(join(root, "engine", "data", "app-story.db"))).toBe(false);
     expect(await readFile(join(ws.dataDir, ".gitignore"), "utf8")).toMatch(/^\*$/m);
   });
+});
+
+it("subcommands get --intro, --captions and --headed even though the main command has them too", () => {
+  // commander gives a flag that both define to the main command; `shared` reads it from there.
+  const program = buildProgram();
+  const redo = program.commands.find((c) => c.name() === "redo") as NonNullable<(typeof program.commands)[number]>;
+  redo.action(() => undefined); // parse only
+  program.parse(["redo", "acme", "--intro", "--captions"], { from: "user" });
+  expect(redo.opts()).not.toHaveProperty("intro"); // the reason `shared` exists
+  expect(shared(redo.opts(), redo)).toMatchObject({ intro: true, captions: true });
 });
 
 it("the command reports the package's version", () => {

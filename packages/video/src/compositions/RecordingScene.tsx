@@ -4,7 +4,7 @@ import { AbsoluteFill, Img, interpolate, spring, useCurrentFrame, useVideoConfig
 import type { RenderProps } from "../props";
 import { menuLayout } from "@app-story/contracts/menu";
 import { cameraAt, cameraTransform, cursorAt, cursorPresence, cursorShape, latestAt, menuAt, mergeFocusWindows } from "../timeline";
-import { sourceFrame } from "../edit";
+import { recordingSpan, takeFrameAt } from "../recording-span";
 import { handoverIn, handoverOut } from "./handover";
 import { layout, portraitChipTop } from "./layout";
 import { fontStack, isDark, px, recordingFrame, shape } from "./theme";
@@ -12,7 +12,11 @@ import { fontStack, isDark, px, recordingFrame, shape } from "./theme";
 export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const t = (frame / fps) * 1000;
+  // The sequence starts where the window first shows (span.from); the take plays from span.start.
+  // While the first screen is held, everything shows the take's first moment.
+  const span = recordingSpan(p);
+  const at = frame + span.from;
+  const t = Math.max(0, ((at - span.start) / fps) * 1000);
   const { viewport } = p.recording;
   const L = layout(p);
   const groups = useMemo(() => mergeFocusWindows(p.focus, 1200, p.cuts ?? []), [p.focus, p.cuts]);
@@ -21,8 +25,9 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
   const view = cameraTransform(camera, viewport);
   const cursor = cursorAt(t, p.cursor);
   const fade = p.template.transitionMs;
-  // Arrives after the intro's text has left and leaves before the outro's arrives (handover.ts).
-  const arrive = handoverIn(t, fade);
+  // Arrives after the intro has left and leaves before the outro's arrives (handover.ts).
+  // Without an intro the video opens on the app: it is there from the first frame.
+  const arrive = p.intro.endMs > 0 ? handoverIn(t, fade) : 1;
   const leave = handoverOut(t, p.recording.durationMs, fade);
   const opacity = arrive * (1 - leave);
   const url = latestAt(t, p.urls)?.url ?? "";
@@ -41,7 +46,7 @@ export const RecordingScene: React.FC<{ p: RenderProps }> = ({ p }) => {
           position: "relative",
         }}
       >
-        <Img src={recordingFrame(sourceFrame(p.recording.timeMap, frame, fps))} style={{ width: viewport.width, height: viewport.height, display: "block" }} />
+        <Img src={recordingFrame(takeFrameAt(p, at, span))} style={{ width: viewport.width, height: viewport.height, display: "block" }} />
         {camera.focus && p.template.spotlight > 0 ? (
           <Spotlight box={camera.focus.box} strength={p.template.spotlight * camera.focus.amount} zoom={view.scale} />
         ) : null}

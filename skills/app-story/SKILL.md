@@ -7,8 +7,9 @@ description: Make a narrated product demo video of the web app in this project w
 
 AppStory makes demo videos of a running web app. It never needs the app's source code: it
 opens the app in a browser, plans the clicks with an AI, proves each feature works, records
-it, adds a voice, captions and title cards, and renders an MP4. Your job is to set it up for
-this project and run it. The full reference is the AppStory README
+it, adds a voice and captions, and renders an MP4 that opens on the app (`--intro` adds a
+full-screen intro first; `--captions` draws the captions on the video, not only in the
+`.srt`). Your job is to set it up for this project and run it. The full reference is the AppStory README
 (https://github.com/nirajgiriXD/app-story#readme).
 
 ## 1. Check what is there

@@ -16,15 +16,20 @@ import { VideoRoot } from "../../packages/video/src/compositions/runtime";
  * snapshots are the same on every machine and font set.
  */
 
-const { config } = parseProductFile(
+const { config: base } = parseProductFile(
   '---\nurl: https://staging.acme.test\nwebsite: https://acme.com\ncta: "Start free at {host}"\ncolor: "#4F46E5"\n---\n\n# Acme\n',
   "acme.md",
   "acme",
 );
 
-function props(template = "product-update"): RenderProps {
+/** `look`: the intro and captions on the video, as `--intro` and `--captions` ask (default: both, as most frames below check them). */
+function props(template = "product-update", look = { intro: true, captions: true }): RenderProps {
   const t = getTemplate(template);
+  const config = structuredClone(base);
+  config.demo.intro = look.intro;
+  config.captions.burn_in = look.captions;
   const { plan, placements } = placeNarration({
+    introSequence: look.intro,
     template: t,
     recordingMs: 12_000,
     intro: { id: "intro", kind: "intro", text: "Export every invoice at once.", step_ids: [], path: "intro.wav", duration_ms: 2400 },
@@ -87,15 +92,29 @@ function frameAt(p: RenderProps, ms: number): string {
   return renderToStaticMarkup(createElement(VideoRoot, { frame, config, children: createElement(DemoVideo, p) }));
 }
 
+/** The words a frame's markup shows, without its tags (the intro's title comes in word by word). */
+const words = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+
+/** One layer of a frame's markup (a named Sequence), up to the next one. */
+function layer(html: string, name: string): string {
+  const from = html.indexOf(`data-sequence="${name}"`);
+  if (from < 0) return "";
+  const next = html.indexOf('data-sequence="', from + 1);
+  return html.slice(from, next < 0 ? undefined : next);
+}
+
 describe("golden frames", () => {
   const p = props();
   const at = (recordingMs: number) => p.recording.startMs + recordingMs;
 
-  it("the title card", () => {
-    expect(frameAt(p, 1500)).toMatchSnapshot();
+  it("the intro: full screen, the app's first screen behind the title", () => {
+    const html = frameAt(p, 1500);
+    expect(layer(html, "Recording")).toBe(""); // the app comes after it
+    expect(words(layer(html, "Intro"))).toContain("Export invoices in bulk");
+    expect(html).toMatchSnapshot();
   });
 
-  it("frame 0 is the poster: the settled title card, not the bare backdrop", () => {
+  it("frame 0 is the poster: the settled intro, not the bare backdrop", () => {
     const poster = drawnFrame(p, 0);
     expect(poster).toBe(Math.round(((p.posterMs as number) / 1000) * p.fps));
     expect(poster).toBeGreaterThan(0);
@@ -103,7 +122,7 @@ describe("golden frames", () => {
     expect(drawnFrame(p, 1)).toBe(1);
     // Never a frame of the recording: a worker reads those in order.
     expect(drawnFrame({ ...p, posterMs: p.recording.startMs + 500 }, 0)).toBe(0);
-    expect(frameAt(p, p.posterMs as number)).toContain("Export invoices in bulk");
+    expect(words(frameAt(p, p.posterMs as number))).toContain("Export invoices in bulk");
   });
 
   it("a click on a link, with the pointer as a hand", () => {
@@ -127,28 +146,35 @@ describe("golden frames", () => {
 
   it("the middle of each transition", () => {
     const fade = p.template.transitionMs;
-    expect(frameAt(p, p.recording.startMs + fade / 2)).toMatchSnapshot("title card → app");
+    expect(frameAt(p, p.recording.startMs + fade / 2)).toMatchSnapshot("intro → app");
     expect(frameAt(p, p.outro.startMs + fade / 2)).toMatchSnapshot("app → end card");
   });
 
-  it("never shows a card's words and the app at once, on any frame of a transition", () => {
-    // How visible the card's words and the app window are, read from a frame's markup: the
-    // card fades as a whole (its root) and its words rise in one by one (each line).
-    const card = (html: string) => {
-      const root = /opacity:([\d.e-]+);transform:translateY\([^)]*\);font-family/.exec(html);
-      if (!root) return 0;
-      const lines = [...html.slice(root.index + root[0].length).matchAll(/opacity:([\d.e-]+);transform:translateY\(/g)].map((m) => Number(m[1]));
-      return Number(root[1]) * Math.max(0, ...lines);
+  it("never shows the intro's or end card's words and the app at once, on any frame of a transition", () => {
+    // How visible a card's words are, read from its layer's markup: the intro fades as a whole
+    // (its root) and the words of both rise in one by one (each word or line).
+    const card = (segment: string) => {
+      if (!segment) return 0;
+      const rootStyle = [...segment.matchAll(/style="([^"]*)"/g)][1]?.[1] ?? "";
+      const root = Number(/(?:^|;)opacity:([\d.e-]+)/.exec(rootStyle)?.[1] ?? 1);
+      const lines = [...segment.matchAll(/opacity:([\d.e-]+);(?:filter:[^;]*;)?transform:translateY\(/g)].map((m) => Number(m[1]));
+      return root * Math.max(0, ...lines);
     };
-    const app = (html: string) => Number(/opacity:([\d.e-]+);font-family/.exec(html)?.[1] ?? 0);
+    const app = (html: string) => Number(/opacity:([\d.e-]+)/.exec(layer(html, "Recording"))?.[1] ?? 0);
     const fade = p.template.transitionMs;
     const step = 1000 / p.fps;
-    for (const start of [p.recording.startMs, p.outro.startMs]) {
+    for (const [start, name] of [
+      [p.recording.startMs, "Intro"],
+      [p.outro.startMs, "Outro"],
+    ] as const) {
+      let seen = 0;
       for (let ms = start; ms <= start + fade; ms += step) {
         const html = frameAt(p, ms);
+        seen = Math.max(seen, card(layer(html, name)));
         // A double exposure: both clearly there in the same frame.
-        expect(Math.min(card(html), app(html)), `at ${Math.round(ms)} ms`).toBeLessThan(0.15);
+        expect(Math.min(card(layer(html, name)), app(html)), `${name} at ${Math.round(ms)} ms`).toBeLessThan(0.15);
       }
+      expect(seen, `${name} is found in the markup`).toBeGreaterThan(0.5);
     }
   });
 
@@ -168,8 +194,39 @@ describe("golden frames", () => {
     const under = Number(/padding:([\d.]+)px (\d+)px 0/.exec(caption)?.[1]);
     expect(caption).toContain(`px ${right} 0`);
     expect(under + captionHeight(tall)).toBeLessThanOrEqual(tall.height * PORTRAIT_SAFE.bottom);
-    // The title and end cards: their words clear of the buttons too.
-    expect(frameAt(tall, 1500)).toContain(`px ${right} 0`);
+    // The intro and the end card: their words clear of the buttons too.
+    expect(frameAt(tall, 1500)).toContain(`padding:0 ${right}`);
     expect(frameAt(tall, tall.outro.startMs + 2000)).toContain(`padding:0 ${right} 0`);
+  });
+});
+
+describe("opening on the app (no --intro, no --captions)", () => {
+  const p = props("product-update", { intro: false, captions: false });
+
+  it("shows the app's first screen from frame 0, held while the intro line is spoken", () => {
+    expect(p.intro.endMs).toBe(0);
+    expect(p.recording.holdMs).toBe(450 + 2400 + 350);
+    expect(p.recording.startMs).toBe(p.recording.holdMs);
+    for (const ms of [0, 1000, p.recording.startMs - 20]) {
+      const html = frameAt(p, ms);
+      expect(layer(html, "Intro")).toBe("");
+      expect(layer(html, "Recording")).toMatch(/^[^>]*><div style="[^"]*opacity:1;/); // there at once, no fade in
+      expect(html).toContain("/recording/0.jpg"); // still the take's first frame
+    }
+    // Then the take plays.
+    expect(frameAt(p, p.recording.startMs + 1000)).toContain("/recording/60.jpg");
+  });
+
+  it("frame 0 is the app itself, and the poster", () => {
+    expect(p.posterMs).toBe(0);
+    expect(drawnFrame(p, 0)).toBe(0);
+    expect(frameAt(p, 0)).toMatchSnapshot();
+  });
+
+  it("draws no captions on the video", () => {
+    const html = frameAt(p, p.recording.startMs + 4400);
+    expect(html).toContain("Priya Patel"); // the dropdown is there
+    expect(html).not.toContain("Pick an owner."); // its caption is not
+    expect(p.captions.cues.map((c) => c.text)).toContain("Pick an owner."); // still timed, for the .srt
   });
 });

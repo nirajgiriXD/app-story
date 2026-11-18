@@ -11,6 +11,8 @@ export interface MakeOptions {
   each?: boolean;
   videos?: boolean;
   review?: boolean;
+  captions?: boolean;
+  intro?: boolean;
   fresh?: boolean;
   headed?: boolean;
 }
@@ -35,7 +37,7 @@ export async function makeVideos(productId: string | undefined, goalWords: strin
   // Before any AI work: --review needs a terminal to ask in.
   const approve = opts.review ? terminalReviewer() : undefined;
   const { outputDir, logLevel } = globals(cmd);
-  const product = await openProduct(productId);
+  const product = await openProduct(productId, opts);
   const jobs = goal
     ? [howTo(goal)]
     : opts.videos

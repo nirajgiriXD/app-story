@@ -90,6 +90,7 @@ export async function composeVideo(
     outro: clips.find((c) => c.kind === "outro"),
     segments: edited.voice,
     toSrc,
+    introSequence: config.demo.intro,
   });
 
   const cues = buildCues(

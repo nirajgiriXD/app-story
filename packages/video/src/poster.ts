@@ -1,4 +1,5 @@
 import type { RenderProps } from "./props";
+import { recordingSpan } from "./recording-span";
 import type { TimelinePlan } from "./timeline";
 import type { VideoTemplate } from "./templates";
 
@@ -18,7 +19,7 @@ export function posterTime(plan: TimelinePlan, template: VideoTemplate): number 
 export function drawnFrame(p: Pick<RenderProps, "fps" | "posterMs" | "recording">, frame: number): number {
   if (frame !== 0 || p.posterMs === undefined) return frame;
   const poster = Math.round((p.posterMs / 1000) * p.fps);
-  // Only a title card: a worker reads the recording's frames in order, from where its chunk starts.
-  const recordingFirst = Math.max(0, Math.round((p.recording.startMs / 1000) * p.fps));
+  // Only an intro: a worker reads the recording's frames in order, from where its chunk starts.
+  const recordingFirst = recordingSpan(p).from;
   return poster > 0 && poster < recordingFirst ? poster : frame;
 }

@@ -191,9 +191,21 @@ describe("native dropdowns", () => {
 });
 
 describe("captions on title cards", () => {
-  it("leaves out a caption that repeats the card's own text, but keeps the rest", () => {
-    const plan = planTimeline({ template, recordingMs: 20_000, introAudioMs: 3000 });
+  // Drawn on the video (`--captions`); otherwise they are only in the .srt file.
+  const burnIn = structuredClone(config);
+  burnIn.captions.burn_in = true;
+
+  it("are not drawn on the video unless asked for, and the .srt still has them", () => {
+    const plan = planTimeline({ template, recordingMs: 20_000 });
+    const cues = [{ start_ms: 500, end_ms: 2000, text: "Open the form." }];
+    expect(props({ plan, cues }).captions).toMatchObject({ enabled: false, cues: [{ text: "Open the form." }] });
+    expect(props({ plan, cues, config: burnIn }).captions.enabled).toBe(true);
+  });
+
+  it("leaves out a caption that repeats the intro's own text, but keeps the rest", () => {
+    const plan = planTimeline({ template, recordingMs: 20_000, introAudioMs: 3000, intro: true });
     const p = props({
+      config: burnIn,
       plan,
       subtitle: "Set up a project in a few seconds.",
       placements: [
@@ -206,6 +218,16 @@ describe("captions on title cards", () => {
       ],
     });
     expect(p.captions.cues.map((c) => c.text)).toEqual(["Open the form."]);
+    // Without an intro nothing on screen says it, so the spoken intro keeps its caption.
+    const open = planTimeline({ template, recordingMs: 20_000, introAudioMs: 3000 });
+    const shown = props({
+      config: burnIn,
+      plan: open,
+      subtitle: "Set up a project in a few seconds.",
+      placements: [{ src: "intro.wav", text: "Set up a project in a few seconds", startMs: 450, durationMs: 3000 }],
+      cues: [{ start_ms: 450, end_ms: 3450, text: "Set up a project in a few seconds" }],
+    });
+    expect(shown.captions.cues.map((c) => c.text)).toEqual(["Set up a project in a few seconds"]);
   });
 
   it("moves a caption to the top while it would cover what a full-screen shot shows", () => {
@@ -213,6 +235,7 @@ describe("captions on title cards", () => {
     const plan = planTimeline({ template: full, recordingMs: 20_000 });
     const at = (ms: number) => plan.recordingStartMs + ms;
     const input: Partial<BuildPropsInput> = {
+      config: burnIn,
       template: full,
       plan,
       workflowSteps: [
@@ -302,7 +325,7 @@ describe("pointer", () => {
 
 describe("sound effects", () => {
   it("ticks on clicks, taps while typing, whooshes in and out, and chimes on the outcome", () => {
-    const plan = planTimeline({ template, recordingMs: 20_000 });
+    const plan = planTimeline({ template, recordingMs: 20_000, intro: true });
     const cursor = [
       { t: 0, x: 0, y: 0 },
       { t: 1500, x: 10, y: 10, click: true },
@@ -322,6 +345,9 @@ describe("sound effects", () => {
     expect(effects.map((e) => e.kind)).toEqual(["whoosh", "click", "click", "typing", "chime", "whoosh"]);
     expect(effects.find((e) => e.kind === "typing")).toEqual({ kind: "typing", atMs: at(5280), durationMs: 1680 });
     expect(effects.find((e) => e.kind === "chime")!.atMs).toBe(at(9150));
+    // Opening on the app: no whoosh into it, only out of it.
+    const open = soundEffects([], cursor, planTimeline({ template, recordingMs: 20_000 }), template.transitionMs);
+    expect(open.filter((e) => e.kind === "whoosh")).toHaveLength(1);
   });
 
   it("are mixed with the voice", () => {
@@ -370,7 +396,7 @@ describe("sound effects", () => {
 
 describe("editable timeline", () => {
   it("lays out the take and the voice for an editor, cutting fast-forwarded stretches", () => {
-    const plan = planTimeline({ template, recordingMs: 10_000 });
+    const plan = planTimeline({ template, recordingMs: 10_000, intro: true });
     const p = props({
       plan,
       recordingMs: 10_000,
@@ -396,5 +422,15 @@ describe("editable timeline", () => {
     expect(app.markers[0].name).toBe("Start");
     expect(voice.children.map((c: { OTIO_SCHEMA: string }) => c.OTIO_SCHEMA)).toEqual(["Gap.1", "Clip.2"]);
     expect(voice.children[0].source_range.duration.value).toBe(frames(plan.recordingStartMs + 500));
+  });
+
+  it("holds the take's first frame while the intro line is spoken, when there is no intro", () => {
+    const plan = planTimeline({ template, recordingMs: 10_000, introAudioMs: 2000 });
+    const otio = JSON.parse(toOtio(props({ plan, recordingMs: 10_000 }), (src) => src));
+    const [held, take] = otio.tracks.children[0].children;
+    expect(held.name).toBe("Take (held)");
+    expect(held.effects[0]).toMatchObject({ OTIO_SCHEMA: "FreezeFrame.1", time_scalar: 0 });
+    expect(held.source_range.duration.value).toBe(Math.round((plan.recordingHoldMs * 60) / 1000));
+    expect(take.name).toBe("Take");
   });
 });

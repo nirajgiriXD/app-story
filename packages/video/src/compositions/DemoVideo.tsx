@@ -3,6 +3,8 @@ import type { RenderProps } from "../props";
 import { captionEdge, captionHeight, layout, PORTRAIT_SAFE } from "./layout";
 import { RecordingScene } from "./RecordingScene";
 import { AbsoluteFill, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "./runtime";
+import { recordingSpan } from "../recording-span";
+import { IntroSequence } from "./IntroSequence";
 import { TitleCard } from "./TitleCard";
 import { backdrop, fontStack, px, shape } from "./theme";
 
@@ -10,18 +12,21 @@ import { backdrop, fontStack, px, shape } from "./theme";
 export const DemoVideo: React.FC<RenderProps> = (p) => {
   const { fps } = useVideoConfig();
   const f = (ms: number) => Math.max(0, Math.round((ms / 1000) * fps));
+  const span = recordingSpan(p);
 
   return (
     <AbsoluteFill style={{ background: backdrop(p) }}>
       <Grain />
-      <Sequence from={f(p.recording.startMs)} durationInFrames={Math.max(1, f(p.recording.durationMs))} name="Recording">
+      <Sequence from={span.from} durationInFrames={span.end - span.from} name="Recording">
         <RecordingScene p={p} />
       </Sequence>
-      <Sequence from={0} durationInFrames={Math.max(1, f(p.intro.endMs))} name="Intro">
-        <TitleCard p={p} kind="intro" durationMs={p.intro.endMs} />
-      </Sequence>
+      {p.intro.endMs > 0 ? (
+        <Sequence from={0} durationInFrames={Math.max(1, f(p.intro.endMs))} name="Intro">
+          <IntroSequence p={p} durationMs={p.intro.endMs} />
+        </Sequence>
+      ) : null}
       <Sequence from={f(p.outro.startMs)} durationInFrames={Math.max(1, f(p.outro.endMs - p.outro.startMs))} name="Outro">
-        <TitleCard p={p} kind="outro" durationMs={p.outro.endMs - p.outro.startMs} />
+        <TitleCard p={p} durationMs={p.outro.endMs - p.outro.startMs} />
       </Sequence>
       {p.captions.enabled ? <Captions p={p} /> : null}
     </AbsoluteFill>

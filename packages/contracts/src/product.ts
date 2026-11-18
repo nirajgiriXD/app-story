@@ -184,6 +184,8 @@ export const ProductConfigSchema = z.object({
       formats: z.array(z.enum(EXTRA_FORMATS)).default([]),
       audience: z.string().optional(),
       tone: z.enum(TONES).default("calm"),
+      /** A full-screen intro before the app (`--intro`). Off: the video opens on the app itself. */
+      intro: z.boolean().default(false),
     })
     .prefault({}),
   branding: z
@@ -230,8 +232,10 @@ export const ProductConfigSchema = z.object({
     .prefault({}),
   captions: z
     .object({
+      /** Write the captions as `.srt` next to the video. */
       enabled: z.boolean().default(true),
-      burn_in: z.boolean().default(true),
+      /** Also draw them on the video (`--captions`). Off: players show the `.srt` instead. */
+      burn_in: z.boolean().default(false),
       font_size: z.number().int().min(16).max(96).default(38),
       position: z.enum(["bottom", "top"]).default("bottom"),
       max_chars_per_line: z.number().int().min(20).max(80).default(52),

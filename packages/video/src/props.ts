@@ -29,14 +29,17 @@ export interface RenderProps {
   };
   title: string;
   subtitle: string | null;
-  /** A still of the app's first screen, shown on the intro card. */
+  /** A still of the app's first screen, behind the intro. */
   hero: string | null;
+  /** The full-screen intro; `endMs` 0 when the video opens on the app. */
   intro: { startMs: number; endMs: number };
   outro: { startMs: number; endMs: number };
   recording: {
     src: string;
     /** Global time at which recording t=0 is shown. */
     startMs: number;
+    /** The app's first screen is shown this long before `startMs`, held still (no intro: the opening). */
+    holdMs?: number;
     /** How long the recording is shown, after the edit. */
     durationMs: number;
     /** The edit: [shown ms, take ms] pairs (see edit.ts). Without it the take plays as recorded. */

@@ -10,7 +10,7 @@ import { AppStoryError, ensureDir, extractFrame, measureLoudness, runFfmpeg, typ
 import { buildAudioMix, MASTER_LOUDNESS, masterChain } from "./audio";
 import { brandFontCss, INTER_PATH, interCss, interDir } from "./fonts";
 import { chaptersOf, ffmetadata } from "./chapters";
-import { sourceFrame } from "./edit";
+import { recordingSpan, takeFrameAt } from "./recording-span";
 import { RecordingFrames } from "./frames";
 import type { RenderProps } from "./props";
 import { chunkKey, chunksOf, hashFile, pruneRenderCache, renderCacheLimitBytes, sha256, touch, type Chunk } from "./render-cache";
@@ -289,16 +289,14 @@ interface ChunksJob {
 
 /** The recording's frames a stretch of the video shows, read in order (or nothing, before and after the recording). */
 function recordingFramesFor(props: RenderProps, publicDir: string, from: number, to: number): RecordingFrames | undefined {
-  // The recording's place in frames, exactly as the composition computes it.
-  const recordingFirst = Math.max(0, Math.round((props.recording.startMs / 1000) * props.fps));
-  const recordingCount = Math.max(1, Math.round((props.recording.durationMs / 1000) * props.fps));
-  const first = Math.max(from, recordingFirst);
-  const last = Math.min(to, recordingFirst + recordingCount);
+  // The recording's place in frames, exactly as the composition computes it (its held first screen included).
+  const span = recordingSpan(props);
+  const first = Math.max(from, span.from);
+  const last = Math.min(to, span.end);
   if (last <= first) return undefined;
   // The take's frames this stretch shows, through the edit (exactly as the composition asks for them).
-  const map = props.recording.timeMap;
-  const takeFirst = sourceFrame(map, first - recordingFirst, props.fps);
-  const takeLast = sourceFrame(map, last - 1 - recordingFirst, props.fps);
+  const takeFirst = takeFrameAt(props, first, span);
+  const takeLast = takeFrameAt(props, last - 1, span);
   return new RecordingFrames(fileIn(publicDir, props.recording.src), props.fps, takeFirst, takeLast - takeFirst + 1);
 }
 

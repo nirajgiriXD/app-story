@@ -52,9 +52,19 @@ describe("captions", () => {
 describe("video timeline", () => {
   const template = getTemplate("modern-saas");
 
-  it("stretches cards to fit narration and overlaps transitions", () => {
-    const plan = planTimeline({ template, recordingMs: 20_000, introAudioMs: 6000, outroAudioMs: 1000 });
+  it("opens on the app, holding its first screen while the intro line is spoken", () => {
+    const plan = planTimeline({ template, recordingMs: 20_000, introAudioMs: 3000, outroAudioMs: 1000 });
+    expect(plan.introEndMs).toBe(0);
+    expect(plan.recordingHoldMs).toBe(450 + 3000 + 350);
+    expect(plan.recordingStartMs).toBe(plan.recordingHoldMs);
+    // No intro line: the recording plays from the very first frame.
+    expect(planTimeline({ template, recordingMs: 20_000 })).toMatchObject({ recordingStartMs: 0, recordingHoldMs: 0 });
+  });
+
+  it("with an intro, stretches it to fit narration and overlaps transitions", () => {
+    const plan = planTimeline({ template, recordingMs: 20_000, introAudioMs: 6000, outroAudioMs: 1000, intro: true });
     expect(plan.introEndMs).toBe(6000 + 600 + template.transitionMs);
+    expect(plan.recordingHoldMs).toBe(0);
     expect(plan.recordingStartMs).toBe(plan.introEndMs - template.transitionMs);
     expect(plan.outroStartMs).toBe(plan.recordingEndMs - template.transitionMs);
     expect(plan.totalMs).toBe(plan.outroEndMs);

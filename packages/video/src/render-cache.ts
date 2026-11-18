@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { readdir, rm, stat, utimes } from "node:fs/promises";
 import { join } from "node:path";
 import type { CursorPoint } from "@app-story/contracts";
-import { sourceFrame } from "./edit";
+import { recordingSpan, takeFrameAt } from "./recording-span";
 import { drawnFrame } from "./poster";
 import type { RenderProps } from "./props";
 import { CURSOR_FADE_MS, CURSOR_IDLE_MS, cursorShape, MENU_FADE_MS, mergeFocusWindows } from "./timeline";
@@ -105,13 +105,11 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
     return [{ windows: g, prevEnd: groups[i - 1]?.at(-1)?.endMs ?? null, nextStart: groups[i + 1]?.[0]?.startMs ?? null }];
   });
 
-  // The recording frames shown, through the edit.
-  const first = Math.max(0, Math.round((rStart / 1000) * props.fps));
-  const count = Math.max(1, Math.round((recording.durationMs / 1000) * props.fps));
-  // In frames, exactly as the composition places the recording's sequence.
-  const onRecording = chunk.to > first && chunk.from < first + count;
+  // The recording frames shown, through the edit, in frames exactly as the composition places them.
+  const span = recordingSpan(props);
+  const onRecording = chunk.to > span.from && chunk.from < span.end;
   const frames: number[] = [];
-  for (let f = Math.max(chunk.from, first); f < Math.min(chunk.to, first + count); f++) frames.push(sourceFrame(recording.timeMap, f - first, props.fps));
+  for (let f = Math.max(chunk.from, span.from); f < Math.min(chunk.to, span.end); f++) frames.push(takeFrameAt(props, f, span));
 
   return {
     ...global,
@@ -126,7 +124,7 @@ export function chunkView(props: RenderProps, chunk: Chunk): unknown {
       background: brand.background?.image ? { image: "(file)" } : (brand.background ?? null),
     },
     hero: props.hero ? "(file)" : null,
-    recording: { startMs: recording.startMs, durationMs: recording.durationMs, viewport: recording.viewport, frames },
+    recording: { startMs: recording.startMs, holdMs: recording.holdMs ?? 0, durationMs: recording.durationMs, viewport: recording.viewport, frames },
     captions: { ...captions, cues: captions.cues.filter((c) => c.endMs > lo && c.startMs < hi) },
     ...(onRecording
       ? {

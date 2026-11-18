@@ -9,6 +9,7 @@ export type { RenderProps, SoundEffect } from "./props";
 export { HANDOVER_SPLIT, handoverIn, handoverOut } from "./compositions/handover";
 export { luminance } from "./compositions/theme";
 export * from "./edit";
+export * from "./recording-span";
 export { keyLabels } from "./keys";
 export { DEFAULT_CTA, shownUrl } from "./labels";
 export { chaptersOf, ffmetadata, youtubeChapters, type Chapter } from "./chapters";

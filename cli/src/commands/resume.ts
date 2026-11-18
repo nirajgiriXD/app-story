@@ -1,10 +1,10 @@
 import { Command } from "commander";
 import { resumeDemo } from "@app-story/core";
-import { globals, openProduct } from "../context";
+import { globals, openProduct, shared, withLookOptions, type LookOptions } from "../context";
 import { dim, exitCodeFor, printJob } from "../output";
 
 export function resumeCommand(): Command {
-  return new Command("resume")
+  return withLookOptions(new Command("resume"))
     .description("Finish a failed video, or record one stopped by --review, without planning it again (no AI planning cost)")
     .argument("<product>", "product name")
     .argument("[video]", "the failed video's id from `history` (default: the newest failed one)")
@@ -21,9 +21,10 @@ Examples:
   npx app-story resume acme                          the newest failed acme video
   npx app-story resume acme 20261116-134205-a1b2c3   a particular one`,
     )
-    .action(async (productId: string, jobId: string | undefined, opts: { headed?: boolean }, cmd: Command) => {
+    .action(async (productId: string, jobId: string | undefined, opts: { headed?: boolean } & LookOptions, cmd: Command) => {
       const { outputDir, logLevel } = globals(cmd);
-      const product = await openProduct(productId);
+      opts = shared(opts, cmd);
+      const product = await openProduct(productId, opts);
       const metadata = await resumeDemo({
         product,
         outputDir,

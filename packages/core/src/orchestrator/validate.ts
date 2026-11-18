@@ -87,6 +87,10 @@ export async function validateProduct(product: LoadedProduct): Promise<Validatio
     .map(([name]) => name.replace(/_/g, " "));
   ok(`blocked actions: ${allowed.length ? `all except ${allowed.join(", ")}` : "delete, payments, emails, publishing, account settings, invites"}`);
 
+  const reset = config.product.reset;
+  if (reset) ok(`demo data: put back before every practice run and recording (${/^https?:\/\//i.test(reset) ? "POST to " : "runs "}${reset})`);
+  else ok("demo data: not reset between runs; add reset: if a demo creates things, or they show up twice");
+
   if (config.browser.blur.length) ok(`blurred on screen: ${config.browser.blur.join(", ")}`);
   if (config.demo.languages.length)
     ok(`languages: ${[config.demo.default_language, ...config.demo.languages].join(", ")} (one video each, from one recording)`);

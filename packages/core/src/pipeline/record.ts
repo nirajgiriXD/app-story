@@ -7,6 +7,7 @@ import { actionLeadMs, runSteps } from "@app-story/workflow";
 import { AppStoryError } from "@app-story/shared";
 import { saveRecord, type Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
+import { resetDemoData } from "./reset";
 
 export interface RecordingOutcome {
   report: ExecutionReport;
@@ -31,6 +32,7 @@ export async function recordWorkflow(
   options: { headless?: boolean; holdMs?: ReadonlyMap<string, number> },
 ): Promise<RecordingOutcome> {
   const config = product.config;
+  await resetDemoData(product, job.log, "the recording");
   const outcome = await withBrowser(
     product,
     {

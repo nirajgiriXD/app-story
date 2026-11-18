@@ -120,6 +120,7 @@ url: https://staging.acme.com              # required: the running app (and the 
 login: demo@acme.com / env:ACME_PASSWORD   # user / password; either part may be env:NAME
 login page: /login                         # default: found automatically
 start page: /dashboard                     # default: the page in url
+reset: npm run db:seed                     # puts the demo data back before each run (or an https:// address to POST)
 website: https://acme.com                  # the public address viewers see (default: the url's)
 cta: "Start your free trial at {host}"     # the end card's words; {host} is the website
 ai: anthropic                              # anthropic | openai (default: whichever key you have)
@@ -158,6 +159,12 @@ allow: delete, emails                      # risky actions are blocked unless li
 - **blur**: anything matching these CSS selectors is blurred in the page itself, so the
   recording, screenshots and video never show it readable: API keys, customer emails.
   YAML reads ` #` as a comment, so put the selectors in quotes when one starts with `#`.
+- **reset**: the AI's practice run really clicks through your app, so the project or
+  invoice it creates exists before the recording makes it again: the list shows it twice,
+  or the app says the name is taken. `reset:` puts the demo data back before the practice
+  run, before every recording and before every `test`. A command runs in your project
+  folder and must exit with 0; an `https://` address is sent a POST and must answer 2xx.
+  `{{env:NAME}}` reads a token from `.env`.
 - **website**: demos usually run on a staging or local copy of the app. The video's browser
   bar shows the app's pages under this address instead, and the end card and the voice
   send viewers there, so a video never shows `staging.acme.com` or `localhost:3000`.

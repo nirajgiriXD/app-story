@@ -22,6 +22,7 @@ export type ErrorCode =
   | "TIMEOUT"
   | "RENDER_FAILED"
   | "DEPENDENCY_MISSING"
+  | "RESET_FAILED"
   | "INTERNAL";
 
 export interface AppStoryErrorOptions {

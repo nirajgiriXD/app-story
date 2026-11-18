@@ -41,7 +41,9 @@ at login time and registered as secrets.
 0. **Features.** Without a goal, one structured AI call reads the product file and picks
    the new user-visible features from its release notes (`planFeatures`). Each becomes an
    objective, for one video or one each.
-1. **Plan.** A saved plan (`products/<product>.plans/<name>.yaml`) is replayed if it was made for exactly this
+1. **Plan.** Before the practice run, and again before every recording and every `test`,
+   `reset:` puts the app's demo data back (`pipeline/reset.ts`), so what the practice run
+   created is not on screen twice. A saved plan (`products/<product>.plans/<name>.yaml`) is replayed if it was made for exactly this
    objective. Otherwise a **rehearsal** runs: the AI drives an *unrecorded* browser through
    guarded tools, recovers from mistakes, verifies the outcome, then picks the successful
    steps to keep. The result is a versioned workflow (the `plan` record).

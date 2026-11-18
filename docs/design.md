@@ -511,7 +511,7 @@ WordPress hosting management platform for agencies.
 - One-click restore from any backup.
 ```
 
-Only `url` is required. Optional settings: `login`, `login page`, `start page`, `website`, `cta`, `ai`,
+Only `url` is required. Optional settings: `login`, `login page`, `start page`, `reset`, `website`, `cta`, `ai`,
 `model`, `voice`, `length`, `template`, `fps`, `resolution`, `language`, `formats`, `blur`,
 `logo`, `color`, `font`, `music`, `music volume`, `allow`. Any other key is an error. Everything else (browser, recording, captions, music,
 safety) has defaults in the engine.

@@ -7,6 +7,7 @@ import { AppStoryError, type ErrorCode } from "@app-story/shared";
 import { saveRecord, type Job } from "../job-manager/job";
 import { withBrowser } from "./browser";
 import { withProviderFallback, type ProviderOverrides } from "./providers";
+import { resetDemoData } from "./reset";
 
 /** What the AI knows about the product: its name, address and the product file's text. */
 export function productContext(product: LoadedProduct): ProductContext {
@@ -41,8 +42,9 @@ const GIVE_UP_CODES: Record<Extract<RehearsalOutcome, { status: "gave_up" }>["ca
  */
 export async function rehearseWorkflow(job: Job, product: LoadedProduct, options: RehearseOptions, overrides: ProviderOverrides): Promise<Workflow> {
   const config = product.config;
-  const outcome = await withProviderFallback(job, "rehearsal", config, overrides, (provider) =>
-    withBrowser(
+  const outcome = await withProviderFallback(job, "rehearsal", config, overrides, async (provider) => {
+    await resetDemoData(product, job.log, "the practice run");
+    return withBrowser(
       product,
       { workDir: join(job.paths.logsDir, "rehearsal-browser"), log: job.log, headless: options.headless, loginState: job.loginState },
       (session) => {
@@ -62,8 +64,8 @@ export async function rehearseWorkflow(job: Job, product: LoadedProduct, options
           jobId: job.id,
         });
       },
-    ),
-  );
+    );
+  });
   saveRecord(job, "rehearsal", outcome);
 
   if (outcome.status === "success") {

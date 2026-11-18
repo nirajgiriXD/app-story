@@ -131,6 +131,12 @@ export const ProductConfigSchema = z.object({
      * copy; the video's browser bar and end card show this address instead.
      */
     website: z.url().optional(),
+    /**
+     * How to put the app's demo data back as it was: an http(s) address (sent a POST) or a
+     * shell command (run in the project folder). Run before the practice run and before every
+     * recording, so what the practice run created is not on screen twice.
+     */
+    reset: z.string().min(1).optional(),
   }),
   browser: z
     .object({

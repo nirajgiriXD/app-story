@@ -72,6 +72,7 @@ const SettingsSchema = z
     "start page": z.string().optional(),
     website: z.url({ error: "website must be a full address, e.g. https://acme.com" }).optional(),
     cta: z.string({ error: 'cta is the end card\'s words, e.g. cta: "Start free at {host}"' }).min(1).optional(),
+    reset: z.string({ error: "reset is an address to POST to, or a command, e.g. reset: npm run db:seed" }).min(1).optional(),
     ai: z.enum(AI_PROVIDERS).optional(),
     model: z.string().optional(),
     voice: z.enum(TTS_PROVIDERS).optional(),
@@ -233,7 +234,7 @@ export function parseProductFile(text: string, file: string, id: string): { conf
 
   const config = ProductConfigSchema.safeParse({
     version: 1,
-    product: { id, name, description, base_url: url.origin, start_path: s["start page"] ?? `${url.pathname}${url.search}`, website: s.website },
+    product: { id, name, description, base_url: url.origin, start_path: s["start page"] ?? `${url.pathname}${url.search}`, website: s.website, reset: s.reset },
     // A 16:9 viewport with comfortably large UI, recorded at 2x (3200x1800): the video zooms
     // in up to ~1.9x on screen, and at 1080p that needs about two pixels per CSS pixel to stay sharp.
     browser: {

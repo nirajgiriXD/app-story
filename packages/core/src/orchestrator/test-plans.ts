@@ -6,6 +6,7 @@ import { AppStoryError, createLogger, dataDirFor, isAppStoryError } from "@app-s
 import { runSteps, validateWorkflow } from "@app-story/workflow";
 import { withBrowser } from "../pipeline/browser";
 import { listPlans, planKey, readPlan } from "../pipeline/plans";
+import { resetDemoData } from "../pipeline/reset";
 
 export interface PlanCheck {
   name: string;
@@ -70,6 +71,7 @@ export async function testPlans(request: TestPlansRequest): Promise<PlanCheck[]>
     if (validation.errors.length > 0) return { name, ok: false, steps: [], problems: validation.errors, durationMs: Date.now() - startedAt };
 
     const dir = join(dataDirFor(request.outputDir), "tests", product.id, name);
+    await resetDemoData(product, log, `testing ${name}`);
     const report = await withBrowser(product, { workDir: dir, log, headless: request.headless, loginState }, async (session) => {
       loginState = session.loginState ?? loginState;
       return runSteps(session.controller, [...plan.setup, ...plan.steps], { phase: "dry_run", log, retries: 1, screenshotDir: dir });

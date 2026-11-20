@@ -80,15 +80,15 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
 
 ## Releases
 
-The npm package and the Docker image are published by GitHub Actions
-(`.github/workflows/release.yml`) when a version tag is pushed:
+The Docker image is published by GitHub Actions (`.github/workflows/release.yml`) when a
+version tag is pushed:
 
 1. Set the new version in `cli/package.json` and in `cli/src/program.ts`.
 2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
 
-Publishing to npm needs an `NPM_TOKEN` secret in the repository settings. The image goes
-to `ghcr.io/nirajgirixd/app-story`. To try the package locally: `npm run build`, then
-`npm pack ./dist/app-story` and install the `.tgz` in another folder.
+The image goes to `ghcr.io/nirajgirixd/app-story`. The npm package is not published. To
+try the package locally: `npm run build`, then `npm pack ./dist/app-story` and install the
+`.tgz` in another folder.
 
 ## Commits and pull requests
 

@@ -5,8 +5,12 @@ branding:
   icon: film
   color: blue
 
-# A composite action that runs the AppStory Docker image (Node, Chromium, FFmpeg and the
-# free voice inside), so the runner needs only Docker: use a Linux runner (ubuntu-latest).
+# A composite action that builds the AppStory Docker image (Node, Chromium, FFmpeg and the
+# free voice inside) from this repository's Dockerfile and runs it, so nothing has to be
+# published and the runner needs only Docker: use a Linux runner (ubuntu-latest). The build
+# is cached in the GitHub Actions cache, so only the first run of a version is slow.
+# Pin the action to a tag or commit (nirajgiriXD/app-story@v0.1.0), so videos do not change
+# by themselves.
 # Your app must be running and reachable from the runner, e.g. started in an earlier step
 # on localhost: the container shares the runner's network.
 
@@ -32,12 +36,8 @@ inputs:
       the job's env from secrets. AI keys and APP_STORY_* settings are passed by themselves.
     required: false
     default: ""
-  version:
-    description: The AppStory version (Docker image tag) to run, e.g. 0.2.0. Pin it, so videos do not change by themselves.
-    required: false
-    default: latest
   image:
-    description: A full Docker image name to run instead of the published one (for example a local build). Overrides version.
+    description: A full Docker image name to run instead of building one from this repository (for example one you built and pushed yourself).
     required: false
     default: ""
   working-directory:
@@ -56,6 +56,20 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Set up Docker Buildx
+      if: ${{ inputs.image == '' }}
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build AppStory
+      if: ${{ inputs.image == '' }}
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ github.action_path }}
+        tags: app-story:action
+        load: true
+        cache-from: type=gha,scope=app-story
+        cache-to: type=gha,scope=app-story,mode=max
+
     - name: Run AppStory
       shell: bash
       working-directory: ${{ inputs.working-directory }}
@@ -64,7 +78,7 @@ runs:
         APP_STORY_COMMAND: ${{ inputs.command }}
         APP_STORY_PLANS: ${{ inputs.plans }}
         APP_STORY_PASS_ENV: ${{ inputs.env-vars }}
-        APP_STORY_IMAGE: ${{ inputs.image || format('ghcr.io/nirajgirixd/app-story:{0}', inputs.version) }}
+        APP_STORY_IMAGE: ${{ inputs.image || 'app-story:action' }}
       run: |
         set -uo pipefail
         case "$APP_STORY_COMMAND" in

@@ -13,23 +13,23 @@ import { startProgress, stopProgress } from "./progress";
 
 const EXAMPLES = `
 Examples:
-  npx app-story acme                          one video of what's new in apps/acme.md
-  npx app-story acme --each                   one video per new feature
-  npx app-story acme "show how to export"     a video of anything else, in plain words
-  npx app-story acme --intro --captions       with a full-screen intro, and captions drawn on the video
-  npx app-story acme --chapters --no-keys     with chapter labels, and without keycaps
-  npx app-story acme --verbose                every log line, instead of one live line per task
-  npx app-story acme --videos                 one video per goal listed under "## Videos"
-  npx app-story acme --no-blog                without the blog post written with each video
-  npx app-story redo acme --template tutorial the newest video again, in another look
-  npx app-story blog acme                     the newest video's blog post again (steps, screenshots, video)
-  npx app-story acme --videos --review        see each new plan's steps and approve it before recording
-  npx app-story resume acme                   finish the newest failed video, without planning again
-  npx app-story replay acme                   every saved plan's video again, with no AI (for CI)
-  npx app-story test acme                     check the saved plans still work in the app
-  npx app-story import acme trace.zip         a Playwright test's trace as a saved plan
-  npx app-story new acme                      create apps/acme.md
-  npx app-story check acme                    check settings, keys, login and tools`;
+  app-story acme                          one video of what's new in apps/acme.md
+  app-story acme --each                   one video per new feature
+  app-story acme "show how to export"     a video of anything else, in plain words
+  app-story acme --intro --captions       with a full-screen intro, and captions drawn on the video
+  app-story acme --chapters --no-keys     with chapter labels, and without keycaps
+  app-story acme --verbose                every log line, instead of one live line per task
+  app-story acme --videos                 one video per goal listed under "## Videos"
+  app-story acme --no-blog                without the blog post written with each video
+  app-story redo acme --template tutorial the newest video again, in another look
+  app-story blog acme                     the newest video's blog post again (steps, screenshots, video)
+  app-story acme --videos --review        see each new plan's steps and approve it before recording
+  app-story resume acme                   finish the newest failed video, without planning again
+  app-story replay acme                   every saved plan's video again, with no AI (for CI)
+  app-story test acme                     check the saved plans still work in the app
+  app-story import acme trace.zip         a Playwright test's trace as a saved plan
+  app-story new acme                      create apps/acme.md
+  app-story check acme                    check settings, keys, login and tools`;
 
 export function buildProgram(): Command {
   return (

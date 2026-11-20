@@ -6,7 +6,7 @@
 # Run it from your project folder (the one with apps/ and .env); videos land in output/.
 # On Linux, add --user "$(id -u):$(id -g)" so the files it writes belong to you.
 
-# ---- build the npm package from the sources
+# ---- build the package from the sources
 FROM node:24-bookworm-slim AS build
 WORKDIR /src
 RUN npm install -g npm@12

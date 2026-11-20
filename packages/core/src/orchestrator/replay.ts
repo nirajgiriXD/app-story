@@ -30,7 +30,7 @@ export async function replayPlans(request: ReplayRequest): Promise<JobMetadata[]
   const names = request.names?.length ? request.names.map(planKey) : (await listPlans(product)).map((p) => p.name);
   if (names.length === 0) {
     throw new AppStoryError("CONFIG_INVALID", `${product.id} has no saved plans to replay.`, {
-      hint: `Make a video first (npx app-story ${product.id}), or import a Playwright trace: npx app-story import ${product.id} trace.zip`,
+      hint: `Make a video first (app-story ${product.id}), or import a Playwright trace: app-story import ${product.id} trace.zip`,
     });
   }
   // Every plan is read first, so a broken file stops the run before any video is made.

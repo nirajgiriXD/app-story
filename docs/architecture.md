@@ -16,10 +16,11 @@ cli ──► core (orchestrator, pipeline stages, rehearsal agent, job manager,
 ```
 
 Packages export TypeScript sources directly and run through `tsx`, so working on them needs
-no build step. The npm package `app-story` is built by `npm run build`
+no build step. The package `app-story` (not published) is built by `npm run build`
 (`scripts/build-package.ts`): esbuild bundles the CLI and the engine's packages
 into one file, with the render page bundled ahead of time and the prompts and the
-Chatterbox Python helper next to it; everything from npm stays a dependency. The Docker
+Chatterbox Python helper next to it; everything from npm stays a dependency. `npm run install:cli`
+installs it as the `app-story` command, and the Docker
 image (`Dockerfile`) installs that package with FFmpeg, Chromium, the Kokoro voice model
 and the word timing model.
 
@@ -36,7 +37,7 @@ product context every AI step reads. Logins are filled by `autoLogin` (in the br
 package), which finds the password field itself; `env:NAME` values are read from `.env`
 at login time and registered as secrets.
 
-## Pipeline (`npx app-story <product>`)
+## Pipeline (`app-story <product>`)
 
 0. **Features.** Without a goal, one structured AI call reads the product file and picks
    the new user-visible features from its release notes (`planFeatures`). Each becomes an

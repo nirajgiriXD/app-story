@@ -21,7 +21,7 @@ import type { TTSProvider } from "./tts";
 const here = dirname(fileURLToPath(import.meta.url));
 const WORKER = "chatterbox_worker.py";
 
-/** The helper script: next to the bundle in the published package, in `python/` in the sources. */
+/** The helper script: next to the bundle in the built package, in `python/` in the sources. */
 export function chatterboxWorkerPath(): string {
   const candidates = [join(here, "python", WORKER), join(here, "..", "..", "python", WORKER)];
   return candidates.find((p) => existsSync(p)) ?? (candidates[1] as string);

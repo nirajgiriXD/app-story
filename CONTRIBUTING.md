@@ -32,7 +32,7 @@ Try it on the practice app:
 
 ```bash
 npm run example-app            # terminal 1: a tiny app at http://localhost:4310
-npx app-story example          # terminal 2
+npm run app-story -- example  # terminal 2: runs AppStory from the sources
 ```
 
 More detail is in [docs/getting-started.md](docs/getting-started.md). How the parts fit
@@ -80,15 +80,13 @@ npm run test:integration       # a real browser, FFmpeg and the Kokoro voice; no
 
 ## Releases
 
-The Docker image is published by GitHub Actions (`.github/workflows/release.yml`) when a
-version tag is pushed:
+Nothing is published: people install AppStory from this repository, and the GitHub Action
+builds its Docker image from it. A release is a version tag:
 
 1. Set the new version in `cli/package.json` and in `cli/src/program.ts`.
 2. Commit, then tag and push: `git tag v0.2.0 && git push origin v0.2.0`.
 
-The image goes to `ghcr.io/nirajgirixd/app-story`. The npm package is not published. To
-try the package locally: `npm run build`, then `npm pack ./dist/app-story` and install the
-`.tgz` in another folder.
+To try the installed command locally: `npm run install:cli`.
 
 ## Commits and pull requests
 

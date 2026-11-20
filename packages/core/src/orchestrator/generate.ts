@@ -123,7 +123,7 @@ export async function generateDemo(request: GenerateRequest): Promise<JobMetadat
     await saveMetadata(job);
     if (!approved) {
       throw new AppStoryError("SCENARIO_NOT_APPROVED", "Not recorded: the plan is waiting for your approval.", {
-        hint: `Record it when you are ready: npx app-story resume ${product.id} ${job.id}`,
+        hint: `Record it when you are ready: app-story resume ${product.id} ${job.id}`,
       });
     }
   };

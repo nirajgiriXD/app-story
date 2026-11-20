@@ -4,7 +4,7 @@ import { dirname, join, resolve } from "node:path";
 /**
  * The user's project folder (the "workspace"): where `apps/`, `output/`, `.env` and
  * `.app-story/` live. AppStory's own files never hold user data, so it can be updated,
- * reinstalled or run from npm or Docker without losing anything.
+ * reinstalled or run from Docker without losing anything.
  *
  * It is `APP_STORY_HOME` when set; otherwise the nearest folder, from the current one
  * upwards, that has an `apps/` (or older `products/`) or `.app-story/` folder; otherwise

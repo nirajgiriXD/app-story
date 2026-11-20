@@ -13,25 +13,31 @@ The goal is to make product demo creation repeatable and largely automated. Inst
 
 Pick one. They all make the same videos.
 
-**In your project, with npm.** Needs Node.js 22.13+ and [FFmpeg](https://ffmpeg.org).
+AppStory is not on npm: it installs from this repository.
+
+**The `app-story` command.** Needs Node.js 22.13+ and [FFmpeg](https://ffmpeg.org).
 
 ```bash
-npm install --save-dev app-story
-npx playwright install chromium   # the browser it drives
-npx app-story new acme            # creates apps/acme.md
+git clone https://github.com/nirajgiriXD/app-story.git
+cd app-story
+npm ci && npm run install:cli   # builds it, installs `app-story`, and the browser it drives
+cd ../your-project
+app-story new acme              # creates apps/acme.md
 ```
+
+To update: `git pull`, then `npm run install:cli` again in the clone.
 
 **With Docker.** Needs only Docker: Node, Chromium, FFmpeg and the voice model are inside.
 
 ```bash
-docker pull ghcr.io/nirajgirixd/app-story
-docker run --rm -it -v "$PWD:/work" ghcr.io/nirajgirixd/app-story new acme
+docker build -t app-story https://github.com/nirajgiriXD/app-story.git
+docker run --rm -it -v "$PWD:/work" app-story new acme
 ```
 
 Run it from your project folder; it reads `.env` and `apps/` there and writes the
 videos to `output/`. On Linux, add `--user "$(id -u):$(id -g)"` so the files are yours.
 Inside Docker, an app running on your own computer is at `host.docker.internal`, not
-`localhost`. To build the image yourself: `docker build -t app-story .` in this repository.
+`localhost`. Add `#v0.1.0` to the address to build a particular version.
 
 **From this repository**, to work on AppStory itself: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -46,7 +52,7 @@ npx skills add https://github.com/nirajgiriXD/app-story --skill app-story   # mo
 ```
 
 Then add your AI key to `.env` (`ANTHROPIC_API_KEY=...`, `OPENAI_API_KEY=...`, or `CUSTOM_AI_API_KEY=...` with `CUSTOM_AI_BASE_URL=...` for a gateway such as LiteLLM), fill in
-`apps/acme.md`, and run `npx app-story acme`. See [docs/getting-started.md](docs/getting-started.md).
+`apps/acme.md`, and run `app-story acme`. See [docs/getting-started.md](docs/getting-started.md).
 
 ## Where things are
 
@@ -72,9 +78,9 @@ Each product is a single Markdown file: `apps/<name>.md`. That is all AppStory
 needs. It never needs your product's source code: it opens the running app in a browser.
 
 ```bash
-npx app-story new acme          # creates apps/acme.md
-npx app-story check acme        # checks it
-npx app-story acme              # one video of what's new in its release notes
+app-story new acme          # creates apps/acme.md
+app-story check acme        # checks it
+app-story acme              # one video of what's new in its release notes
 ```
 
 `apps/example.md` is a working product for the practice app (`npm run example-app`).
@@ -121,9 +127,9 @@ instead of typing each one after the product name:
 - Compare hand tools and power tools using the category filters
 ```
 
-`npx app-story acme --videos` makes one video of each, exactly as
-`npx app-story acme "<goal>"` would, and they share the same saved plan. Plain
-`npx app-story acme` makes them too when the release notes have nothing new. The section
+`app-story acme --videos` makes one video of each, exactly as
+`app-story acme "<goal>"` would, and they share the same saved plan. Plain
+`app-story acme` makes them too when the release notes have nothing new. The section
 is for AppStory only: the AI never reads it as release notes or as part of another video.
 
 **Form data.** When the demo fills a form, the AI uses any values your file gives for it
@@ -223,9 +229,9 @@ allow: delete, emails                      # risky actions are blocked unless li
 
   | Template | Look | Picked by itself for |
   | --- | --- | --- |
-  | `product-update` | app in a browser window, dark background, "New" badge on the intro's title | `npx app-story acme` (what's new) |
-  | `feature-highlight` | browser window, strongest zoom, biggest title | `npx app-story acme --each` (one feature per video) |
-  | `tutorial` | full screen, light, big cursor, close zoom | `npx app-story acme "show how to …"` and `--videos` (a how-to) |
+  | `product-update` | app in a browser window, dark background, "New" badge on the intro's title | `app-story acme` (what's new) |
+  | `feature-highlight` | browser window, strongest zoom, biggest title | `app-story acme --each` (one feature per video) |
+  | `tutorial` | full screen, light, big cursor, close zoom | `app-story acme "show how to …"` and `--videos` (a how-to) |
   | `modern-saas` | browser window, colorful background, medium zoom | — |
   | `minimal` | full screen, plain light, gentle zoom, no chapter labels | — |
 
@@ -246,14 +252,14 @@ not treated as products. Product names are lowercase letters, numbers and dashes
   file. Use `--fresh` to force a new plan, or delete the file.
 - Keeps the recording of the 5 newest videos of each product, so a video can be made
   again in another look, or with a new `logo` or `color`, without the app and without
-  AI: `npx app-story redo acme --template tutorial`. The clicks, the voice and the timing
+  AI: `app-story redo acme --template tutorial`. The clicks, the voice and the timing
   stay as recorded.
-- Finishes a failed video without planning it again: `npx app-story resume acme`
+- Finishes a failed video without planning it again: `app-story resume acme`
   replays the plan the AI already made (or renders the kept recording again, if the
   render failed), so a failure late in the run does not cost a second AI planning pass.
 - Lets you check a plan before it is recorded, with `--review`: once the AI has worked out
   the clicks in the app, it shows them as numbered steps and asks. Say no, and the video
-  stops there with its plan kept; `npx app-story resume acme` records it later, with no
+  stops there with its plan kept; `app-story resume acme` records it later, with no
   new AI planning. Saved plans are not asked about again. It needs a terminal to ask in.
 - Reuses what has not changed: the feature list of an unchanged product file, the
   narration of a replayed plan, and every line already spoken in the same voice.
@@ -271,9 +277,9 @@ not treated as products. Product names are lowercase letters, numbers and dashes
 A saved plan is a proven path through your app, so it can do more than make a video.
 
 ```bash
-npx app-story test acme                    # does every saved plan still work? (fast: no video, no AI)
-npx app-story replay acme                  # make every saved plan's video again, with no AI
-npx app-story import acme trace.zip        # a Playwright test becomes a plan
+app-story test acme                    # does every saved plan still work? (fast: no video, no AI)
+app-story replay acme                  # make every saved plan's video again, with no AI
+app-story import acme trace.zip        # a Playwright test becomes a plan
 ```
 
 - **test** replays each plan at full speed and checks every expected outcome. When the
@@ -318,7 +324,7 @@ APP_STORY_VOICE_TONE=             # e.g. "warm and upbeat" (OpenAI voice; Chatte
 - **Kokoro** (the free default) picks its best voice for the gender and accent:
   female American *Heart*, male American *Michael*, female British *Emma*, male British
   *George*. You can also name any Kokoro voice, e.g. `APP_STORY_VOICE=am_puck`; the 28
-  names are listed by `npx app-story check <product>` when a name is wrong. Kokoro has no
+  names are listed by `app-story check <product>` when a name is wrong. Kokoro has no
   tone, emotion or pitch control.
 - **OpenAI** (`voice: openai` in the product file) needs a voice name, e.g. `marin`,
   `cedar`, `coral` or `onyx`, and is the one that follows `APP_STORY_VOICE_TONE`.
@@ -347,7 +353,7 @@ import or a paste, with the video embedded and screenshots of the app (`….blog
 taken from the recording, so they show no pointer, zoom or captions. The AI writes it from
 the product file, the verified steps and the voice-over, and looks at the screenshots to
 place them, so it only describes what the video really did. It costs one more AI request;
-`--no-blog` or `APP_STORY_BLOG=off` leaves it out. `npx app-story blog acme` writes the
+`--no-blog` or `APP_STORY_BLOG=off` leaves it out. `app-story blog acme` writes the
 newest video's post again (after editing the product file, or for a `redo` or `replay`,
 which make none) from its kept recording, without the app.
 
@@ -366,7 +372,7 @@ videos muted without subtitles (feeds, a GIF in a README).
 app as it begins (not in the `minimal` look, which has none); the MP4 lists its chapters
 either way. Keys pressed on camera show as keycaps (`Ctrl` `K`); `--no-keys` hides them.
 `--intro`, `--captions`, `--chapters` and `--no-keys` work when making a video and with `redo`,
-`resume` and `replay`, so `npx app-story redo acme --intro --captions` adds both to the
+`resume` and `replay`, so `app-story redo acme --intro --captions` adds both to the
 newest video without the app or the AI.
 A vertical video keeps its words out of the places where Reels, TikTok and Shorts draw their
 own buttons and caption.
@@ -392,7 +398,7 @@ The saved plans are in `apps/<product>.plans/` (see above). Everything else is i
 ├── takes/<job>/       the recording, spoken clips and timeline of a recent video, for redo,
 │                      and timeline.otio: the edit, to finish in DaVinci Resolve or another editor
 ├── render-cache/      drawn two-second chunks of recent videos: a re-render only draws what changed
-├── tests/             screenshots of plans that failed `npx app-story test`
+├── tests/             screenshots of plans that failed `app-story test`
 └── work/<job>/        scratch files of a video being made
 ```
 
@@ -407,7 +413,7 @@ The database has these tables:
 A video's scratch folder, `.app-story/work/<job>/`, is deleted when the video succeeds,
 and kept when it fails so you can see what happened (the path is printed).
 
-`npx app-story history` lists recent videos from the database, with their ids. Deleting a
+`app-story history` lists recent videos from the database, with their ids. Deleting a
 video file is safe; deleting `.app-story/` forgets the history and the kept recordings,
 but not the saved plans.
 
@@ -418,7 +424,7 @@ to make videos: your work happens in `apps/`, and the videos land in `output/`.
 
 ```text
 app-story/
-├── cli/            the `app-story` command (npx app-story ...)
+├── cli/            the `app-story` command (app-story ...)
 ├── packages/       the building blocks
 │   ├── core/         runs every step of a job, in order; the AI's practice run that plans the clicks; the SQLite database
 │   ├── ai/           talks to Anthropic or OpenAI; the prompts
@@ -432,7 +438,7 @@ app-story/
 │   └── shared/       small helpers used everywhere
 ├── tests/          unit, integration (real browser) and e2e (recorded AI answers) tests, fixtures,
 │                   and example-app/: the practice app they run against (npm run example-app)
-├── scripts/        helpers that start the tests and build the npm package
+├── scripts/        helpers that start the tests and build the package
 ├── tsconfig*.json  TypeScript settings
 └── vitest.config.ts
 ```
@@ -455,7 +461,7 @@ npm run lint           # Biome: lint and formatting checks
 npm run format         # Biome: format every file
 npm test               # unit tests
 npm run test:all       # unit, integration (real browser) and e2e (recorded AI answers)
-npm run build          # the npm package, in dist/app-story/
+npm run build          # the package, in dist/app-story/
 ```
 
 GitHub Actions runs the checks and tests on every push to `main` and every pull request.

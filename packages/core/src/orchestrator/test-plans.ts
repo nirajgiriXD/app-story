@@ -42,7 +42,7 @@ export async function testPlans(request: TestPlansRequest): Promise<PlanCheck[]>
   const names = request.names?.length ? request.names.map(planKey) : (await listPlans(product)).map((p) => p.name);
   if (names.length === 0) {
     throw new AppStoryError("CONFIG_INVALID", `${product.id} has no saved plans to test.`, {
-      hint: `Make a video first (npx app-story ${product.id}), or import a Playwright trace: npx app-story import ${product.id} trace.zip`,
+      hint: `Make a video first (app-story ${product.id}), or import a Playwright trace: app-story import ${product.id} trace.zip`,
     });
   }
   const log = createLogger({ level: request.logLevel ?? "warn" });

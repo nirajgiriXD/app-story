@@ -30,7 +30,7 @@ import { chunkKey, chunksOf, hashFile, pruneRenderCache, renderCacheLimitBytes, 
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ENTRY = join(here, "page", "main.tsx");
-/** The published package ships the render page already bundled, next to its code. */
+/** The built package ships the render page already bundled, next to its code. */
 const PREBUILT = join(here, "render-page.js");
 /** The render page's made-up address. Nothing is fetched from the network: every request is answered below. */
 const ORIGIN = "http://render.app-story.local";

@@ -52,7 +52,7 @@ export async function importTrace(request: ImportRequest): Promise<ImportResult>
   await ensureDir(plansDir(product));
   const header = [
     `# A click-plan for "${name}", imported by AppStory from a Playwright trace (${basename(request.trace)}).`,
-    "# Check it with `npx app-story test`, then make its video with `npx app-story replay`.",
+    "# Check it with `app-story test`, then make its video with `app-story replay`.",
     "",
   ].join("\n");
   await writeFile(file, header + workflowToYaml(plan));

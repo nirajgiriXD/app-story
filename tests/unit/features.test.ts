@@ -67,7 +67,7 @@ describe("picking features from the product file", () => {
     const ai = new ScriptedProvider([], { feature_plan: { title: null, features: [], skipped: [] } });
     const first = await planFeatures({ product, outputDir, logLevel: "silent", providers: { createAI: () => ai } }).catch((e: unknown) => e);
     expect(isNothingNew(first)).toBe(true);
-    expect((first as AppStoryError).hint).toContain("npx app-story shop --videos");
+    expect((first as AppStoryError).hint).toContain("app-story shop --videos");
 
     // Same file again: the answer comes from the first run, without the AI.
     const createAI = () => {

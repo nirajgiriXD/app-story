@@ -20,8 +20,8 @@ body:
       label: How to reproduce
       description: The command you ran, and the product file settings that matter (no secrets).
       placeholder: |
-        1. npx app-story check acme
-        2. npx app-story acme --each
+        1. app-story check acme
+        2. app-story acme --each
         3. ...
     validations:
       required: true
@@ -55,7 +55,7 @@ body:
     id: version
     attributes:
       label: AppStory version
-      description: The commit you are on (`git rev-parse --short HEAD`), or `npx app-story --version` if you installed it from npm or Docker.
+      description: The commit you are on (`git rev-parse --short HEAD`), or `app-story --version` if you installed it with `npm run install:cli` or Docker.
   - type: input
     id: environment
     attributes:

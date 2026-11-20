@@ -596,7 +596,7 @@ app-story/
 │
 ├── tests/                    unit/, integration/, e2e/, support/, fixtures/,
 │                             example-app/ (tiny fake app for practice and tests)
-├── scripts/                  test runner and npm package build
+├── scripts/                  test runner and package build
 ├── tsconfig.json, tsconfig.base.json
 ├── vitest.config.ts
 │

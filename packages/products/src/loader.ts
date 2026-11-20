@@ -440,7 +440,7 @@ export async function loadProduct(appsDir: string, id: string, overrides?: Provi
   const file = productFilePath(appsDir, id);
   if (!ID.test(id) || !(await fileExists(file))) {
     throw new AppStoryError("PRODUCT_NOT_FOUND", `Product '${id}' was not found (looked for ${file}).`, {
-      hint: "Run `npx app-story list` to see your products, or `npx app-story new <name>` to create one.",
+      hint: "Run `app-story list` to see your products, or `app-story new <name>` to create one.",
     });
   }
   const { config, brief, videos } = parseProductFile(await readFile(file, "utf8"), file, id);

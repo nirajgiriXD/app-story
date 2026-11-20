@@ -36,7 +36,7 @@ export async function planFeatures(request: PickFeaturesRequest): Promise<PickFe
   const { product } = request;
   if (!product.brief.trim()) {
     throw new AppStoryError("CONFIG_INVALID", `${product.file} has nothing below its settings block.`, {
-      hint: `Describe the app and paste your release notes into it, or say what to show: npx app-story ${product.id} "..."`,
+      hint: `Describe the app and paste your release notes into it, or say what to show: app-story ${product.id} "..."`,
     });
   }
   const log = createLogger({ level: request.logLevel });
@@ -101,9 +101,9 @@ export function isNothingNew(error: unknown): boolean {
 
 export function nothingNew(product: LoadedProduct, plan: FeaturePlan): AppStoryError {
   const skipped = plan.skipped.map((s) => `\n- ${s.item} (${s.reason})`).join("");
-  const listed = product.videos?.length ? `, make the videos listed under "## Videos": npx app-story ${product.id} --videos,` : "";
+  const listed = product.videos?.length ? `, make the videos listed under "## Videos": app-story ${product.id} --videos,` : "";
   return new AppStoryError("UNSUPPORTED_WORKFLOW", `Nothing new to demo in ${product.file}.${skipped}`, {
     details: { nothingNew: true },
-    hint: `Add release notes with user-visible features${listed} or say what to show: npx app-story ${product.id} "..."`,
+    hint: `Add release notes with user-visible features${listed} or say what to show: app-story ${product.id} "..."`,
   });
 }

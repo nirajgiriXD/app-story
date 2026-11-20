@@ -17,8 +17,8 @@ checked, so a demo doubles as a test: when the app changes, you learn which step
 before the video goes stale. Exits with 1 if any plan fails.
 
 Examples:
-  npx app-story test acme                    every saved plan of acme
-  npx app-story test acme bulk-export        one plan`,
+  app-story test acme                    every saved plan of acme
+  app-story test acme bulk-export        one plan`,
     )
     .action(async (productId: string, names: string[], opts: { headed?: boolean }, cmd: Command) => {
       const { outputDir, logLevel } = globals(cmd);

@@ -14,27 +14,30 @@
 
 ## Install
 
-In your project, with npm:
+AppStory is not on npm: it installs from this repository. The `app-story` command:
 
 ```bash
-npm install --save-dev app-story
-npx playwright install chromium   # the browser it drives
+git clone https://github.com/nirajgiriXD/app-story.git
+cd app-story
+npm ci && npm run install:cli   # builds it, installs `app-story`, and the browser it drives
 ```
+
+To update: `git pull`, then `npm run install:cli` again in the clone.
 
 Or with Docker, from your project folder (Linux: add `--user "$(id -u):$(id -g)"`):
 
 ```bash
-docker run --rm -it -v "$PWD:/work" ghcr.io/nirajgirixd/app-story check acme
+docker build -t app-story https://github.com/nirajgiriXD/app-story.git
+docker run --rm -it -v "$PWD:/work" app-story check acme
 ```
 
-In the commands below, `npx app-story` then becomes
-`docker run --rm -it -v "$PWD:/work" ghcr.io/nirajgirixd/app-story`. An app on your own
-computer is at `http://host.docker.internal:<port>` from inside Docker.
+In the commands below, `app-story` then becomes `docker run --rm -it -v "$PWD:/work" app-story`.
+An app on your own computer is at `http://host.docker.internal:<port>` from inside Docker.
 
-Or from this repository, to work on AppStory itself:
+Or to work on AppStory itself, in the clone:
 
 ```bash
-npm install
+npm ci
 npm run browsers:install       # Playwright Chromium
 ```
 
@@ -57,8 +60,8 @@ upwards, with an `apps/` or `.app-story/` folder (`APP_STORY_HOME` picks it expl
 
 ```bash
 npm run example-app            # terminal 1: a tiny app at http://localhost:4310
-npx app-story check example    # terminal 2
-npx app-story example
+app-story check example        # terminal 2
+app-story example
 ```
 
 `apps/example.md` describes it: its address, its login and its release notes.
@@ -66,18 +69,18 @@ npx app-story example
 ## Your own product
 
 ```bash
-npx app-story new acme         # creates apps/acme.md and asks for the app's address
+app-story new acme         # creates apps/acme.md and asks for the app's address
 ```
 
 Open `apps/acme.md`, add the login if the app has one, describe the app in a few
 sentences, and paste your release notes. Then:
 
 ```bash
-npx app-story check acme                    # settings, keys, login, the app, local tools
-npx app-story acme                          # one video of everything new in the release notes
-npx app-story acme --each                   # one video per new feature
-npx app-story acme "show how to export"     # a video of anything else, in plain words
-npx app-story acme --videos                 # one video per goal listed under "## Videos" in the file
+app-story check acme                    # settings, keys, login, the app, local tools
+app-story acme                          # one video of everything new in the release notes
+app-story acme --each                   # one video per new feature
+app-story acme "show how to export"     # a video of anything else, in plain words
+app-story acme --videos                 # one video per goal listed under "## Videos" in the file
 ```
 
 What happens:
@@ -99,9 +102,9 @@ The recording of the 5 newest videos of each product is kept. To make one again 
 another look, or after changing the `logo` or `color` in the product file:
 
 ```bash
-npx app-story redo acme                          # the newest acme video, with the current settings
-npx app-story redo acme --template tutorial      # in another look
-npx app-story redo acme 20261116-134205-a1b2c3   # an older one (ids are in `history`)
+app-story redo acme                          # the newest acme video, with the current settings
+app-story redo acme --template tutorial      # in another look
+app-story redo acme 20261116-134205-a1b2c3   # an older one (ids are in `history`)
 ```
 
 A redo opens no browser and calls no AI, so it works even when the app is down. The
@@ -111,25 +114,25 @@ When a video fails after the AI has planned it (the voice service was down, the
 recording hit a hiccup, the render failed), finish it without planning again:
 
 ```bash
-npx app-story resume acme                          # the newest failed acme video
-npx app-story resume acme 20261116-134205-a1b2c3   # a particular one
+app-story resume acme                          # the newest failed acme video
+app-story resume acme 20261116-134205-a1b2c3   # a particular one
 ```
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npx app-story <product> [goal]` | make videos, each with a blog post (options: `--each`, `--videos`, `--review`, `--intro`, `--captions`, `--chapters`, `--no-keys`, `--no-blog`, `--fresh`, `--headed`) |
-| `npx app-story new <name>` | create `apps/<name>.md` |
-| `npx app-story check <product>` | check settings, keys, login, the app and local tools |
-| `npx app-story list` | list your products |
-| `npx app-story history [product]` | recent videos, with their ids |
-| `npx app-story redo <product> [video]` | make a video again from its kept recording (option: `--template`) |
-| `npx app-story blog <product> [video]` | write a video's blog post again from its kept recording: no app, one AI request |
-| `npx app-story resume <product> [video]` | finish a failed video, or record one stopped by `--review`, without planning it again (option: `--headed`) |
-| `npx app-story replay <product> [plans...]` | make the videos of saved plans again, with their saved narration: no AI (for CI) |
-| `npx app-story test <product> [plans...]` | check the saved plans still work in the app: fast, no recording, voice or AI; exits with 1 if one broke |
-| `npx app-story import <product> <trace.zip>` | turn a Playwright test's trace into a saved plan (options: `--name`, `--title`, `--force`) |
+| `app-story <product> [goal]` | make videos, each with a blog post (options: `--each`, `--videos`, `--review`, `--intro`, `--captions`, `--chapters`, `--no-keys`, `--no-blog`, `--fresh`, `--headed`) |
+| `app-story new <name>` | create `apps/<name>.md` |
+| `app-story check <product>` | check settings, keys, login, the app and local tools |
+| `app-story list` | list your products |
+| `app-story history [product]` | recent videos, with their ids |
+| `app-story redo <product> [video]` | make a video again from its kept recording (option: `--template`) |
+| `app-story blog <product> [video]` | write a video's blog post again from its kept recording: no app, one AI request |
+| `app-story resume <product> [video]` | finish a failed video, or record one stopped by `--review`, without planning it again (option: `--headed`) |
+| `app-story replay <product> [plans...]` | make the videos of saved plans again, with their saved narration: no AI (for CI) |
+| `app-story test <product> [plans...]` | check the saved plans still work in the app: fast, no recording, voice or AI; exits with 1 if one broke |
+| `app-story import <product> <trace.zip>` | turn a Playwright test's trace into a saved plan (options: `--name`, `--title`, `--force`) |
 
 `--headed` shows the browser while it works. In a terminal, each running step of a video is
 one line that updates in place (`⠹ 0:12 Recording · create-project: ✓ Click "Save"`), ticked

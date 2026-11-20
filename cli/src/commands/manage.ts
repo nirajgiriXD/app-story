@@ -18,7 +18,7 @@ export function newCommand(): Command {
       const file = await newProductFile(globals(cmd).appsDir, { id, url });
       console.log(green(`✔ Created ${file}`));
       console.log(dim("  Add the login if the app has one, describe the app and paste your release notes."));
-      console.log(dim(`  Then: npx app-story check ${id}   and   npx app-story ${id}`));
+      console.log(dim(`  Then: app-story check ${id}   and   app-story ${id}`));
     });
 }
 
@@ -34,7 +34,7 @@ export function checkCommand(): Command {
         console.log(`${icon} ${item.message}`);
       }
       const errors = items.filter((i) => i.level === "error").length;
-      console.log(errors ? red(`\n${errors} problem(s) found.`) : green(`\nReady: npx app-story ${id}`));
+      console.log(errors ? red(`\n${errors} problem(s) found.`) : green(`\nReady: app-story ${id}`));
       process.exitCode = errors ? 1 : 0;
     });
 }
@@ -44,7 +44,7 @@ export function listCommand(): Command {
     const { appsDir } = globals(cmd);
     const items = await listProducts(appsDir);
     if (items.length === 0) {
-      console.log(dim(`No products yet. Create one with: npx app-story new <name>`));
+      console.log(dim(`No products yet. Create one with: app-story new <name>`));
       return;
     }
     for (const p of items) {

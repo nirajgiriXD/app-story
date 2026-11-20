@@ -93,7 +93,7 @@ export function migrate(db: DatabaseSync, migrations: readonly string[] = MIGRAT
   const current = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
   if (current > latest) {
     throw new AppStoryError("CONFIG_INVALID", `The database was made by a newer AppStory (version ${current}; this one knows up to ${latest}).`, {
-      hint: "Update AppStory: npm install app-story@latest",
+      hint: "Update AppStory: `git pull`, then `npm run install:cli`, in your AppStory clone.",
     });
   }
   if (current < BASE_VERSION) {

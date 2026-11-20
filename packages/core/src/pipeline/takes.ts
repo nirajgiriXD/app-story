@@ -81,7 +81,7 @@ export async function loadTake(dataDir: string, jobId: string): Promise<Take & {
   const file = join(dir, TAKE_FILE);
   if (!(await fileExists(file))) {
     throw new AppStoryError("CONFIG_INVALID", `There is no kept recording for the video ${jobId}.`, {
-      hint: `Only the ${TAKES_PER_PRODUCT} newest videos of each product keep their recording. See \`npx app-story history\`.`,
+      hint: `Only the ${TAKES_PER_PRODUCT} newest videos of each product keep their recording. See \`app-story history\`.`,
     });
   }
   const take = JSON.parse(await readFile(file, "utf8")) as Take;

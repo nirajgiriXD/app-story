@@ -18,8 +18,8 @@ product file, or for a video made without one (a replay, a redo). The new post r
 The 5 newest videos of each product keep their recording.
 
 Examples:
-  npx app-story blog acme                          the newest acme video
-  npx app-story blog acme 20261116-134205-a1b2c3   an older one`,
+  app-story blog acme                          the newest acme video
+  app-story blog acme 20261116-134205-a1b2c3   an older one`,
     )
     .action(async (productId: string, jobId: string | undefined, _opts: unknown, cmd: Command) => {
       const { outputDir, logLevel } = globals(cmd);

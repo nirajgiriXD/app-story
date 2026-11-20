@@ -77,7 +77,7 @@ export async function readPlan(product: LoadedProduct, name: string): Promise<Wo
     throw new AppStoryError("CONFIG_INVALID", `There is no saved plan '${name}' for ${product.id} (looked for ${file}).`, {
       hint: names.length
         ? `Saved plans: ${names.join(", ")}`
-        : `Make a video first (npx app-story ${product.id}), or import one: npx app-story import ${product.id} <trace.zip>`,
+        : `Make a video first (app-story ${product.id}), or import one: app-story import ${product.id} <trace.zip>`,
     });
   }
   return parseWorkflow(await readFile(file, "utf8"), file);

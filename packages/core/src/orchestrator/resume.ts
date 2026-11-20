@@ -39,7 +39,7 @@ export async function resumeDemo(request: ResumeRequest): Promise<JobMetadata> {
   const failed = request.jobId ? store.getJob(request.jobId) : newestFailed(store, product.id);
   if (!failed) {
     throw new AppStoryError("CONFIG_INVALID", request.jobId ? `There is no video ${request.jobId}.` : `No video of ${product.id} has failed.`, {
-      hint: `See them all: npx app-story history ${product.id}`,
+      hint: `See them all: app-story history ${product.id}`,
     });
   }
   if (failed.product_id !== product.id) {
@@ -47,7 +47,7 @@ export async function resumeDemo(request: ResumeRequest): Promise<JobMetadata> {
   }
   if (DONE.has(failed.status)) {
     throw new AppStoryError("CONFIG_INVALID", `The video ${failed.job_id} did not fail, so there is nothing to resume.`, {
-      hint: `To make it again with the current look: npx app-story redo ${product.id} ${failed.job_id}`,
+      hint: `To make it again with the current look: app-story redo ${product.id} ${failed.job_id}`,
     });
   }
 
@@ -58,7 +58,7 @@ export async function resumeDemo(request: ResumeRequest): Promise<JobMetadata> {
   const plan = WorkflowSchema.safeParse(store.getRecordJson(failed.job_id, "plan"));
   if (!plan.success) {
     throw new AppStoryError("CONFIG_INVALID", `The video ${failed.job_id} failed before its plan was ready, so there is nothing to resume.`, {
-      hint: `Make it again: npx app-story ${product.id}${failed.objective ? ` "${failed.objective}"` : ""}`,
+      hint: `Make it again: app-story ${product.id}${failed.objective ? ` "${failed.objective}"` : ""}`,
     });
   }
   const objective = failed.objective ?? plan.data.objective;

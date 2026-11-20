@@ -18,8 +18,8 @@ the cache and the app is recorded again. One that failed before it had a plan
 cannot be resumed; make it again instead.
 
 Examples:
-  npx app-story resume acme                          the newest failed acme video
-  npx app-story resume acme 20261116-134205-a1b2c3   a particular one`,
+  app-story resume acme                          the newest failed acme video
+  app-story resume acme 20261116-134205-a1b2c3   a particular one`,
     )
     .action(async (productId: string, jobId: string | undefined, opts: { headed?: boolean } & LookOptions, cmd: Command) => {
       const { outputDir, logLevel } = globals(cmd);

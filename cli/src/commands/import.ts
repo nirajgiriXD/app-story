@@ -21,16 +21,16 @@ and passwords are never copied. The test needs at least one expect().
 
 Examples:
   npx playwright test tests/export.spec.ts --trace on
-  npx app-story import acme test-results/export-bulk-export/trace.zip
-  npx app-story test acme bulk-export        check it works
-  npx app-story replay acme bulk-export      make its video`,
+  app-story import acme test-results/export-bulk-export/trace.zip
+  app-story test acme bulk-export        check it works
+  app-story replay acme bulk-export      make its video`,
     )
     .action(async (productId: string, trace: string, opts: { name?: string; title?: string; force?: boolean }) => {
       const product = await openProduct(productId);
       const imported = await importTrace({ product, trace, ...opts });
       console.log(green(`✔ Saved ${bold(imported.name)} (${imported.workflow.steps.length} steps) to ${imported.file}`));
       for (const note of imported.notes) console.log(yellow(`  ! ${note}`));
-      console.log(dim(`  Check it:      npx app-story test ${product.id} ${imported.name}`));
-      console.log(dim(`  Make a video:  npx app-story replay ${product.id} ${imported.name}`));
+      console.log(dim(`  Check it:      app-story test ${product.id} ${imported.name}`));
+      console.log(dim(`  Make a video:  app-story replay ${product.id} ${imported.name}`));
     });
 }

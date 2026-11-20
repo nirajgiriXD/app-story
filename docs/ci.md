@@ -75,4 +75,4 @@ docker run --rm --network host -v "$PWD:/work" -e ACME_PASSWORD app-story replay
 
 `replay` records the app again, so the video shows the app as it is now, with the same
 clicks and words. When a plan fails, the app changed under it: make the video again
-locally (`npx app-story acme`), which plans it again, and commit the new plan file.
+locally (`app-story acme`), which plans it again, and commit the new plan file.

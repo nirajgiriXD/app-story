@@ -1,6 +1,6 @@
 ---
 name: app-story
-description: Make a narrated product demo video of the web app in this project with AppStory, which drives a real browser through the running app, records it, narrates it and renders an MP4. Use when someone asks for a demo video, a feature video, a release video or a "what's new" video of their app, or to set up or run AppStory (apps/<name>.md, npx app-story).
+description: Make a narrated product demo video of the web app in this project with AppStory, which drives a real browser through the running app, records it, narrates it and renders an MP4. Use when someone asks for a demo video, a feature video, a release video or a "what's new" video of their app, or to set up or run AppStory (apps/<name>.md, app-story).
 ---
 
 # AppStory
@@ -14,10 +14,12 @@ full-screen intro first; `--captions` draws the captions on the video, not only 
 
 ## 1. Check what is there
 
-- Is AppStory installed? Look for `app-story` in `package.json`, or run `npx app-story --help`.
-  If it is missing, ask before installing it: `npm install --save-dev app-story`, then
-  `npx playwright install chromium`. It needs Node.js 22.13+ and FFmpeg on `PATH`. With
-  Docker instead, see the README's "Install".
+- Is AppStory installed? Run `app-story --help`. AppStory is not on npm: never run
+  `npm install app-story` or `npx app-story`, as they could fetch someone else's package. If it
+  is missing, ask before installing it, outside this project: `git clone
+  https://github.com/nirajgiriXD/app-story.git`, then in the clone `npm ci && npm run
+  install:cli`. It needs Node.js 22.13+ and FFmpeg on `PATH`. With Docker instead, see the
+  README's "Install".
 - Is there a `apps/` folder? Each product is one Markdown file, `apps/<name>.md`.
   If one exists, work with it; do not make a second one for the same app.
 - Is there an AI key? `.env` needs `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` (or `ai: local`
@@ -32,7 +34,7 @@ find its start command (`package.json` scripts, the README) and offer to start i
 
 ## 3. Write the product file
 
-Start it with `npx app-story new <name> --url <address>` (without `--url` it asks for the
+Start it with `app-story new <name> --url <address>` (without `--url` it asks for the
 address and waits), then fill it in. A small settings block, then plain
 English for the AI:
 
@@ -76,11 +78,11 @@ login: demo@example.com / env:APP_DEMO_PASSWORD
 ## 4. Check it, then make the video
 
 ```bash
-npx app-story check <name>          # settings, keys, login, the app, local tools: fix what it reports
-npx app-story <name>                # one video of what's new in the release notes
-npx app-story <name> --each         # one video per new feature
-npx app-story <name> "show how to export a report"   # a video of anything else
-npx app-story <name> --videos       # one video per goal under "## Videos" in the product file
+app-story check <name>          # settings, keys, login, the app, local tools: fix what it reports
+app-story <name>                # one video of what's new in the release notes
+app-story <name> --each         # one video per new feature
+app-story <name> "show how to export a report"   # a video of anything else
+app-story <name> --videos       # one video per goal under "## Videos" in the product file
 ```
 
 When the user wants the same few videos again and again, list their goals under a
@@ -95,7 +97,7 @@ no AI cost; suggest committing that folder.
 Tell the user where the files are, in `output/<name>/`: the `.mp4`, its captions (`.srt`),
 its thumbnail (`.png`), a description for YouTube (`.description.txt`), a short post to
 share it with (`.post.txt`) and a blog post (`.blog.md`, with its screenshots `.blog-1.png`, …;
-`npx app-story blog <name>` writes it again), plus any `vertical`, `square` or `gif` versions the product
-file asked for. If a run failed, `npx app-story resume <name>` finishes it without planning
-again. If they want the videos kept up to date, `npx app-story test <name>` checks every
+`app-story blog <name>` writes it again), plus any `vertical`, `square` or `gif` versions the product
+file asked for. If a run failed, `app-story resume <name>` finishes it without planning
+again. If they want the videos kept up to date, `app-story test <name>` checks every
 saved plan in CI (see the README's "Plans as tests, CI and Playwright").

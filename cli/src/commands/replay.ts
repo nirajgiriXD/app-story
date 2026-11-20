@@ -19,8 +19,8 @@ again. A plan without narration yet (an imported one) gets it from the AI once, 
 is saved in the plan: commit the file.
 
 Examples:
-  npx app-story replay acme                  every saved plan of acme
-  npx app-story replay acme bulk-export      one plan`,
+  app-story replay acme                  every saved plan of acme
+  app-story replay acme bulk-export      one plan`,
     )
     .action(async (productId: string, names: string[], opts: { headed?: boolean } & LookOptions, cmd: Command) => {
       const { outputDir, logLevel } = globals(cmd);

@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-/** Next to this file in the sources; in `prompts/` next to the bundle in the published package. */
+/** Next to this file in the sources; in `prompts/` next to the bundle in the built package. */
 const promptDir = existsSync(join(here, "prompts")) ? join(here, "prompts") : here;
 
 /** Prompt versions in use. Bump the file suffix (and this table) when a prompt changes meaningfully. */

@@ -45,7 +45,7 @@ export async function writeBlog(request: BlogRequest): Promise<BlogResult> {
   const jobId = request.jobId ?? (await listTakes(store.dataDir, product.id))[0]?.jobId;
   if (!jobId) {
     throw new AppStoryError("CONFIG_INVALID", `No video of ${product.id} has a kept recording yet.`, {
-      hint: `Make one first: npx app-story ${product.id} (the ${TAKES_PER_PRODUCT} newest videos of each product keep their recording)`,
+      hint: `Make one first: app-story ${product.id} (the ${TAKES_PER_PRODUCT} newest videos of each product keep their recording)`,
     });
   }
   const take = await loadTake(store.dataDir, jobId);

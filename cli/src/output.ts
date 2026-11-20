@@ -23,7 +23,7 @@ export function printJob(m: JobMetadata): void {
   if (m.status === "awaiting_approval") {
     console.log(`\n${yellow("⏸")} ${bold("awaiting approval")}  ${dim(`job ${m.job_id}`)}`);
     console.log("  Planned, not recorded. The plan is kept with the job.");
-    console.log(`  Record it: npx app-story resume ${m.product_id} ${m.job_id}`);
+    console.log(`  Record it: app-story resume ${m.product_id} ${m.job_id}`);
     return;
   }
   const ok = GOOD.has(m.status);
@@ -41,7 +41,7 @@ export function printJob(m: JobMetadata): void {
   if (!ok) console.log(`  Debug:     ${m.output_dir}`);
   // A plan that passed its checks was kept with the job: the next try need not plan again.
   if (!ok && m.mode !== "redo" && m.workflow_version !== null && m.status !== "unsupported_workflow") {
-    console.log(`  Resume:    npx app-story resume ${m.product_id} ${m.job_id}`);
+    console.log(`  Resume:    app-story resume ${m.product_id} ${m.job_id}`);
   }
   for (const w of m.warnings) console.log(yellow(`  ! ${w}`));
   for (const e of m.errors) {

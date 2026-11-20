@@ -9,7 +9,7 @@ color: "#4F46E5"
 
 Projectly is a lightweight project tracker for small teams. The videos are for new users.
 
-<!-- This is the practice app: start it with `npm run example-app`, then run `npx app-story example`.
+<!-- This is the practice app: start it with `npm run example-app`, then run `app-story example`.
      Its demo password is fake, so it is written here directly. For a real app, use env:NAME. -->
 
 ## Tips for the demo

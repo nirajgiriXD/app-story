@@ -13,6 +13,7 @@
   "scripts": {
     "app-story": "tsx cli/src/index.ts",
     "build": "tsx scripts/build-package.ts",
+    "install:cli": "tsx scripts/install-cli.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

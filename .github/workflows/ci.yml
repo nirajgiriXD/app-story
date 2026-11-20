@@ -70,7 +70,7 @@ jobs:
       - run: npm run test:e2e -- --reporter=verbose
 
   package:
-    name: npm package and Docker image
+    name: Install from the repository, and the Docker image
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -81,15 +81,12 @@ jobs:
           cache: npm
       - run: npm install -g npm@12
       - run: npm ci
-      - run: npm run build
-      - name: Install the package in an empty folder and run it
+      - name: Install the command the way the README says, and run it in an empty folder
         run: |
-          npm pack ./dist/app-story --pack-destination "$RUNNER_TEMP"
+          npm run install:cli
           mkdir "$RUNNER_TEMP/try" && cd "$RUNNER_TEMP/try"
-          npm init -y > /dev/null
-          npm install --ignore-scripts "$RUNNER_TEMP"/app-story-*.tgz
-          npx app-story new demo --url http://localhost:3000
-          npx app-story list | grep demo
+          app-story new demo --url http://localhost:3000
+          app-story list | grep demo
       - name: Build the Docker image and run it
         run: |
           docker build -t app-story .

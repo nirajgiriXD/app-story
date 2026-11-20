@@ -1,7 +1,7 @@
-// Builds the npm package `app-story` into dist/app-story/, ready for `npm pack` or `npm publish`.
+// Builds the package `app-story` into dist/app-story/, which `npm run install:cli` and the
+// Dockerfile install. It is not published to npm.
 //
 //   npm run build
-//   npm publish ./dist/app-story
 //
 // The engine's own packages are bundled into one file; everything from npm stays a
 // normal dependency. The render page and the AI prompts are shipped next to it, so the

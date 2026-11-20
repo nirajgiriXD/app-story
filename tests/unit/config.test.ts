@@ -306,6 +306,12 @@ describe("products folder", () => {
     await expect(newProductFile(dir, { id: "Bad Name", url: "https://x.test" })).rejects.toThrow(/not a valid product name/);
   });
 
+  it("creates the apps folder of a new project", async () => {
+    const apps = join(await mkdtemp(join(tmpdir(), "df-")), "apps");
+    await newProductFile(apps, { id: "shop", url: "https://shop.test" });
+    expect((await loadProduct(apps, "shop")).config.product.base_url).toBe("https://shop.test");
+  });
+
   it("loads the bundled example product", async () => {
     const product = await loadProduct("apps", "example");
     expect(product.config.authentication).toMatchObject({ strategy: "auto", username: "demo@example.com" });

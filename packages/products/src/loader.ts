@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
@@ -507,6 +507,7 @@ export async function newProductFile(appsDir: string, options: { id: string; url
     "",
   ].join("\n");
   parseProductFile(text, file, options.id); // never write a file we could not load back
+  await mkdir(appsDir, { recursive: true }); // a new project has no apps/ yet
   await writeFile(file, text, "utf8");
   return file;
 }

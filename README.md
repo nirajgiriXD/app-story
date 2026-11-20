@@ -287,14 +287,14 @@ npx app-story import acme trace.zip        # a Playwright test becomes a plan
   (AppStory logs in with `login:`) and passwords are never copied. Run `replay` once with
   an AI key to write its narration, then commit the plan.
 
-In GitHub Actions, the action in this repository runs the Docker image for you:
+In GitHub Actions, the action in this repository builds the Docker image and runs it for
+you:
 
 ```yaml
-- uses: nirajgiriXD/app-story@main
+- uses: nirajgiriXD/app-story@v0.1.0   # pin it, so videos do not change by themselves
   with:
     products: acme
     command: replay          # or: test
-    version: 0.1.0           # the AppStory version to run
     env-vars: ACME_PASSWORD  # passwords your product files read with env:NAME
   env:
     ACME_PASSWORD: ${{ secrets.ACME_PASSWORD }}

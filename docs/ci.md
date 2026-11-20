@@ -24,24 +24,27 @@ jobs:
       - run: docker compose up -d && npx wait-on http://localhost:3000
 
       # Fails when a plan no longer works in the app, naming the step that broke.
-      - uses: nirajgiriXD/app-story@main
+      - uses: nirajgiriXD/app-story@v0.1.0
         with:
           products: acme
           command: test
-          version: 0.1.0
           env-vars: ACME_PASSWORD
         env:
           ACME_PASSWORD: ${{ secrets.ACME_PASSWORD }}
 
       # Makes every saved plan's video again and uploads output/ as an artifact.
-      - uses: nirajgiriXD/app-story@main
+      - uses: nirajgiriXD/app-story@v0.1.0
         with:
           products: acme
-          version: 0.1.0
           env-vars: ACME_PASSWORD
         env:
           ACME_PASSWORD: ${{ secrets.ACME_PASSWORD }}
 ```
+
+The action builds AppStory's Docker image from this repository, so nothing needs to be
+installed or published. The build is kept in the GitHub Actions cache: the first run of a
+version takes several minutes, later runs reuse it. Pin the action to a tag or a commit
+(`@v0.1.0`, not `@main`), so the videos do not change by themselves.
 
 | Input | Default | What it is |
 | --- | --- | --- |
@@ -49,8 +52,7 @@ jobs:
 | `command` | `replay` | `replay` makes the videos again; `test` only checks the plans |
 | `plans` | all | plan names, separated by spaces |
 | `env-vars` | | names of variables to pass in: the passwords your product files read with `env:NAME` |
-| `version` | `latest` | the AppStory Docker image tag; pin it so videos do not change by themselves |
-| `image` | | a full image name instead, e.g. one you built |
+| `image` | | a full image name to run instead of building one, e.g. one you built and pushed |
 | `working-directory` | `.` | the folder with `apps/` |
 | `upload` | `true` | upload `output/` as an artifact after `replay` |
 | `artifact-name` | `app-story-videos` | the artifact's name |
@@ -61,11 +63,12 @@ plan that has no saved narration yet (an imported one), or for a paid voice.
 
 ## Elsewhere
 
-Any CI with Docker can run the same commands:
+Any CI with Docker can build the image from this repository and run the same commands:
 
 ```bash
-docker run --rm --network host -v "$PWD:/work" -e ACME_PASSWORD ghcr.io/nirajgirixd/app-story test acme
-docker run --rm --network host -v "$PWD:/work" -e ACME_PASSWORD ghcr.io/nirajgirixd/app-story replay acme
+docker build -t app-story https://github.com/nirajgiriXD/app-story.git#v0.1.0
+docker run --rm --network host -v "$PWD:/work" -e ACME_PASSWORD app-story test acme
+docker run --rm --network host -v "$PWD:/work" -e ACME_PASSWORD app-story replay acme
 ```
 
 ## What changes a video
